@@ -1,5 +1,5 @@
 # Naija Votes 2027
-A multiplayer Nigerian life-sim where every player lives as a randomly assigned citizen, gets their PVC,
+A multiplayer Nigerian life-sim where every player picks their state and LGA and lives a randomly rolled life, gets their PVC,
 campaigns, and votes once on a single shared election day. Free and fair is the premise.
 
 ## Reference
@@ -26,7 +26,8 @@ The Next.js app lives in kl/ (all paths below are relative to it).
   ilorin/ (hand-built Ilorin places, roads, actions, billboard slots)
 - src/sim: needs, clock, actions, travel, media, campaign, vote-buying, election, results (pure, unit tested,
   shared with the edge functions)
-- src/world: LGA maps from OpenStreetMap road shapes (biome, landmark, roads), buildings, traffic, interiors
+- src/world: LGA towns drawn on the isometric grid (rich, mixed and poor districts, biome, landmark, roads),
+  buildings, traffic, interiors; Ilorin keeps its hand-built map
 - src/store: Zustand client state; src/net: typed client for edge functions and CDN snapshots
 - src/components: HUD, panels, modals, ballot, results
 - supabase/shard and supabase/national: migrations, edge functions (sign-up, act, vote, promo), collation job
