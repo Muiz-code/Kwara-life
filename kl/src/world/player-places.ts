@@ -59,16 +59,19 @@ export function addPlayerPlaces(map: WorldMap, o: PlayerPlacesOptions): WorldMap
   const places: MapPlace[] = [...map.places];
   const has = (id: string) => places.some((p) => p.id === id);
 
-  const pickRoad = (want: (r: MapRoad) => boolean, far: boolean): MapRoad => {
+  /**
+   * A street to build on. Home goes to the quieter streets a walk away from the
+   * centre, work to a bigger road nearer it. Never the very furthest street, or
+   * the citizen would live in the bush.
+   */
+  const pickRoad = (want: (r: MapRoad) => boolean, away: boolean): MapRoad => {
     const list = map.roads.filter(want);
     const from = (list.length ? list : map.roads).slice();
-    from.sort((a, b) => {
-      const da = distTo(beside(a, 0.5), centre);
-      const db = distTo(beside(b, 0.5), centre);
-      return far ? db - da : da - db;
-    });
-    // One of the three best, so two citizens in the same LGA do not share a street.
-    return from[Math.min(from.length - 1, Math.floor(rng() * 3))];
+    from.sort((a, b) => distTo(beside(a, 0.5), centre) - distTo(beside(b, 0.5), centre));
+    // Home: somewhere in the middle of the spread. Work: close in.
+    const base = away ? Math.floor(from.length * 0.45) : 0;
+    const i = base + Math.floor(rng() * Math.min(3, from.length - base));
+    return from[Math.min(from.length - 1, i)];
   };
 
   if (!has("home")) {

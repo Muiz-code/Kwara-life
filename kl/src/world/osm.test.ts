@@ -90,6 +90,7 @@ describe("tidying OpenStreetMap names", () => {
     expect(tidyName("FGQJ+WXH, Oja Tutun, Oja Oba, Oko Erin 240281, Kwara, Nigeria")).toBe("Oja Tutun");
     expect(tidyName("Sultan royal hotel & resort Ltd")).toBe("Sultan royal hotel & resort Ltd");
     expect(tidyName("Kwara State Polytechnic, Ilorin")).toBe("Kwara State Polytechnic");
+    expect(tidyName("Oko Erin 240281, Kwara, Nigeria")).toBe("Oko Erin");
     expect(tidyName("A very long name for one small place indeed, Ilorin").length).toBeLessThanOrEqual(34);
   });
 });

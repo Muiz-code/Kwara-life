@@ -71,7 +71,12 @@ const PLACE_FILTERS = [
   '["aeroway"="aerodrome"]',
 ];
 
-const HIGHWAYS = "^(trunk|primary|secondary|tertiary|residential|unclassified)$";
+// Main roads only by default: an LGA's residential streets run to thousands of
+// ways, which is a heavy ask of a free Overpass server and more detail than a
+// tile map shows. Pass --with-residential for the full street network.
+const MAIN_ROADS = "^(trunk|primary|secondary|tertiary)$";
+const ALL_ROADS = "^(trunk|primary|secondary|tertiary|residential|unclassified)$";
+const HIGHWAYS = flag("--with-residential") ? ALL_ROADS : MAIN_ROADS;
 
 /** The Overpass query for one LGA, by its name inside its state. */
 function lgaQuery(stateName, lgaName) {
@@ -147,7 +152,8 @@ async function overpass(key, query) {
 async function buildLga(lga) {
   const state = STATES.find((s) => s.code === lga.stateCode);
   if (!state) throw new Error(`No state for ${lga.code}`);
-  const key = `${state.code}--${slug(lga.name)}`;
+  // A cached answer belongs to the query that fetched it, so the key says which.
+  const key = `${state.code}--${slug(lga.name)}${flag("--with-residential") ? "-full" : ""}`;
   const raw = await overpass(key, lgaQuery(state.name, lga.name));
   const { map, missing, stats } = osmToWorldMap(raw, {
     id: lga.code,

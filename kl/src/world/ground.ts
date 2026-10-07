@@ -11,7 +11,7 @@ import type { MapRoad, Point, WorldMap } from "./types";
 const hex = (c: string) => parseInt(c.replace("#", ""), 16);
 
 /** Road width on screen by class. Trunk roads are the widest. */
-const ROAD_W: Record<string, number> = { trunk: 30, primary: 28, secondary: 26, tertiary: 22, residential: 17 };
+const ROAD_W: Record<string, number> = { trunk: 30, primary: 25, secondary: 22, tertiary: 17, residential: 10 };
 const widthOf = (r: MapRoad) => ROAD_W[r.cls ?? "secondary"] ?? 26;
 
 function tree(g: Graphics, x: number, y: number, s: number, kind: string) {
@@ -237,7 +237,8 @@ export function buildGround(map: WorldMap, fonts: { ui: string }): Container {
     g.stroke({ width: widthOf(r), color: hex(B.road), cap: "round", join: "round" });
   }
   for (const r of byWidth) {
-    if (widthOf(r) < 20) continue;
+    // Only the bigger roads are painted with a centre line.
+    if (widthOf(r) < 17) continue;
     dashedLine(g, r.pts, 12, 12);
   }
   g.stroke({ width: 2, color: 0xe8e2d0 });
@@ -279,7 +280,7 @@ export function buildGround(map: WorldMap, fonts: { ui: string }): Container {
   for (const r of map.roads) {
     if (!r.name) continue;
     const spot = labelSpot(r);
-    if (spot.len < 170) continue;
+    if (spot.len < 170 || widthOf(r) < 17) continue;
     // One label per street name keeps a long road from shouting.
     if (labelled.has(r.name) && R() < 0.6) continue;
     labelled.add(r.name);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PLACES } from "../data/ilorin/places";
 import { ROADS } from "../data/ilorin/roads";
-import { nodePos, placePos, route as simRoute } from "../sim/world";
+import { nodePos, placePos, route as simRoute, type Route } from "../sim/world";
 import { ilorinMap, shapeKey } from "./ilorin-map";
 import { generateMap } from "./generate";
 import { STATES } from "../data/states";
@@ -40,6 +40,15 @@ describe("routing on road shapes", () => {
     ]);
     expect(ac.length).toBeCloseTo(40 + 400 + 800, 6);
     expect(ac.roads.map((x) => x.name)).toEqual(["Top Road", "Down Road"]);
+  });
+
+  it("hands back the same shape of route the travel code expects", () => {
+    // sim/travel reads route.length, route.pts and route.highway, so a map route
+    // must fit the sim's Route without any adapter.
+    const asSimRoute: Route = r.route("a", "b");
+    expect(asSimRoute.length).toBeGreaterThan(0);
+    expect(asSimRoute.pts.length).toBeGreaterThan(1);
+    expect(asSimRoute.highway).toBe(false);
   });
 
   it("measures the real road length, not the straight line", () => {

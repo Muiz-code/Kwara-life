@@ -181,12 +181,29 @@ export function osmToWorldMap(res: OverpassResponse, o: ConvertOptions): Convert
     const i = LANDMARK_RANK.indexOf(k);
     return i < 0 ? LANDMARK_RANK.length : i;
   };
+  // A park or field named after the street it sits on is not a landmark.
+  const streetish = /\b(road|rd|street|st|close|avenue|ave|way|lane|crescent|drive)$/i;
   const landmarks = candidates
-    .filter((c) => c.tags.name && !taken.has(c.kind) && !CIVIC_KINDS.includes(c.kind))
+    .filter((c) => c.tags.name && !streetish.test(tidyName(c.tags.name)) && !taken.has(c.kind) && !CIVIC_KINDS.includes(c.kind))
     .filter((c, i, all) => all.findIndex((x) => tidyName(x.tags.name!) === tidyName(c.tags.name!)) === i)
     .sort((a, b) => rank(a.kind) - rank(b.kind) || Math.hypot(a.at.x, a.at.y) - Math.hypot(b.at.x, b.at.y))
     .slice(0, o.maxLandmarks ?? 6);
   chosen.push(...landmarks);
+
+  // A landmark far outside town (an airport on the LGA edge, a reserve in the
+  // bush) would stretch the whole map, so it is left off.
+  const civic = chosen.filter((c) => CIVIC_KINDS.includes(c.kind));
+  if (civic.length > 2) {
+    const town = {
+      x: civic.reduce((t, c) => t + c.at.x, 0) / civic.length,
+      y: civic.reduce((t, c) => t + c.at.y, 0) / civic.length,
+    };
+    const spread = Math.max(...civic.map((c) => Math.hypot(c.at.x - town.x, c.at.y - town.y)));
+    // Generous: a landmark on the edge of town stays, one in the next village goes.
+    const reach = Math.max(spread * 2.2, 1500);
+    const far = chosen.filter((c) => !CIVIC_KINDS.includes(c.kind) && Math.hypot(c.at.x - town.x, c.at.y - town.y) > reach);
+    for (const c of far) chosen.splice(chosen.indexOf(c), 1);
+  }
 
   // Crop the roads to the built-up area the chosen places sit in.
   const pad = 600;
@@ -260,6 +277,8 @@ export function tidyName(raw: string): string {
   const drop = /^(nigeria|kwara|[0-9]{5,6}|p\.?o\.? box.*|off .*|behind .*)$/i;
   const first = chunks.find((c) => c.length > 2 && !drop.test(c));
   let name = (first ?? chunks.find((c) => c.length > 0) ?? raw).replace(/[.;]+$/, "").trim();
+  // Addresses often end with the postcode, which nobody says.
+  name = name.replace(/\s+[0-9]{5,6}$/, "").trim();
   if (name.length > 34) {
     const cut = name.slice(0, 34);
     name = cut.slice(0, Math.max(cut.lastIndexOf(" "), 20)).trim();
