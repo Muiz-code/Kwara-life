@@ -14,7 +14,7 @@ import {
   TRAFFIC_W, VEHICLE_ART, VEHICLE_W,
 } from "./art";
 import { buildGround } from "./ground";
-import { ilorinMap } from "./ilorin-map";
+import { ilorinMap, loadIlorinShapes } from "./ilorin-map";
 import { billboardPositions, hitTest, standAt } from "./layout";
 import { pointAlong, router, type RoadGraph } from "./routing";
 import { drawTile, KIND_ART } from "./tiles";
@@ -119,9 +119,13 @@ export class GameMap {
     this.map = map;
   }
 
-  /** The map defaults to the hand-built Ilorin one, as before. */
+  /**
+   * The map defaults to the hand-built Ilorin one, as before, with its real road
+   * shapes when they have been fetched.
+   */
   static async create(host: HTMLElement, store: GameStoreApi, cb: MapCallbacks = {}, map?: WorldMap): Promise<GameMap> {
-    const m = new GameMap(store, cb, map ?? devMap() ?? ilorinMap());
+    const fallback = devMap() ?? ilorinMap(await loadIlorinShapes());
+    const m = new GameMap(store, cb, map ?? fallback);
     await m.init(host);
     return m;
   }

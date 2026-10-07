@@ -113,8 +113,8 @@ describe("the Ilorin map as a WorldMap", () => {
   it("draws the real road line when shapes are fetched", () => {
     const a = nodePos("po");
     const b = nodePos("palace");
-    // A road that bulges out to one side, in the fetch script's own pixels.
-    const raw: [number, number][] = [[0, 0], [40, 60], [80, 60], [120, 0]];
+    // A road that bends gently to one side, in the fetch script's own pixels.
+    const raw: [number, number][] = [[0, 0], [40, 22], [80, 22], [120, 0]];
     const withShapes = ilorinMap({ [shapeKey("po", "palace")]: raw });
     const road = withShapes.roads.find((r) => r.name === "Ibrahim Taiwo Rd")!;
     expect(road.pts.length).toBe(4);
@@ -123,6 +123,14 @@ describe("the Ilorin map as a WorldMap", () => {
     expect(polylineLength(road.pts)).toBeGreaterThan(Math.hypot(b.x - a.x, b.y - a.y));
     expect(withShapes.source).toBe("osm");
     expect(withShapes.attribution).toContain("OpenStreetMap");
+  });
+
+  it("keeps the straight line when the fetched shape wanders off", () => {
+    // A route that went round the long way is the wrong road, not a bend.
+    const wild: [number, number][] = [[0, 0], [60, 400], [140, 420], [200, 0]];
+    const map2 = ilorinMap({ [shapeKey("po", "palace")]: wild });
+    const road = map2.roads.find((r) => r.name === "Ibrahim Taiwo Rd")!;
+    expect(road.pts).toEqual([nodePos("po"), nodePos("palace")]);
   });
 });
 
