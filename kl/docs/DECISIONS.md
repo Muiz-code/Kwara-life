@@ -76,9 +76,8 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - Real-money commercial ads on in-game TVs, billboards, the news ticker and radio, sold per number of showings
   (impressions) and targeted by nation, zone, state or LGA. Images and short videos; videos are scaled down and
   compressed to the slot the advertiser buys. Every ad is reviewed before it runs.
-- Real-money "campaign for your favourite" promotion is NOT enabled yet. CLAUDE.md says promotion is in-game money
-  only and DESIGN.md says real-money political promotion needs legal advice first. Build it behind a switch that
-  stays off until a lawyer has cleared it (see the open questions in chat).
+- No real-money political promotion. Campaign promotion stays in-game money only (CLAUDE.md), so no party or
+  supporter can buy visibility with real money.
 
 ### Servers and travel between them
 - Six zone servers (Supabase projects: NC, NE, NW, SE, SS, SW, each about 5 to 7 states) plus one national server,
