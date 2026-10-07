@@ -208,6 +208,27 @@ export function buildGraph(map: WorldMap): RoadGraph {
   return { verts, gate };
 }
 
+/**
+ * A quick "how far is the nearest road" for a map, used by the ground layer and
+ * by billboard placement. Built once, then each question is a grid lookup.
+ */
+export function roadFinder(map: WorldMap) {
+  const index = new SegmentIndex();
+  map.roads.forEach((r, ri) => {
+    for (let i = 1; i < r.pts.length; i++) index.add(ri, i, r.pts[i - 1], r.pts[i]);
+  });
+  const nearest = (p: Point) => {
+    let best: { d: number; p: Point; road: number } | null = null;
+    for (const id of index.near(p)) {
+      const seg = index.segs[id];
+      const pr = projectOnSegment(p, seg.a, seg.b);
+      if (!best || pr.d < best.d) best = { d: pr.d, p: pr.p, road: seg.road };
+    }
+    return best;
+  };
+  return { nearest, distance: (p: Point) => nearest(p)?.d ?? Infinity };
+}
+
 /** Binary heap keyed by distance. */
 class Heap {
   private a: [number, number][] = [];

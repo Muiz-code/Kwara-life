@@ -1,5 +1,5 @@
 // Pure placement helpers for any LGA map: where billboards stand and what a tap hits.
-import { projectOnSegment, segmentDistance } from "./routing";
+import { roadFinder, segmentDistance } from "./routing";
 import { BILLBOARD_W, TILE_BASE, TILE_W } from "./art";
 import type { BillboardSlot, Point, WorldMap } from "./types";
 
@@ -7,11 +7,7 @@ export { segmentDistance };
 
 /** Distance from a point to the nearest road. */
 export function roadDistance(map: WorldMap, p: Point): number {
-  let best = Infinity;
-  for (const r of map.roads) {
-    for (let i = 1; i < r.pts.length; i++) best = Math.min(best, projectOnSegment(p, r.pts[i - 1], r.pts[i]).d);
-  }
-  return best;
+  return roadFinder(map).distance(p);
 }
 
 /** Where the player stands when at a place: beside the building, facing the road. */
@@ -23,7 +19,7 @@ export function standAt(map: WorldMap, id: string): Point {
 }
 
 /** Clear of building tiles and roads, with room for a board of the given width. */
-function isFree(map: WorldMap, p: Point, taken: Point[]): boolean {
+function isFree(map: WorldMap, p: Point, taken: Point[], roads: ReturnType<typeof roadFinder>): boolean {
   if (map.places.some((pl) => Math.hypot(pl.x - p.x, pl.y - p.y) < 140)) return false;
   // Keep clear of the spot where the player stands outside each place.
   if (map.places.some((pl) => {
@@ -31,7 +27,7 @@ function isFree(map: WorldMap, p: Point, taken: Point[]): boolean {
     return Math.hypot(s.x - p.x, s.y - p.y) < 120;
   })) return false;
   if (taken.some((t) => Math.hypot(t.x - p.x, t.y - p.y) < BILLBOARD_W)) return false;
-  const d = roadDistance(map, { x: p.x, y: p.y - 10 });
+  const d = roads.distance({ x: p.x, y: p.y - 10 });
   return d > 30 && d < 130;
 }
 
@@ -43,6 +39,7 @@ function isFree(map: WorldMap, p: Point, taken: Point[]): boolean {
 export function billboardPositions(map: WorldMap): Record<string, Point> {
   const out: Record<string, Point> = {};
   const taken: Point[] = [];
+  const roads = roadFinder(map);
   for (const slot of map.billboards ?? defaultSlots(map)) {
     const c = anchorOf(map, slot.near);
     if (!c) continue;
@@ -52,7 +49,7 @@ export function billboardPositions(map: WorldMap): Record<string, Point> {
       for (let i = 0; i < 24 && !found; i++) {
         const ang = start + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * (Math.PI / 12);
         const p = { x: Math.round(c.x + Math.cos(ang) * r), y: Math.round(c.y + Math.sin(ang) * r * 0.75) };
-        if (isFree(map, p, taken)) found = p;
+        if (isFree(map, p, taken, roads)) found = p;
       }
     }
     // A tight map may have no clear ground. Skip the board rather than cover a building.

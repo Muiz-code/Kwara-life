@@ -377,11 +377,23 @@ export function keepMainComponent(map: WorldMap): WorldMap {
   }
   if (groups <= 1) return map;
   const main = size.indexOf(Math.max(...size));
+  // Look vertices up by rounded position rather than scanning them all.
+  const at = new Map<string, number>();
+  graph.verts.forEach((v) => at.set(`${Math.round(v.x / 9)},${Math.round(v.y / 9)}`, v.id));
+  const vertexNear = (p: Point) => {
+    for (let i = -1; i <= 1; i++) {
+      for (let j = -1; j <= 1; j++) {
+        const id = at.get(`${Math.round(p.x / 9) + i},${Math.round(p.y / 9) + j}`);
+        if (id !== undefined && Math.hypot(graph.verts[id].x - p.x, graph.verts[id].y - p.y) < 9) return id;
+      }
+    }
+    return undefined;
+  };
   const keep = new Set<number>();
   map.roads.forEach((r, ri) => {
     const on = r.pts.some((p) => {
-      const v = graph.verts.find((x) => Math.hypot(x.x - p.x, x.y - p.y) < 9);
-      return v ? seen[v.id] === main : false;
+      const v = vertexNear(p);
+      return v !== undefined ? seen[v] === main : false;
     });
     if (on) keep.add(ri);
   });
