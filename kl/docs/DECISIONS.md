@@ -46,3 +46,12 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - Vote buying rolls its outcome before the hour of sharing money passes (same odds as the prototype).
 - A PVC collection attempt INEC turns away ("come back tomorrow") can be retried on the next real WAT day.
 - In-game news names the game's own election date and never says INEC set it.
+
+### Travel between LGAs and states
+- Citizens can travel anywhere in Nigeria. Interstate trips run between state capitals (src/data/capitals.ts):
+  bus from any motor park (every class), flights between states with an airport (middle class and rich), own car
+  (rich). Fares and times come from road distance; bus fares rise 50% in the last 3 days before polls
+  ("everybody is going home to vote").
+- Away from home there is no home or workplace: lodge at the hotel or guest house (price by class).
+- Registration, PVC collection, vote buying and voting only work in your own LGA. You can only vote at your own
+  polling unit, so you have to travel home first.

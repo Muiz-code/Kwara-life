@@ -89,6 +89,8 @@ export interface GameState {
   // ---- Naija Votes ----
   /** The rolled citizen. Null on the Ilorin-only legacy save until the player makes one. */
   citizen: Citizen | null;
+  /** LGA code the citizen is visiting, or null when at home. loc is a place in this LGA's map. */
+  at: string | null;
   informed: number;
   civic: number;
   /** Arrested for vote buying: on bail for the rest of the season. */
@@ -131,6 +133,7 @@ export function freshState(): GameState {
     horseDay: -1,
     inside: false,
     citizen: null,
+    at: null,
     informed: 0,
     civic: 0,
     onBail: false,
