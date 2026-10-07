@@ -1,0 +1,13 @@
+# label | type | url  (generated map tiles; built into public/assets/tiles)
+tiles/inec | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_145359_1b9b14cd-502a-4239-91d1-cbb663f036c2.png
+tiles/school | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_145401_7754c34a-beb0-4adb-abe6-33598db975bd.png
+tiles/viewingcentre | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_145359_40b5d3d7-c253-4268-945a-5c838ce12598.png
+tiles/townhall | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_145359_6017f611-7b8c-4b91-af4b-c01b41183c96.png
+tiles/newsstand | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_145449_68191372-842a-4e3b-8d9e-0c3222163a11.png
+tiles/noticeboard | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_145448_68f34691-bad7-4649-a4a9-7cdfb907cb91.png
+tiles/office | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_145448_8748ae38-2ce1-437d-bb09-1fd7dce8e3a9.png
+tiles/hq | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_145448_e1de950f-75ad-451f-9d54-9d29a3947ae9.png
+tiles/hotel | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_145524_c876aaf5-07fb-49e5-9456-292aa102d00d.png
+tiles/flyover | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_145523_8f808b2a-118a-4d10-bb44-2bdd44ab49ed.png
+tiles/shelter | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_145523_7492b943-956a-4eaf-8706-b57310425bbd.png
+tiles/duplex-sahel | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_145523_fb339901-419f-4c56-9363-886aeb1e7579.png
