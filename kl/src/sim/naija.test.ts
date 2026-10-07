@@ -12,8 +12,8 @@ import {
 const at = (iso: string) => Date.parse(iso);
 const EARLY = at("2026-10-10T12:00:00+01:00"); // registration open
 const PVC_TIME = at("2026-11-02T12:00:00+01:00"); // collection open
-const BLACKOUT = at("2026-11-04T09:00:00+01:00");
-const POLLS = at("2026-11-05T10:00:00+01:00");
+const BLACKOUT = at("2026-11-13T09:00:00+01:00");
+const POLLS = at("2026-11-14T10:00:00+01:00");
 const never = sequence(0.99);
 const always = sequence(0);
 
@@ -104,7 +104,7 @@ describe("civic actions on an LGA map", () => {
     expect(why(turned, "collect", PVC_TIME)).toBe("INEC said come back tomorrow");
     const got = run(turned, "collect", PVC_TIME + 86_400_000);
     expect(got.citizen!.pvc).toBe("have");
-    expect(why(onMap("inec", citizen({ pvc: "registered" })), "collect", at("2026-11-05T07:51:00+01:00"))).toBe("PVC collection has closed");
+    expect(why(onMap("inec", citizen({ pvc: "registered" })), "collect", at("2026-11-14T07:51:00+01:00"))).toBe("PVC collection has closed");
   });
 
   it("pays a work shift by class, once a game day", () => {
@@ -230,7 +230,7 @@ describe("election day", () => {
 
   it("votes once, at the polling unit, during polls, and never stores the choice", () => {
     const s = onMap("pu");
-    expect(castVote(s, "LP", { now: EARLY, atPollingUnit: true }, never)).toEqual({ blocked: "Voting is on 5 November, 8am to 4pm" });
+    expect(castVote(s, "LP", { now: EARLY, atPollingUnit: true }, never)).toEqual({ blocked: "Voting is on 14 November, 8am to 4pm" });
     expect(castVote(s, "LP", { now: POLLS, atPollingUnit: false }, never)).toEqual({ blocked: "Go to your polling unit to vote" });
     const r = castVote(s, "LP", { now: POLLS, atPollingUnit: true }, never);
     if ("blocked" in r) throw new Error(r.blocked);

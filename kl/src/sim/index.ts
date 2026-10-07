@@ -16,3 +16,4 @@ export * from "./campaign";
 export * from "./vote-buying";
 export * from "./election";
 export * from "./results";
+export * from "./journey";

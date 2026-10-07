@@ -7,7 +7,7 @@ import type { State } from "./states";
 
 export type LgaPlaceId =
   | "home" | "work" | "inec" | "pu" | "market" | "buka" | "viewing" | "kiosk" | "mosque" | "church" | "park"
-  | "hall" | "board" | "landmark" | "shelter";
+  | "hall" | "board" | "landmark" | "shelter" | "hotel";
 
 export interface LgaPlace {
   id: LgaPlaceId;
@@ -29,7 +29,16 @@ export interface LgaContext {
   underFlyover: boolean;
   /** Was under a flyover and got a shelter bed: the shelter stays on the map. */
   wasUnder?: boolean;
+  /** The citizen is visiting this LGA: no home, workplace or shelter of theirs here. */
+  visiting?: boolean;
 }
+
+/** A night's lodging away from home, by class. */
+export const LODGING: Record<ClassId, { name: string; price: number }> = {
+  poor: { name: "Guest house", price: 5000 },
+  middle: { name: "Hotel", price: 25000 },
+  rich: { name: "Hotel", price: 80000 },
+};
 
 const shortTown = (lga: string) => lga.split(/[ /-]/)[0];
 
@@ -56,6 +65,8 @@ export function lgaPlaces(c: LgaContext): LgaPlace[] {
     { id: "landmark", name: c.state.landmark.name, kind: "lm-" + c.state.landmark.kind, open: [7, 19], gen: false, blurb: `${c.state.name}: ${c.state.slogan}.` },
   ];
   if (c.underFlyover || c.wasUnder) places.push({ id: "shelter", name: "Shelter", kind: "shelter", open: [0, 24], gen: false, blurb: "A church-run shelter that sometimes has beds." });
+  places.push({ id: "hotel", name: "Hotel", kind: "hotel", open: [0, 24], gen: true, blurb: "Rooms for the night when you are away from home, a bar and cold drinks." });
+  if (c.visiting) return places.filter((p) => p.id !== "home" && p.id !== "work" && p.id !== "shelter");
   return places;
 }
 
@@ -141,5 +152,9 @@ export function lgaActions(c: LgaContext): Record<LgaPlaceId, Action[]> {
     ],
     landmark: [{ id: "visit", label: `Visit ${lm}`, dur: 90, fx: { fun: 30, social: 5, energy: -10 }, bubble: "Wow", done: `You spent the afternoon at ${lm}.` }],
     shelter: [{ id: "bed", label: "Ask for a bed", dur: 60, fx: {}, shelter: true, bubble: "Waiting", done: "" }],
+    hotel: [
+      { id: "lodge", label: `Take a room for the night (${LODGING[c.cls].name.toLowerCase()})`, dur: 480, sleep: true, cost: LODGING[c.cls].price, fx: { energy: 100, hygiene: 40 }, bubble: "Zzz", done: "You slept well away from home." },
+      { id: "drink", label: "Cold drink at the bar", dur: 30, cost: 1000, fx: { fun: 10, social: 8 }, overhear: true, bubble: "Sipping", done: "Cold drink at the hotel bar." },
+    ],
   };
 }
