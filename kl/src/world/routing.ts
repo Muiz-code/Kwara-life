@@ -46,11 +46,8 @@ interface Vertex {
 
 export interface RoadGraph {
   verts: Vertex[];
-  /**
-   * Vertex id of each place's gate, and the gate point itself. When the place has
-   * its own gates, v is a vertex at the place itself joined to each of them.
-   */
-  gate: Record<string, { v: number; p: Point; road: number; own?: boolean }>;
+  /** Vertex id of each place's gate, and the gate point itself. */
+  gate: Record<string, { v: number; p: Point; road: number }>;
 }
 
 /** Grid index so welding and snapping stay fast on big maps. */
@@ -82,55 +79,6 @@ class Grid {
 }
 
 /**
- * Every road segment, in a grid of cells, so snapping a place or a road end to
- * the nearest road does not have to walk a whole city's roads. A real LGA has
- * tens of thousands of segments, which is far too many to scan each time.
- */
-class SegmentIndex {
-  private cell = new Map<string, number[]>();
-  readonly segs: { road: number; i: number; a: Point; b: Point }[] = [];
-  private size: number;
-  constructor(size = 160) {
-    this.size = size;
-  }
-  private key = (x: number, y: number) => `${Math.floor(x / this.size)},${Math.floor(y / this.size)}`;
-  add(road: number, i: number, a: Point, b: Point) {
-    const id = this.segs.length;
-    this.segs.push({ road, i, a, b });
-    // Walk the segment so every cell it passes through holds it.
-    const len = Math.hypot(b.x - a.x, b.y - a.y);
-    const steps = Math.max(1, Math.ceil(len / (this.size / 2)));
-    for (let k = 0; k <= steps; k++) {
-      const x = a.x + ((b.x - a.x) * k) / steps;
-      const y = a.y + ((b.y - a.y) * k) / steps;
-      const key = this.key(x, y);
-      const list = this.cell.get(key);
-      if (list) {
-        if (list[list.length - 1] !== id) list.push(id);
-      } else this.cell.set(key, [id]);
-    }
-  }
-  /** Segment ids near a point, widening the search until something turns up. */
-  near(p: Point): number[] {
-    for (let rings = 1; rings <= 24; rings++) {
-      const out: number[] = [];
-      const cx = Math.floor(p.x / this.size);
-      const cy = Math.floor(p.y / this.size);
-      for (let i = -rings; i <= rings; i++) {
-        for (let j = -rings; j <= rings; j++) {
-          // Only the new ring after the first pass.
-          if (rings > 1 && Math.abs(i) !== rings && Math.abs(j) !== rings) continue;
-          const list = this.cell.get(`${cx + i},${cy + j}`);
-          if (list) out.push(...list);
-        }
-      }
-      if (out.length) return out;
-    }
-    return this.segs.map((_, i) => i);
-  }
-}
-
-/**
  * Builds the road graph for a map. Roads crossing at a shared point become one
  * junction; a road that merely passes near another is not joined, the same way a
  * flyover does not meet the road below it.
@@ -156,39 +104,33 @@ export function buildGraph(map: WorldMap): RoadGraph {
     if (!verts[b].edges.some((e) => e.to === a)) verts[b].edges.push({ to: a, w, road });
   };
 
-  const index = new SegmentIndex();
   const roadVerts: number[][] = map.roads.map((r, ri) => {
     const ids = [vertexAt(r.pts[0])];
     for (let i = 1; i < r.pts.length; i++) {
       const v = vertexAt(r.pts[i]);
       link(ids[ids.length - 1], v, ri);
       ids.push(v);
-      index.add(ri, i, r.pts[i - 1], r.pts[i]);
     }
     return ids;
   });
-
-  /** The nearest point on a road to p, from the segments near it. */
-  const nearest = (p: Point, skipRoad = -1) => {
-    let best: { d: number; p: Point; a: number; b: number; road: number } | null = null;
-    for (const id of index.near(p)) {
-      const seg = index.segs[id];
-      if (seg.road === skipRoad) continue;
-      const pr = projectOnSegment(p, seg.a, seg.b);
-      if (!best || pr.d < best.d) {
-        best = { d: pr.d, p: pr.p, a: roadVerts[seg.road][seg.i - 1], b: roadVerts[seg.road][seg.i], road: seg.road };
-      }
-    }
-    return best;
-  };
 
   // A road that ends on another road joins it there, even when the point it meets
   // was dropped by simplifying. Without this a side street is an island.
   map.roads.forEach((r, ri) => {
     for (const end of [r.pts[0], r.pts[r.pts.length - 1]]) {
-      const hit = nearest(end, ri);
-      if (!hit || hit.d > JUNCTION_SNAP) continue;
       const v = vertexAt(end);
+      let best: { d: number; p: Point; a: number; b: number; road: number } | null = null;
+      map.roads.forEach((o, oi) => {
+        if (oi === ri) return;
+        for (let i = 1; i < o.pts.length; i++) {
+          const pr = projectOnSegment(end, o.pts[i - 1], o.pts[i]);
+          if (pr.d <= JUNCTION_SNAP && (!best || pr.d < best.d)) {
+            best = { d: pr.d, p: pr.p, a: roadVerts[oi][i - 1], b: roadVerts[oi][i], road: oi };
+          }
+        }
+      });
+      if (!best) continue;
+      const hit = best as { d: number; p: Point; a: number; b: number; road: number };
       const j = vertexAt(hit.p);
       link(hit.a, j, hit.road);
       link(j, hit.b, hit.road);
@@ -197,25 +139,19 @@ export function buildGraph(map: WorldMap): RoadGraph {
   });
 
   // Snap every place to the nearest point on a road, splitting that road segment.
-  // A place with its own gates is joined to each of them instead.
   const gate: RoadGraph["gate"] = {};
   for (const pl of map.places) {
-    if (pl.gates?.length) {
-      const id = verts.length;
-      verts.push({ id, x: pl.x, y: pl.y, edges: [] });
-      for (const gp of pl.gates) {
-        const hit = nearest(gp);
-        if (!hit) continue;
-        const gv = vertexAt(hit.p);
-        link(hit.a, gv, hit.road);
-        link(gv, hit.b, hit.road);
-        link(id, gv, hit.road);
+    let best: { d: number; p: Point; a: number; b: number; road: number } | null = null;
+    map.roads.forEach((r, ri) => {
+      for (let i = 1; i < r.pts.length; i++) {
+        const pr = projectOnSegment(pl, r.pts[i - 1], r.pts[i]);
+        if (!best || pr.d < best.d) {
+          best = { d: pr.d, p: pr.p, a: vertexIdNear(r.pts[i - 1]), b: vertexIdNear(r.pts[i]), road: ri };
+        }
       }
-      gate[pl.id] = { v: id, p: { x: pl.x, y: pl.y }, road: -1, own: true };
-      continue;
-    }
-    const hit = nearest(pl);
-    if (!hit) continue;
+    });
+    if (!best) continue;
+    const hit = best as { d: number; p: Point; a: number; b: number; road: number };
     const v = vertexAt(hit.p);
     // Splice the gate into the segment it landed on.
     link(hit.a, v, hit.road);
@@ -223,28 +159,12 @@ export function buildGraph(map: WorldMap): RoadGraph {
     gate[pl.id] = { v, p: { x: verts[v].x, y: verts[v].y }, road: hit.road };
   }
 
-  return { verts, gate };
-}
+  function vertexIdNear(p: Point): number {
+    for (const id of grid.near(p.x, p.y)) if (dist(verts[id], p) <= WELD) return id;
+    return vertexAt(p);
+  }
 
-/**
- * A quick "how far is the nearest road" for a map, used by the ground layer and
- * by billboard placement. Built once, then each question is a grid lookup.
- */
-export function roadFinder(map: WorldMap) {
-  const index = new SegmentIndex();
-  map.roads.forEach((r, ri) => {
-    for (let i = 1; i < r.pts.length; i++) index.add(ri, i, r.pts[i - 1], r.pts[i]);
-  });
-  const nearest = (p: Point) => {
-    let best: { d: number; p: Point; road: number } | null = null;
-    for (const id of index.near(p)) {
-      const seg = index.segs[id];
-      const pr = projectOnSegment(p, seg.a, seg.b);
-      if (!best || pr.d < best.d) best = { d: pr.d, p: pr.p, road: seg.road };
-    }
-    return best;
-  };
-  return { nearest, distance: (p: Point) => nearest(p)?.d ?? Infinity };
+  return { verts, gate };
 }
 
 /** Binary heap keyed by distance. */
@@ -339,14 +259,14 @@ export function routeOn(map: WorldMap, graph: RoadGraph, from: string, to: strin
     if (c === A.v) break;
   }
   const along = chain.map((v) => ({ x: graph.verts[v].x, y: graph.verts[v].y }));
-  // Walk out of the first place and into the last one (already in the chain when they have their own gates).
-  const pts = [...(A.own ? [] : [{ x: start.x, y: start.y }]), ...along, ...(B.own ? [] : [{ x: end.x, y: end.y }])];
+  // Walk out of the first place and into the last one.
+  const pts = [{ x: start.x, y: start.y }, ...along, { x: end.x, y: end.y }];
   const roads: MapRoad[] = [];
   for (const ri of roadIdx) {
     const r = map.roads[ri];
     if (r && roads[roads.length - 1] !== r) roads.push(r);
   }
-  return { ids: [from, to], pts, length: polylineLength(pts) * (map.lengthScale ?? 1), highway: roads.some((r) => r.highway), roads };
+  return { ids: [from, to], pts, length: polylineLength(pts), highway: roads.some((r) => r.highway), roads };
 }
 
 /** Routes with the graph built once, for maps that are routed over many times. */

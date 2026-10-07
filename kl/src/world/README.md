@@ -1,79 +1,69 @@
 # The world maps
 
-Every LGA is a town on an isometric grid, built from a seed made from its LGA
-code: the same town for everyone in that LGA, a different one in the next.
-Ilorin is built in the same system from its real places.
+Every LGA map, wherever it comes from, is the same plain JSON shape: `WorldMap`
+in `types.ts`. Places, roads as polylines, an optional river, a biome, a size.
+One renderer draws all of them.
 
-## The rules a town keeps
+## Where a map comes from
 
-- Streets run along the two grid directions only, so corners are square and
-  junctions are real junctions.
-- Every other cell is a plot. A building only ever stands on its own plot, with
-  its own yard, a wall or fence to suit the district, and a gate and path out to
-  each street the plot touches. A road never passes under a building.
-- Places are reached through their gates (`MapPlace.gates`), so trips never cut
-  across someone else's plot.
-- Each place's tile is mirrored to face its street.
+`loadMap()` in `load.ts` picks, in order:
 
-`town.test.ts` checks these for every LGA in the country.
+1. **The hand-built Ilorin map** for the three Ilorin LGAs (`ilorin-map.ts`).
+   Ilorin keeps the positions and the routing it was tuned with, so its trip
+   distances, times and fares do not move (`src/sim/ilorin-parity.test.ts`).
+   When `public/maps/kwara/ilorin-shapes.json` is there, each road is drawn along
+   the real OpenStreetMap line instead of a straight dash: the shape is turned
+   and scaled onto the map's own junction points by `fitShape()` in `shape.ts`,
+   so the road bends the way the real road bends and the fares stay the same.
+2. **A map built from OpenStreetMap**, fetched once by `scripts/osm-lga.mjs` and
+   committed under `public/maps/<state>/<lga>.json`. Players never call
+   OpenStreetMap. The data is ODbL, so every such map carries
+   "© OpenStreetMap contributors" and the renderer prints it on screen.
+3. **The generator** (`generate.ts`), a port of the prototype's LGA world
+   builder, for any LGA nobody has fetched yet. Same seed, same hash, same
+   numbers as the prototype (`generate.test.ts`).
 
-## Blocks
+For 2 and 3, `addPlayerPlaces()` adds the three places OpenStreetMap does not
+hold: the citizen's own home (on a quieter real street a walk from the centre),
+their workplace (on a bigger road near the centre) and the LGA notice board (at
+the town hall, market or motor park). Nothing else is invented.
 
-A town is a grid of big single-use blocks with main roads between them and a
-roundabout wherever four main roads cross:
+## Fares and distance
 
-- estate (GRA: duplexes on big walled plots), low-cost housing, and the slum
-  (shacks on dirt tracks, always given a plain name like "Railway Line", never a
-  real neighbourhood's)
-- mixed (flats and offices), civic (INEC, town hall), commercial (market, motor
-  park, bukas) and a commercial avenue full of adverts
-- open blocks drawn as one piece of ground: schools with their pitches, a park
-  for the state landmark, campuses and the airport
+`routing.ts` builds a graph from the road polylines: road points are vertices,
+roads that meet are welded, and each place is snapped to the nearest point on the
+nearest road. A trip follows the real road line, so distance, time and fare come
+from real road length. `normaliseTrips()` scales a map so a typical trip costs
+about what the same trip costs in Ilorin (`TARGET_MEAN_TRIP`).
 
-Lanes (or dirt tracks in the slum) run inside a block. Busy junctions get
-traffic lights, and main roads get bus stops where the danfos stop. The motor
-park sits by the town entrance, the highway coming in from the state capital.
-The citizen's home goes by class. Block names come from
-`src/data/districts.ts`, falling back to generic names, and no two blocks in a
-town share a name.
+A `MapRoute` fits `src/sim/world.ts`'s `Route` with no adapter: same `pts`,
+`length` and `highway`.
 
-The seed also picks the plan, which way up and round it goes, and the block
-sizes. Delta towns and states whose landmark is water or a bridge get a river
-with bridges; the south-east gets hills; farming states get fields round the
-edge. The zone's biome sets the ground, trees and the look of every building.
+## Fetching
 
-Ilorin uses the same blocks, laid out after the real town: the airport,
-Unilorin and Tanke at the top, Post Office and Oja Oba, Ahmadu Bello Way and
-Taiwo, GRA and Adewole either side of Metro Square, KWASU and Fate Road, and
-the Malete road out to KWASU's farm.
+    node scripts/osm-lga.mjs ilorin               the three Ilorin LGAs and the Ilorin road shapes
+    node scripts/osm-lga.mjs kwara/ilorin-west    one LGA
+    node scripts/osm-lga.mjs --state kano         a whole state
+    node scripts/osm-lga.mjs --all                every LGA, in batches
+    node scripts/osm-lga.mjs --all --cache-only   rebuild from the cache, no network
 
-## Files
+It asks for main roads and places across the LGA, then for the streets inside a
+small box around the places it found, so no single question is heavy. Raw answers
+are cached under `.osm-cache` (gitignored), one request at a time with pauses, so
+a re-run costs Overpass nothing.
 
-- `town.ts`: the builder. `buildTown(spec)` gives a `WorldMap`.
-- `town-spec.ts`: what goes in each LGA's town (`townSpecFor`).
-- `ilorin-town.ts`: Ilorin from its real places, with its trips scaled to the
-  hand-built map's.
-- `load.ts`: `loadMap(request)` picks and caches the right town.
-- `town-ground.ts`, `shacks.ts`, `traffic.ts`, `vehicles.ts`, `tile-art.ts`: drawing.
-- `routing.ts`: routes along the streets; `lengthScale` keeps fares and times at
-  the prototype's scale however big the town is drawn.
+## Looking at a map
 
-`generate.ts` and `ground.ts` are the prototype's free-form LGA builder and its
-renderer, kept as a tested reference; the game uses the grid towns.
+    npm run dev
+    node scripts/osm-shot.mjs                               the Ilorin map
+    node scripts/osm-shot.mjs --lga kano/kano-municipal      any LGA
+    node scripts/osm-shot.mjs --file public/maps/kwara/ilorin-west.json
+
+Needs Playwright (`npm i playwright`); pass `--chrome <path>` to use a Chromium
+that is already installed.
 
 ## Art
 
-`tile-art.ts` maps each kind and zone look to a tile in `public/assets/tiles`.
-Anything without a file is drawn in code. Vehicles look for
-`public/assets/vehicles/<kind>-front.webp` and `<kind>-back.webp` and are drawn
-in code until those exist.
-
-## Looking at a town
-
-    npm run dev
-    node scripts/osm-shot.mjs                                   Ilorin
-    node scripts/osm-shot.mjs --lga kano/fagge                  any LGA
-    node scripts/osm-shot.mjs --lga delta/warri-south --zoom 0.2   the whole town
-
-Needs Playwright (`npm i playwright`); pass `--chrome <path>` to use an installed
-Chromium.
+`tiles.ts` holds `KIND_ART` (kinds that already have a drawn tile) and
+`MISSING_ART` (kinds drawn in code until an artist draws them). The placeholder
+tiles are ported from the prototype, so a map is never blank.

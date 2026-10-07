@@ -5,7 +5,7 @@ import { Container, Graphics, Text } from "pixi.js";
 import { BIOMES, type Biome } from "../data/biomes";
 import { seeded, type Rng } from "../sim/rng";
 import { hash } from "./generate";
-import { roadFinder } from "./routing";
+import { segmentDistance } from "./routing";
 import type { MapRoad, Point, WorldMap } from "./types";
 
 const hex = (c: string) => parseInt(c.replace("#", ""), 16);
@@ -88,6 +88,15 @@ const strokePolyline = (g: Graphics, pts: Point[]) => {
   g.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
 };
+
+/** Distance from a point to the nearest road on the map. */
+export function roadDistance(map: WorldMap, p: Point): number {
+  let best = Infinity;
+  for (const r of map.roads) {
+    for (let i = 1; i < r.pts.length; i++) best = Math.min(best, segmentDistance(p, r.pts[i - 1], r.pts[i]));
+  }
+  return best;
+}
 
 /** The middle of the longest straight piece of a road, for its name label. */
 function labelSpot(r: MapRoad): { p: Point; angle: number; len: number } {
@@ -177,10 +186,8 @@ export function buildGround(map: WorldMap, fonts: { ui: string }): Container {
     }
   }
 
-  const roads = roadFinder(map);
-  const river = map.river ? roadFinder({ ...map, roads: [{ name: "", pts: map.river }] }) : null;
-  const riverDist = (x: number, y: number) => (river ? river.distance({ x, y }) : 1e9);
-  const near = (x: number, y: number, d: number) => roads.distance({ x, y }) < d;
+  const riverDist = (x: number, y: number) => (map.river ? roadDistance({ ...map, roads: [{ name: "", pts: map.river }] }, { x, y }) : 1e9);
+  const near = (x: number, y: number, d: number) => roadDistance(map, { x, y }) < d;
   const tiles = map.places.map((p) => ({ x: p.x, y: p.y }));
 
   // Neighbourhood houses, packed near the places, never on a road or in the river.

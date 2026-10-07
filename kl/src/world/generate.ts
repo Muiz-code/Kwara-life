@@ -62,12 +62,9 @@ const context = (o: GenOptions): LgaContext => ({
   ...(o.wasUnder ? { wasUnder: true } : {}),
 });
 
-/** The places the prototype's builder laid out. Later additions (the hotel) are not part of its layout. */
-const PROTOTYPE_IDS = new Set(["home", "work", "inec", "pu", "market", "buka", "viewing", "kiosk", "mosque", "church", "park", "hall", "board", "landmark", "shelter"]);
-
-/** The prototype's places, named and described in src/data/lga.ts. */
+/** The places every LGA has, named and described in src/data/lga.ts. */
 export function genPlaceRows(o: GenOptions) {
-  return lgaPlaces(context(o)).filter((p) => PROTOTYPE_IDS.has(p.id)).map((p) => ({
+  return lgaPlaces(context(o)).map((p) => ({
     ...p,
     kind: (isPlaceKind(p.kind) ? p.kind : "house") as PlaceKind,
   }));
