@@ -24,10 +24,16 @@ export function vehicleArt(kind: VehicleKind, h: Heading): { src: string; flip: 
   return { src: `${V}${kind}-${showsFront(h) ? "front" : "back"}.webp`, flip: h === "dr" || h === "ul" };
 }
 
-export const ALL_VEHICLE_ART = (["keke", "okada", "danfo", "car", "suv", "horse"] as VehicleKind[]).flatMap((k) => [
-  `${V}${k}-front.webp`,
-  `${V}${k}-back.webp`,
-]);
+/** A traffic light pole, its lamps facing down and to the left. */
+export const TRAFFIC_LIGHT_ART = `${V}trafficlight.webp`;
+
+/** Where the three lamps sit on the traffic light art, as fractions of its width and height. */
+export const LAMPS = { x: 0.41, red: 0.11, amber: 0.22, green: 0.32, r: 0.06 };
+
+export const ALL_VEHICLE_ART = [
+  ...(["keke", "okada", "danfo", "car", "suv", "horse"] as VehicleKind[]).flatMap((k) => [`${V}${k}-front.webp`, `${V}${k}-back.webp`]),
+  TRAFFIC_LIGHT_ART,
+];
 
 /** Size on screen: length along the street, width across it, height. */
 const SIZE: Record<VehicleKind, { l: number; w: number; h: number }> = {

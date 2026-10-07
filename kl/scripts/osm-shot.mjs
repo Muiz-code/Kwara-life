@@ -74,6 +74,17 @@ if (zoom) {
   const at = valueOf("--at", null)?.split(",").map(Number);
   await page.addInitScript((v) => { window.__naijaView = v; }, { zoom: Number(zoom), ...(at ? { x: at[0], y: at[1] } : {}) });
 }
+// --map-only hides the game's panels so only the map shows.
+if (args.includes("--map-only")) {
+  await page.addInitScript(() => {
+    const css = "*{visibility:hidden!important}canvas{visibility:visible!important}";
+    document.addEventListener("DOMContentLoaded", () => {
+      const s = document.createElement("style");
+      s.textContent = css;
+      document.head.appendChild(s);
+    });
+  });
+}
 await page.goto(url, { waitUntil: "load", timeout: 60_000 });
 await page.waitForTimeout(wait);
 await page.screenshot({ path: out });

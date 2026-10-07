@@ -37,6 +37,9 @@ function isFree(map: WorldMap, p: Point, taken: Point[], roads: ReturnType<typeo
  * close to a road, so boards face traffic without covering buildings.
  */
 export function billboardPositions(map: WorldMap): Record<string, Point> {
+  // In a town a board needs a plot of its own, like any building: an empty plot
+  // on a street, near the place it advertises beside.
+  if (map.lots) return boardsOnPlots(map);
   const out: Record<string, Point> = {};
   const taken: Point[] = [];
   const roads = roadFinder(map);
@@ -56,6 +59,32 @@ export function billboardPositions(map: WorldMap): Record<string, Point> {
     if (!found) continue;
     out[slot.id] = found;
     taken.push(found);
+  }
+  return out;
+}
+
+function boardsOnPlots(map: WorldMap): Record<string, Point> {
+  const out: Record<string, Point> = {};
+  const free = (map.lots ?? []).filter((l) => l.use === "garden" && l.gates.length > 0 && l.district !== "out");
+  const used = new Set<number>();
+  for (const slot of map.billboards ?? defaultSlots(map)) {
+    const c = anchorOf(map, slot.near);
+    if (!c) continue;
+    let best = -1;
+    let bestD = 900;
+    free.forEach((l, i) => {
+      if (used.has(i)) return;
+      const d = Math.hypot(l.x - c.x, l.y - c.y);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+    // Nothing free nearby: no board, rather than one on somebody's plot.
+    if (best < 0) continue;
+    used.add(best);
+    // Stand at the back of the plot so the board faces the street in front.
+    out[slot.id] = { x: free[best].x, y: free[best].y + (map.grid?.hh ?? 60) * 0.35 };
   }
   return out;
 }

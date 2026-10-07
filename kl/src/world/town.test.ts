@@ -213,3 +213,19 @@ describe("tile art", () => {
     }
   });
 });
+
+describe("billboards in a town", () => {
+  it("stand on empty plots of their own, never on a plot with a building", async () => {
+    const { billboardPositions } = await import("./layout");
+    const lga = lgaOf("kano/fagge");
+    const { map } = buildTown(townSpecFor({ lgaCode: lga.code, state: state("kano"), lgaName: lga.name, ctx: { cls: "poor", job: "Tailor", home: "a room", underFlyover: false } }));
+    const boards = Object.values(billboardPositions(map));
+    expect(boards.length).toBeGreaterThan(0);
+    const built = [...map.places, ...(map.buildings ?? [])].map((b) => cellOf(map, b.x, b.y));
+    for (const b of boards) {
+      const c = cellOf(map, b.x, b.y - (map.grid!.hh * 0.35));
+      expect(LOT.has(cellAt(map.grid!, c.u, c.v))).toBe(true);
+      expect(built.some((x) => x.u === c.u && x.v === c.v)).toBe(false);
+    }
+  });
+});
