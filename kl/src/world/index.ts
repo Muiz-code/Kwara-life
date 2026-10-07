@@ -1,7 +1,7 @@
 // What the rest of the app needs from the world: pick a map, route on it, draw it.
 export type { BillboardSlot, MapPlace, MapRoad, PlaceKind, Point, RoadClass, WorldMap } from "./types";
 export { OSM_ATTRIBUTION, PLACE_KINDS, isPlaceKind } from "./types";
-export { loadMap, type MapRequest } from "./load";
+export { loadMap, townFor, type MapRequest } from "./load";
 export { buildTown, type TownSpec } from "./town";
 export { townSpecFor } from "./town-spec";
 export { ilorinTown } from "./ilorin-town";

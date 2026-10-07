@@ -27,12 +27,20 @@ export interface MapRequest {
   career?: CareerId;
   /** Anything stable and unique to the citizen, so their own home is always on the same street. */
   citizenSeed?: string;
+  /** The citizen's polling unit index. Used for the home's seed when there is no citizenSeed. */
+  pu?: number;
 }
 
 /** Built maps are kept, since a town is the same every time it is built. */
 const cache = new Map<string, WorldMap>();
 
-export function loadMap(req: MapRequest): WorldMap {
+/** The town for a citizen. Async so a caller need not change if towns are ever fetched. */
+export async function loadMap(req: MapRequest): Promise<WorldMap> {
+  return townFor(req);
+}
+
+/** The town for a citizen, built (or taken from the cache) right away. */
+export function townFor(req: MapRequest): WorldMap {
   if (ILORIN_LGAS.includes(req.lgaCode)) {
     const hit = cache.get("ilorin");
     if (hit) return hit;
@@ -40,7 +48,7 @@ export function loadMap(req: MapRequest): WorldMap {
     cache.set("ilorin", map);
     return map;
   }
-  const key = JSON.stringify([req.lgaCode, req.cls, req.job, req.home, req.under, req.wasUnder, req.visiting, req.career, req.citizenSeed]);
+  const key = JSON.stringify([req.lgaCode, req.cls, req.job, req.home, req.under, req.wasUnder, req.visiting, req.career, req.citizenSeed, req.pu]);
   const hit = cache.get(key);
   if (hit) return hit;
   const { map } = buildTown(
@@ -57,7 +65,7 @@ export function loadMap(req: MapRequest): WorldMap {
         ...(req.visiting ? { visiting: true } : {}),
         ...(req.career ? { career: req.career } : {}),
       },
-      ...(req.citizenSeed ? { citizenSeed: req.citizenSeed } : {}),
+      citizenSeed: req.citizenSeed ?? `pu${req.pu ?? 0}/${req.cls}/${req.home ?? ""}`,
     }),
   );
   cache.set(key, map);

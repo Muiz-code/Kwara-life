@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { lgaPlaces } from "../data/lga";
 import { STATES } from "../data/states";
-import { loadMap } from "./load";
+import { townFor as loadMap } from "./load";
 
 const kano = STATES.find((s) => s.code === "kano")!;
 const citizen = { cls: "poor" as const, job: "Tailor", home: "a rented room" };

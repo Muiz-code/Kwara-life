@@ -15,7 +15,7 @@ register("./ts-hook.mjs", import.meta.url);
 const { STATES } = await import("../src/data/states.ts");
 const { LGAS, ILORIN_LGAS } = await import("../src/data/geography.ts");
 const { addPlayerPlaces } = await import("../src/world/player-places.ts");
-const { loadMap } = await import("../src/world/load.ts");
+const { townFor } = await import("../src/world/load.ts");
 
 // Playwright is a developer tool, not something the game ships, so it is not a
 // dependency of the app. Install it where you run this: npm i playwright
@@ -51,7 +51,7 @@ async function mapFor(code) {
   if (!lga) throw new Error(`Unknown LGA: ${code}`);
   const state = STATES.find((s) => s.code === lga.stateCode);
   const cls = valueOf("--class", "poor");
-  return loadMap({ lgaCode: code, state, lgaName: lga.name, cls, job: "Tailor", home: "a rented room", citizenSeed: "shot" });
+  return townFor({ lgaCode: code, state, lgaName: lga.name, cls, job: "Tailor", home: "a rented room", citizenSeed: "shot" });
 }
 
 const map = await mapFor(lgaCode);
