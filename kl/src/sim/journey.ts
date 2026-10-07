@@ -10,6 +10,8 @@ import type { ZoneCode } from "../data/zones";
 import { advance } from "./needs";
 import type { Rng } from "./rng";
 import { clone, log, naira, type GameState } from "./state";
+import { FUEL_FARE_FACTOR, fuelScarcity } from "./naija-life";
+import { maybePoliceStop } from "./police";
 
 export type JourneyMode = "bus" | "flight" | "car";
 
@@ -73,7 +75,7 @@ export function quoteJourney(s: GameState, toLga: string, mode: JourneyMode, now
   let fare = 0;
   if (mode === "bus") {
     minutes = Math.round((km / 60 + 1) * 60);
-    fare = round500((2000 + km * 30) * (rush ? RUSH_FACTOR : 1));
+    fare = round500((2000 + km * 30) * (rush ? RUSH_FACTOR : 1) * (fuelScarcity(s) ? FUEL_FARE_FACTOR : 1));
   } else if (mode === "flight") {
     minutes = Math.round((3.5 + km / 600) * 60);
     fare = round500(70000 + km * 60);
@@ -120,6 +122,7 @@ export function takeJourney(state: GameState, toLga: string, mode: JourneyMode, 
   }
   if (toLga === c.lgaCode) msg += " Welcome home.";
   log(s, msg);
+  if (mode !== "flight") maybePoliceStop(s, true, rng);
   return s;
 }
 

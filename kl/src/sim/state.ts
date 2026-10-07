@@ -51,6 +51,8 @@ export interface Flags {
   shiftDay?: number;
   /** Real date (WAT, YYYY-MM-DD) of the last PVC collection attempt that INEC turned away. */
   pvcTurnedAway?: string;
+  /** Amount a relative asked for (black tax), waiting for an answer. */
+  familyAsk?: number;
 }
 
 /** A paid promotion: flyers on notice boards or a sponsored news line. */

@@ -12,6 +12,7 @@ import { civicBlockReason, watDate, type CivicContext } from "./civic";
 import { currentHeadline, mediaInformed, mediaShow } from "./media";
 import { CAREERS } from "../data/careers";
 import { doWork, workBlockReason } from "./work";
+import { POS_CHARGE, cashScarcity } from "./naija-life";
 
 export const BASIRA_DISCOUNT_HEARTS = 3;
 export const BASIRA_AMALA_PRICE = 1800;
@@ -19,7 +20,9 @@ export const DRY_TAP_CHANCE = 0.3;
 
 export function actionCost(s: GameState, a: Action): number {
   if (a.id === "amala" && s.friends.basira >= BASIRA_DISCOUNT_HEARTS) return BASIRA_AMALA_PRICE;
-  return a.cost ?? 0;
+  const base = a.cost ?? 0;
+  // Cash scarcity: POS agents charge extra on anything you pay for.
+  return base && s.citizen && cashScarcity(s) ? base + POS_CHARGE : base;
 }
 
 export const horseToday = (s: GameState) => s.horseDay === dayNum(s.t);

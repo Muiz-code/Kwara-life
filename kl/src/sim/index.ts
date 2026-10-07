@@ -17,3 +17,8 @@ export * from "./vote-buying";
 export * from "./election";
 export * from "./results";
 export * from "./journey";
+export * from "./work";
+export * from "./jobs";
+export * from "./police";
+export * from "./efcc";
+export * from "./naija-life";
