@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { classify, osmToWorldMap, shapeBetween, type OverpassResponse } from "./osm";
+import { classify, osmToWorldMap, shapeBetween, tidyName, type OverpassResponse } from "./osm";
 import { meanTripLength, router, TARGET_MEAN_TRIP } from "./routing";
 import { TILE_W } from "./art";
 
@@ -81,5 +81,15 @@ describe("reading OpenStreetMap", () => {
     const line = shapeBetween(fixture, { lat: 9.1, lng: 7.35 }, { lat: 9.122, lng: 7.392 });
     expect(line).not.toBeNull();
     expect(line!.length).toBeGreaterThan(2);
+  });
+});
+
+describe("tidying OpenStreetMap names", () => {
+  it("keeps the part a person would say", () => {
+    expect(tidyName("Apostolic Faith Church, Agbo-oba Road, Oko Erin, Nigeria")).toBe("Apostolic Faith Church");
+    expect(tidyName("FGQJ+WXH, Oja Tutun, Oja Oba, Oko Erin 240281, Kwara, Nigeria")).toBe("Oja Tutun");
+    expect(tidyName("Sultan royal hotel & resort Ltd")).toBe("Sultan royal hotel & resort Ltd");
+    expect(tidyName("Kwara State Polytechnic, Ilorin")).toBe("Kwara State Polytechnic");
+    expect(tidyName("A very long name for one small place indeed, Ilorin").length).toBeLessThanOrEqual(34);
   });
 });

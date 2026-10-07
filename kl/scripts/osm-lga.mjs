@@ -13,7 +13,7 @@
 //   node scripts/osm-lga.mjs --state kwara       every LGA in a state
 //   node scripts/osm-lga.mjs --all               all 185 LGAs (hours, so run it in batches)
 //   node scripts/osm-lga.mjs --all --cache-only  rebuild maps from the cache, no network
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { register } from "node:module";
 import path from "node:path";
@@ -32,15 +32,20 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CACHE = path.join(ROOT, ".osm-cache");
 const OUT = path.join(ROOT, "public", "maps");
 
+// overpass-api.de first. The mirrors only help where the network allows them;
+// one that is blocked or refuses is dropped for the rest of the run.
 const ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
 ];
+const blocked = new Set();
 const UA = "naija-votes-2027 map builder (one-off LGA fetch; contact: the repository owner)";
 /** Overpass asks for a gap between requests. Be generous. */
 const PAUSE_MS = 12_000;
-const RETRIES = 4;
+const RETRIES = 6;
+/** Waits between retries. Overpass turns people away when it is busy. */
+const BACKOFF_MS = [30_000, 60_000, 120_000, 240_000, 480_000, 480_000];
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
@@ -107,14 +112,16 @@ async function overpass(key, query) {
 
   let lastError = null;
   for (let attempt = 0; attempt < RETRIES; attempt++) {
-    const url = ENDPOINTS[attempt % ENDPOINTS.length];
+    const open = ENDPOINTS.filter((e) => !blocked.has(e));
+    if (!open.length) throw new Error("Every Overpass endpoint is blocked from this network");
+    const url = open[attempt % open.length];
     try {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA },
         body: new URLSearchParams({ data: query }),
       });
-      if (res.status === 429 || res.status === 504) throw new Error(`Overpass busy (${res.status})`);
+      if (res.status === 429 || res.status === 503 || res.status === 504) throw new Error(`Overpass busy (${res.status})`);
       if (!res.ok) throw new Error(`Overpass said ${res.status} ${res.statusText}`);
       const raw = await res.json();
       await writeFile(file, JSON.stringify(raw));
@@ -123,7 +130,13 @@ async function overpass(key, query) {
       return raw;
     } catch (err) {
       lastError = err;
-      const wait = PAUSE_MS * Math.pow(2, attempt);
+      // A network that does not allow this mirror fails the same way every time.
+      if (/fetch failed|ENOTFOUND|ECONNREFUSED|403/.test(err.message) && open.length > 1) {
+        blocked.add(url);
+        console.warn(`  ${key}: ${new URL(url).host} is not reachable from here, dropping it`);
+        continue;
+      }
+      const wait = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length - 1)];
       console.warn(`  ${key}: ${err.message}. Waiting ${Math.round(wait / 1000)}s`);
       await sleep(wait);
     }
@@ -160,10 +173,21 @@ async function buildIlorinShapes() {
   const lats = Object.values(at).map((p) => p.lat);
   const lngs = Object.values(at).map((p) => p.lng);
   const pad = 0.03;
-  const raw = await overpass(
-    "kwara--ilorin-roads",
-    aroundQuery(Math.min(...lats) - pad, Math.min(...lngs) - pad, Math.max(...lats) + pad, Math.max(...lngs) + pad),
-  );
+  let raw;
+  try {
+    raw = await overpass(
+      "kwara--ilorin-roads",
+      aroundQuery(Math.min(...lats) - pad, Math.min(...lngs) - pad, Math.max(...lats) + pad, Math.max(...lngs) + pad),
+    );
+  } catch (err) {
+    // Overpass turned us away. Any Kwara answers already cached still hold roads.
+    const files = (await readdir(CACHE)).filter((f) => f.startsWith("kwara--") && f.endsWith(".json"));
+    if (!files.length) throw err;
+    console.warn(`  Ilorin: ${err.message}. Using ${files.length} cached Kwara answer(s) for the shapes`);
+    const elements = [];
+    for (const f of files) elements.push(...JSON.parse(await readFile(path.join(CACHE, f), "utf8")).elements);
+    raw = { elements };
+  }
   const shapes = {};
   let found = 0;
   for (const r of ROADS) {

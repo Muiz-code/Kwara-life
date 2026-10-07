@@ -41,13 +41,20 @@ const size = valueOf("--size", "412x915").split("x").map(Number);
 
 /** The map to drop on the page, or nothing for the hand-built Ilorin map. */
 async function mapFor(code) {
+  // A map file straight from public/maps, even for an Ilorin LGA, to check a fetch.
+  const file = valueOf("--file", null);
+  if (file) {
+    return addPlayerPlaces(JSON.parse(await readFile(path.resolve(ROOT, file), "utf8")), {
+      seed: `${file}/0/poor`, cls: "poor", job: "Tailor", home: "a rented room",
+    });
+  }
   if (!code || ILORIN_LGAS.includes(code)) return null;
   const lga = LGAS.find((l) => l.code === code);
   if (!lga) throw new Error(`Unknown LGA: ${code}`);
   const state = STATES.find((s) => s.code === lga.stateCode);
-  const file = path.join(ROOT, "public", "maps", `${code}.json`);
+  const mapFile = path.join(ROOT, "public", "maps", `${code}.json`);
   const citizen = { seed: `${code}/0/poor`, cls: "poor", job: "Tailor", home: "a rented room" };
-  if (existsSync(file)) return addPlayerPlaces(JSON.parse(await readFile(file, "utf8")), citizen);
+  if (existsSync(mapFile)) return addPlayerPlaces(JSON.parse(await readFile(mapFile, "utf8")), citizen);
   console.log(`  no map under public/maps for ${code}, drawing the generated one`);
   return normaliseTrips(generateMap({ state, lga: lga.name, pu: 0, cls: "poor", job: "Tailor", home: "a rented room" }));
 }

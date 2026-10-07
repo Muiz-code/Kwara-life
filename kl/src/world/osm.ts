@@ -175,12 +175,16 @@ export function osmToWorldMap(res: OverpassResponse, o: ConvertOptions): Convert
     of.sort((a, b) => Math.hypot(a.at.x - mid.x, a.at.y - mid.y) - Math.hypot(b.at.x - mid.x, b.at.y - mid.y));
     chosen.push(of[0]);
   }
-  // Famous places: named landmarks, nearest first, skipping kinds already taken.
+  // Famous places: the kinds people name first, then whatever is nearest the middle.
   const taken = new Set(chosen.map((c) => c.kind));
+  const rank = (k: PlaceKind) => {
+    const i = LANDMARK_RANK.indexOf(k);
+    return i < 0 ? LANDMARK_RANK.length : i;
+  };
   const landmarks = candidates
     .filter((c) => c.tags.name && !taken.has(c.kind) && !CIVIC_KINDS.includes(c.kind))
-    .sort((a, b) => Math.hypot(a.at.x, a.at.y) - Math.hypot(b.at.x, b.at.y))
-    .filter((c, i, all) => all.findIndex((x) => x.tags.name === c.tags.name) === i)
+    .filter((c, i, all) => all.findIndex((x) => tidyName(x.tags.name!) === tidyName(c.tags.name!)) === i)
+    .sort((a, b) => rank(a.kind) - rank(b.kind) || Math.hypot(a.at.x, a.at.y) - Math.hypot(b.at.x, b.at.y))
     .slice(0, o.maxLandmarks ?? 6);
   chosen.push(...landmarks);
 
@@ -191,10 +195,10 @@ export function osmToWorldMap(res: OverpassResponse, o: ConvertOptions): Convert
 
   let places: MapPlace[] = chosen.map((c, i) => ({
     id: placeId(c, i),
-    name: c.tags.name ?? kindName(c.kind),
+    name: c.tags.name ? tidyName(c.tags.name) || kindName(c.kind) : kindName(c.kind),
     area: o.name,
     kind: c.kind,
-    blurb: blurbFor(c.kind, c.tags.name ?? kindName(c.kind), o.name),
+    blurb: blurbFor(c.kind, c.tags.name ? tidyName(c.tags.name) : kindName(c.kind), o.name),
     open: openHours(c.kind),
     gen: c.kind === "inec" || c.kind === "viewing" || c.kind === "govhouse",
     x: c.at.x,
@@ -244,7 +248,30 @@ export const CIVIC_ID: Partial<Record<PlaceKind, string>> = {
 };
 
 const placeId = (c: { kind: PlaceKind; tags: Record<string, string> }, i: number) =>
-  CIVIC_ID[c.kind] ?? `${slug(c.tags.name ?? c.kind)}-${i}`;
+  CIVIC_ID[c.kind] ?? `${slug(c.tags.name ? tidyName(c.tags.name) : c.kind)}-${i}`;
+
+/**
+ * OpenStreetMap names in Nigeria often carry the whole address, and sometimes a
+ * Plus Code instead of a name. Keep the part a person would say out loud.
+ */
+export function tidyName(raw: string): string {
+  const plus = /\b[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\b/g;
+  const chunks = raw.split(/[,|]/).map((c) => c.replace(plus, "").replace(/\s{2,}/g, " ").trim());
+  const drop = /^(nigeria|kwara|[0-9]{5,6}|p\.?o\.? box.*|off .*|behind .*)$/i;
+  const first = chunks.find((c) => c.length > 2 && !drop.test(c));
+  let name = (first ?? chunks.find((c) => c.length > 0) ?? raw).replace(/[.;]+$/, "").trim();
+  if (name.length > 34) {
+    const cut = name.slice(0, 34);
+    name = cut.slice(0, Math.max(cut.lastIndexOf(" "), 20)).trim();
+  }
+  return name;
+}
+
+/** Landmarks worth showing, best first. A hotel only makes it when nothing else does. */
+const LANDMARK_RANK: PlaceKind[] = [
+  "palace", "lm-rock", "lm-water", "lm-bridge", "lm-forest", "lm-tower", "lm-market", "lm-hills",
+  "stadium", "campus", "govhouse", "airport", "garden", "square", "mall", "hotel",
+];
 
 const KIND_NAMES: Partial<Record<PlaceKind, string>> = {
   inec: "INEC Office", school: "Polling Unit School", market: "Market", buka: "Local food spot",
