@@ -284,7 +284,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = Date.now
           shiftToast: () => set({ toasts: get().toasts.slice(1) }),
           reset: () => {
             const g = freshState();
-            set({ game: g, selected: g.loc, activity: null, toasts: [], paused: false });
+            set({ game: g, selected: g.loc, activity: null, toasts: [], paused: false, flow: null, journey: null, myBallot: null, world: null });
           },
         };
       },

@@ -314,18 +314,8 @@ export class GameMap {
     vp.addChild(this.player);
     this.setLook(this.store.getState());
 
-    // The ODbL credit for OpenStreetMap data, fixed in the corner of the screen.
-    if (map.attribution) {
-      const credit = new Text({
-        text: map.attribution,
-        style: { fontFamily: ui, fontSize: 11, fill: 0x3f2a16, stroke: { color: 0xf3e6c8, width: 3 } },
-      });
-      credit.anchor.set(0, 1);
-      const place = () => credit.position.set(8, this.app.renderer.height / this.app.renderer.resolution - 6);
-      place();
-      this.app.renderer.on("resize", place);
-      this.app.stage.addChild(credit);
-    }
+    // The ODbL credit for OpenStreetMap data (map.attribution) is printed by the React HUD
+    // under the disclaimer, so it never sits under the tabs.
 
     // Start the camera on the player.
     const start = standAt(map, this.store.getState().game.loc);

@@ -86,7 +86,13 @@ export default function Game() {
               ["+", 1.3],
               ["−", 1 / 1.3],
             ].map(([l, f]) => (
-              <button key={l} type="button" aria-label={l === "+" ? "Zoom in" : "Zoom out"} className="h-10 w-10 rounded-xl border-2 border-indigo bg-panel text-lg font-extrabold text-indigo" onClick={() => map?.zoomBy(f as number)}>
+              <button
+                key={l}
+                type="button"
+                aria-label={l === "+" ? "Zoom in" : "Zoom out"}
+                className="h-10 w-10 rounded-xl border-2 border-indigo bg-panel text-lg font-extrabold text-indigo"
+                onClick={() => map?.zoomBy(f as number)}
+              >
                 {l}
               </button>
             ))}
@@ -100,7 +106,10 @@ export default function Game() {
       {/* Tabs stay above any open sheet. */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col items-center gap-1 pb-1">
         <BottomNav tab={tab} onTab={setTab} />
-        <p className="text-center text-[10px] font-semibold text-indigo/70">{DISCLAIMER}</p>
+        <p className="px-3 text-center text-[10px] font-semibold text-indigo/70">
+          {DISCLAIMER}
+          {world?.attribution && <span className="whitespace-nowrap"> Map data {world.attribution}</span>}
+        </p>
       </div>
 
       {tab === "life" && selected && <PlaceSheet onClose={close} />}

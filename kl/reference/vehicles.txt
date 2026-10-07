@@ -1,0 +1,14 @@
+# Horses: run through the Higgsfield background remover (their riders wear cream).
+vehicles/keke-front | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_160656_a13f1800-ef45-4698-8495-ab2ff0e805f4.png
+vehicles/keke-back | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_160657_9e7ebad9-fb7a-44e4-a3a6-555f49687b0d.png
+vehicles/okada-front | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_160657_33e4bc5f-3d8c-4262-a9f6-854f69a24bbe.png
+vehicles/okada-back | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_160657_7464670a-6026-4035-850e-827121b74c8e.png
+vehicles/danfo-front | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_160826_6ac6024c-9564-4108-9a51-0ad48594a25b.png
+vehicles/danfo-back | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_160828_99379567-604a-417b-b1bb-bc53858c3ff1.png
+vehicles/car-front | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_160827_561523b3-cb15-4864-b2af-fe3ee326ae8c.png
+vehicles/car-back | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_160827_9594c489-3e3a-4ede-90ce-fb6dadbc1bbf.png
+vehicles/suv-front | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_160858_79ddc61b-b210-49c2-b6c4-4f620c7c4438.png
+vehicles/suv-back | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_160857_a3a33d43-df8d-468f-89fa-8eec07554048.png
+vehicles/horse-front | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_161209_8443bc5e-5265-4c1d-a91e-ca74815119f0.png
+vehicles/horse-back | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_161211_f5dc4150-a194-4085-a9ff-ccd9229da894.png
+vehicles/trafficlight | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_160501_c2167f17-6a96-4d69-8da5-bfd25850784e.png
