@@ -1,8 +1,8 @@
 // Static ground layer: terrain, scattered houses and trees, roads and their names.
 // Drawn once. Ported from drawMap() in reference/kwara-life.html.
 import { Container, Graphics, Text } from "pixi.js";
-import { PLACES, WAYPOINTS } from "../data/locations";
-import { ROADS } from "../data/roads";
+import { PLACES, WAYPOINTS } from "../data/ilorin/places";
+import { ROADS } from "../data/ilorin/roads";
 import { seeded, type Rng } from "../sim/rng";
 import { WORLD_H, WORLD_W, nodePos, placePos, type Point } from "../sim/world";
 import { segmentDistance } from "./layout";

@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Naija Votes 2027</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Lilita+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#E6D6B8; --panel:#FBF4E6; --panel-2:#F1E4CB; --ink:#1F2A4D; --ink-soft:#5E6582; --line:#D8C49E;
+  --indigo:#26355E; --laterite:#B5532E; --keke:#F2B705; --leaf:#3F6B3A; --danger:#B3261E; --ok:#2F7D5B; --up:#2F7D5B;
+  --sign:"Lilita One","Arial Black",system-ui,sans-serif;
+  --ui:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --page:#111830; --panel:#1B2443; --panel-2:#232E55; --ink:#F1E8D4; --ink-soft:#A9AFC7; --line:#33406B; --indigo:#0F1730; --up:#7FD3A8; --leaf:#8BC57A; }
+}
+:root[data-theme="dark"]{ --page:#111830; --panel:#1B2443; --panel-2:#232E55; --ink:#F1E8D4; --ink-soft:#A9AFC7; --line:#33406B; --indigo:#0F1730; --up:#7FD3A8; --leaf:#8BC57A; }
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--page);color:var(--ink);font-family:var(--ui);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+button,input{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,.loc:focus-visible{outline:3px solid var(--keke);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:16px;max-width:1360px;margin:0 auto;padding:16px}
+.left{display:flex;flex-direction:column;gap:12px;min-width:0}
+.side{display:flex;flex-direction:column;gap:12px;min-width:0}
+
+.hud{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.brand{font-family:var(--sign);font-size:28px;line-height:1;background:var(--indigo);color:#F7E7C1;padding:8px 14px 9px;border-radius:6px;transform:rotate(-1.5deg);box-shadow:3px 3px 0 var(--laterite);letter-spacing:.5px}
+.me{display:flex;align-items:center;gap:8px;background:var(--panel);border:1.5px solid var(--line);border-radius:999px;padding:3px 12px 3px 3px;font-weight:700}
+.me svg{width:34px;height:34px;border-radius:50%;background:#E9D5AE;display:block}
+.hud .spacer{flex:1}
+.pill{display:flex;align-items:center;gap:6px;background:var(--panel);border:1.5px solid var(--line);border-radius:999px;padding:6px 12px;font-weight:600;white-space:nowrap}
+.pill small{font-weight:500;color:var(--ink-soft)}
+.pill.money{color:var(--leaf)}
+.pill.nepa{background:#3B2A1A;color:#FFD66B;border-color:#3B2A1A}
+.btn{background:var(--panel);border:1.5px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;cursor:pointer}
+.btn:hover{border-color:var(--ink-soft)}
+
+.map{position:relative;border-radius:18px;overflow:hidden;border:3px solid var(--indigo);background:#D9BF8C;box-shadow:0 10px 0 -4px rgba(38,53,94,.25)}
+.map svg{display:block;width:100%;height:auto;touch-action:manipulation;user-select:none}
+.loc{cursor:pointer}
+.loc:hover .signbg{fill:#3A4C80}
+.sel-ring{fill:none;stroke:var(--keke);stroke-width:4;stroke-dasharray:10 8;animation:dash 1.2s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-36}}
+.walking .leg-a{animation:legA .32s ease-in-out infinite alternate}
+.walking .leg-b{animation:legB .32s ease-in-out infinite alternate}
+.walking .arm-a{animation:legB .32s ease-in-out infinite alternate}
+.walking .arm-b{animation:legA .32s ease-in-out infinite alternate}
+.leg-a,.leg-b,.arm-a,.arm-b{transform-box:fill-box;transform-origin:50% 0}
+@keyframes legA{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
+@keyframes legB{from{transform:rotate(22deg)}to{transform:rotate(-22deg)}}
+.cloud{animation:drift 90s linear infinite}
+@keyframes drift{from{transform:translateX(-220px)}to{transform:translateX(1220px)}}
+@media (prefers-reduced-motion: reduce){.sel-ring,.cloud,.walking .leg-a,.walking .leg-b,.walking .arm-a,.walking .arm-b{animation:none}}
+
+.card{background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:14px}
+.card h2{font-family:var(--sign);font-weight:400;font-size:20px;margin:0 0 8px;line-height:1.1}
+.muted{color:var(--ink-soft)}
+
+.need{display:grid;grid-template-columns:72px 1fr 36px;align-items:center;gap:10px;margin:7px 0}
+.need span{font-weight:600;font-size:14px}
+.need b{font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+.track{height:14px;border-radius:4px;background:var(--panel-2);overflow:hidden;border:1.5px solid var(--line)}
+.fill{height:100%;transition:width .4s ease}
+.need.low .track{border-color:var(--danger)}
+.need.low b{color:var(--danger)}
+.f-food{background:repeating-linear-gradient(90deg,#B5532E 0 8px,#E0884F 8px 11px,#7A2E1B 11px 14px)}
+.f-energy{background:repeating-linear-gradient(90deg,#E0A800 0 8px,#F7D35C 8px 11px,#9A6B00 11px 14px)}
+.f-fun{background:repeating-linear-gradient(90deg,#8C2F5A 0 8px,#C2578A 8px 11px,#5A1838 11px 14px)}
+.f-social{background:repeating-linear-gradient(90deg,#26355E 0 8px,#4F6AAE 8px 11px,#121B36 11px 14px)}
+.f-hygiene{background:repeating-linear-gradient(90deg,#2F7D7A 0 8px,#5FB3AE 8px 11px,#1A4C4A 11px 14px)}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.stat{background:var(--panel-2);border-radius:8px;padding:4px 10px;font-size:13px;font-weight:600}
+
+.place-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.open{font-size:12.5px;font-weight:600;white-space:nowrap}
+.open.no{color:var(--danger)}
+.acts{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.act{display:block;width:100%;text-align:left;background:var(--panel-2);border:1.5px solid transparent;border-radius:10px;padding:10px 12px;cursor:pointer}
+.act:hover:not(:disabled){border-color:var(--indigo)}
+.act:disabled{opacity:.55;cursor:not-allowed}
+.act-name{font-weight:700;display:block}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.chip{font-size:12px;font-weight:600;background:var(--panel);border-radius:6px;padding:1px 7px;color:var(--ink-soft)}
+.chip.cost{color:var(--danger)}
+.chip.earn,.chip.up{color:var(--up)}
+.why{display:block;font-size:12.5px;color:var(--danger);margin-top:4px;font-weight:600}
+.go{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.gobtn{border:none;border-radius:10px;padding:12px;cursor:pointer;font-weight:700;text-align:left}
+.gobtn small{display:block;font-weight:500;opacity:.85}
+.gobtn.keke{background:var(--keke);color:#2A2000}
+.gobtn.walk{background:#26355E;color:#F7E7C1}
+.gobtn:disabled{opacity:.5;cursor:not-allowed}
+.preview{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.preview li{font-size:12.5px;background:var(--panel-2);border-radius:6px;padding:2px 8px}
+
+.friend{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.friend:last-child{border-bottom:none}
+.friend b{display:block}
+.friend small{color:var(--ink-soft)}
+.hearts{color:#C2578A;letter-spacing:1px;font-size:14px;white-space:nowrap}
+.hearts i{font-style:normal;color:var(--line)}
+
+.log{list-style:none;margin:0;padding:0;font-size:13.5px}
+.log li{padding:6px 0;border-bottom:1px solid var(--line)}
+.log li:last-child{border-bottom:none}
+.log time{display:block;font-size:11.5px;color:var(--ink-soft);font-weight:600}
+.foot{display:flex;justify-content:flex-end}
+
+.overlay{position:fixed;inset:0;background:rgba(10,14,30,.55);display:none;align-items:center;justify-content:center;padding:20px;z-index:20;overflow:auto}
+.overlay.on{display:flex}
+.modal{background:var(--panel);color:var(--ink);border-radius:16px;max-width:440px;width:100%;padding:20px;border:3px solid #26355E;box-shadow:6px 6px 0 var(--laterite)}
+.modal h3{font-family:var(--sign);font-weight:400;font-size:24px;margin:0 0 8px;line-height:1.1}
+.modal p{margin:0 0 16px}
+.modal .choices{display:flex;flex-direction:column;gap:8px}
+.modal .choices button{border:none;border-radius:10px;padding:11px 14px;font-weight:700;cursor:pointer;background:var(--panel-2);text-align:left}
+.modal .choices button:first-child{background:#26355E;color:#F7E7C1}
+
+.creator{display:grid;grid-template-columns:130px 1fr;gap:16px;align-items:start}
+.creator .stage{background:linear-gradient(#F3E4C4,#E2C893);border-radius:12px;display:flex;justify-content:center;padding:8px 0;border:2px solid #26355E}
+.creator .stage svg{width:110px;height:160px}
+.field{margin-bottom:12px}
+.field label,.field .lbl{display:block;font-weight:700;font-size:13px;margin-bottom:5px}
+.field input{width:100%;padding:9px 11px;border-radius:9px;border:1.5px solid var(--line);background:var(--panel-2)}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{border:1.5px solid var(--line);background:var(--panel-2);border-radius:999px;padding:6px 14px;font-weight:700;cursor:pointer}
+.seg button[aria-pressed="true"]{background:#26355E;color:#F7E7C1;border-color:#26355E}
+.swatch{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}
+.swatch[aria-pressed="true"]{outline:3px solid var(--keke);outline-offset:2px}
+.startbtn{width:100%;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;background:var(--keke);color:#2A2000;margin-top:4px}
+@media (max-width:520px){.creator{grid-template-columns:1fr}.creator .stage svg{height:140px}}
+
+.scenebar{position:absolute;left:12px;top:12px;display:flex;align-items:center;gap:8px}
+.scenebar .btn{background:#26355E;color:#F7E7C1;border-color:#26355E}
+.scenetitle{font-family:var(--sign);font-size:20px;color:#F7E7C1;background:rgba(38,53,94,.85);padding:4px 12px;border-radius:8px}
+.prop{cursor:pointer}.prop:hover .tag rect{fill:#3A4C80}.prop:focus-visible{outline:3px solid var(--keke)}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:#26355E;color:#F7E7C1;padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;max-width:90vw;z-index:30;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:980px){
+  .app{grid-template-columns:1fr;padding:10px;gap:10px}
+  .brand{font-size:22px}
+  .map{border-radius:12px}
+}
+
+.map{aspect-ratio:10/7;touch-action:none}
+.map svg{width:100%;height:100%;cursor:grab}
+.map svg:active{cursor:grabbing}
+.zoombar{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:6px}
+.zoombar button{width:40px;height:40px;border-radius:10px;border:2px solid #26355E;background:#FBF4E6;color:#26355E;font-weight:800;font-size:18px;cursor:pointer}
+.zoombar button.me-btn{font-size:12px}
+.go.one{grid-template-columns:1fr}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.mode{border:none;border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left;font-weight:700}
+.mode small{display:block;font-weight:500;font-size:12.5px;opacity:.9}
+.mode .mnote{opacity:.75;font-size:11.5px}
+.mode:disabled{opacity:.45;cursor:not-allowed}
+.m-walk{background:#26355E;color:#F7E7C1}.m-keke{background:#F2B705;color:#2A2000}.m-okada{background:#B3261E;color:#fff}.m-bus{background:#2F7D5B;color:#fff}.m-horse{background:#8C2F5A;color:#fff;grid-column:1/-1}
+.goals{list-style:none;margin:0;padding:0;font-size:14px}
+.goals li{padding:5px 0;border-bottom:1px solid var(--line)}.goals li:last-child{border-bottom:none}
+.goals li.done{color:var(--up);font-weight:700}
+.scenebar{position:absolute;left:12px;top:12px;display:flex;align-items:center;gap:8px}
+.scenebar .btn{background:#26355E;color:#F7E7C1;border-color:#26355E}
+.scenetitle{font-family:var(--sign);font-size:20px;color:#F7E7C1;background:rgba(38,53,94,.85);padding:4px 12px;border-radius:8px}
+.prop{cursor:pointer}.prop:hover .tag rect{fill:#3A4C80}
+.brand{background:#0E5A3A;box-shadow:3px 3px 0 #5B2A86}
+.pill.cd{background:#5B2A86;color:#F3EEDF;border-color:#5B2A86}
+.langsel{border-radius:999px;border:1.5px solid var(--line);background:var(--panel);padding:6px 10px;font-weight:600}
+#tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:6px}
+#tabs button{border:none;background:none;border-radius:10px;padding:9px 4px;font-weight:800;cursor:pointer;font-size:14px}
+#tabs button[aria-current="page"]{background:#0E5A3A;color:#F3EEDF}
+.who{font-size:13.5px;margin:0 0 6px}
+.badge{border:2px solid currentColor;border-radius:6px;padding:0 6px;font-weight:800;font-size:11.5px;text-transform:uppercase}
+.badge.poor,.stamp.poor{color:#A8322B}.badge.middle,.stamp.middle{color:#C9962B}.badge.rich,.stamp.rich{color:#0E5A3A}
+.stamp{display:inline-block;border:4px solid currentColor;border-radius:8px;padding:2px 12px;font-family:var(--sign);font-size:28px;transform:rotate(-4deg);margin:0 0 12px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin:0 0 10px}.facts dt{font-size:12px;font-weight:700;color:var(--ink-soft)}.facts dd{margin:0;font-weight:600}
+.vibe{font-weight:700;color:#0E5A3A}
+.pvc{list-style:none;display:flex;gap:6px;padding:0;margin:10px 0;counter-reset:s}.pvc li{flex:1;counter-increment:s;background:var(--panel-2);border:1.5px solid var(--line);border-radius:10px;padding:8px;font-size:13px;font-weight:700}
+.pvc li::before{content:counter(s);display:block;font-family:var(--sign);font-size:18px;color:var(--ink-soft)}.pvc li.done{border-color:#0E5A3A}.pvc li.done::before{content:"✓";color:#0E5A3A}
+.sched{list-style:none;padding:0;margin:8px 0;font-size:13.5px}.sched li{padding:5px 0;border-bottom:1px solid var(--line)}.sched b{display:inline-block;min-width:56px}
+.warn{color:#A8322B;font-weight:700}
+.form label{display:block;font-weight:700;font-size:13.5px;margin-bottom:10px}.form input,.form select,.field select{display:block;width:100%;margin-top:5px;padding:9px 11px;border-radius:9px;border:1.5px solid var(--line);background:var(--panel-2)}
+.lbl{font-weight:700;font-size:13.5px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}.chips .chip{display:flex;align-items:center;gap:4px;border:1.5px solid var(--line);border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600;background:var(--panel-2);color:var(--ink)}
+.feed{list-style:none;margin:12px 0 0;padding:0}.feed li{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}.feed.small li{font-size:13px}
+.pchip{flex:none;color:#fff;font-family:var(--sign);border-radius:6px;padding:2px 6px;height:fit-content;min-width:44px;text-align:center}
+.tvscreen{background:#0B120D;color:#F3EEDF;border-radius:12px;padding:16px;border:6px solid #2A2F2A;display:flex;flex-direction:column;gap:10px;margin-bottom:8px}
+.chan{font-family:var(--sign);letter-spacing:1px}.live{background:#A8322B;color:#fff;border-radius:4px;padding:1px 6px;font-size:12px;margin-left:6px;font-family:var(--ui);font-weight:800}
+.headline{font-weight:800;font-size:19px;line-height:1.25;margin:0}.ad{font-size:12.5px;background:#1E2A21;border-radius:6px;padding:6px 8px;color:#C9D6CB}
+.slots{font-size:12.5px;color:var(--ink-soft);margin:0 0 12px}
+.papers{list-style:none;padding:0;margin:0 0 12px}.papers li{padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;margin-bottom:6px;background:#FFFDF6;color:#222}.papers b{display:block;font-family:Georgia,serif}
+.pad{width:120px;height:120px;border-radius:24px;border:3px solid #0E5A3A;background:#E3EFE6;font-size:46px;cursor:pointer;margin:12px auto;display:grid;place-items:center}
+.ballot{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:10px 0 14px;max-height:52vh;overflow:auto}
+.pbox{display:grid;grid-template-columns:1fr 40px;gap:2px 8px;text-align:left;border:1.5px solid #DCD3BC;background:#FFFDF6;color:#16201A;border-radius:10px;padding:8px;cursor:pointer}
+.pbox b{font-family:var(--sign);font-size:20px;border-left:5px solid;padding-left:8px;font-weight:400}.pbox small{grid-column:1;font-size:11.5px;color:#5C6458}
+.thumbslot{grid-column:2;grid-row:1/3;border:1.5px dashed #BFB59A;border-radius:8px;display:grid;place-items:center}.pbox.sel{border-color:#5B2A86;box-shadow:0 0 0 2px #5B2A86}.print{width:20px;height:26px;border-radius:10px;background:#5B2A86}
+.disclaimer{background:#E3EFE6;color:#16201A;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600}
+.bar{display:grid;grid-template-columns:52px 1fr 116px;gap:8px;align-items:center;margin:6px 0}.bl{font-family:var(--sign)}.bt{height:14px;background:var(--panel-2);border-radius:4px;overflow:hidden}.bf{display:block;height:100%;transition:width .4s}.bv{font-weight:700;font-size:13px;text-align:right}
+.nmap{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,34px);gap:3px;margin:12px 0}.tile{border-radius:5px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9.5px;line-height:1.05}.tile b{font-size:10px}.tile.mine{outline:3px solid var(--ink)}
+.h3{font-family:var(--sign);font-weight:400;font-size:18px;margin:8px 0}
+#mypu table{border-collapse:collapse;width:100%}#mypu td{padding:4px 6px;border-bottom:1px solid var(--line)}
+.modal.wide{max-width:640px;max-height:90vh;overflow:auto}
+.modes{grid-template-columns:1fr 1fr}.m-danfo{background:#F2B705;color:#2A2000}.m-ride{background:#2B6CB0;color:#fff}.m-suv{background:#1F1F1F;color:#fff}
+.creator .field select{margin-top:4px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="left">
+    <div class="hud">
+      <div class="brand">Naija Votes 27</div>
+      <div class="me" id="me" role="button" tabindex="0" aria-label="Your character"></div>
+      <div class="spacer"></div>
+      <div class="pill cd" id="countdown"></div>
+      <div class="pill" id="clock"></div>
+      <div class="pill money" id="money"></div>
+      <div class="pill" id="mood"></div>
+      <div class="pill nepa" id="nepa" hidden>No light</div>
+      <select class="langsel" id="langsel" aria-label="Language"></select>
+      <button class="btn" id="pause">Pause</button>
+    </div>
+    <p class="muted small" id="statevibe" style="margin:0"></p>
+    <div class="map">
+      <svg id="map" role="img" aria-label="Map of your local government area"></svg>
+      <svg id="scene" viewBox="0 0 1000 700" role="img" aria-label="Inside view" style="display:none"></svg>
+      <div class="zoombar" id="zoombar"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zme" class="me-btn" aria-label="Find me">Me</button></div>
+      <div class="scenebar" id="scenebar" hidden><button class="btn" id="exitbtn">Back to map</button><span class="scenetitle" id="scenetitle"></span></div>
+    </div>
+  </div>
+  <div class="side">
+    <section class="card" aria-label="Needs"><p class="who" id="who"></p><div id="needs"></div></section>
+    <nav id="tabs" aria-label="Panels"><button data-t="life">Life</button><button data-t="campaign">Campaign</button><button data-t="election">Election</button></nav>
+    <section class="card" id="place" aria-live="polite"></section>
+    <div id="tabbody" hidden></div>
+    <section class="card"><h2>Diary</h2><ul class="log" id="log"></ul></section>
+    <div class="foot"><button class="btn" id="reset">Start a new life (dev)</button></div>
+    <p class="muted small">A game. Not affiliated with INEC or any party, and not a poll or prediction.</p>
+  </div>
+</div>
+<div class="overlay" id="overlay"><div class="modal" id="ovm" role="dialog" aria-modal="true" aria-labelledby="mt"><h3 id="mt"></h3><div id="mbody"></div></div></div>
+<div class="toast" id="toast"></div>
+<script>
+const PARTIES=[["A","Accord"],["AA","Action Alliance"],["AAC","African Action Congress"],["ADC","African Democratic Congress"],["ADP","Action Democratic Party"],["APC","All Progressives Congress"],["APGA","All Progressives Grand Alliance"],["APM","Allied Peoples Movement"],["APP","Action Peoples Party"],["BP","Boot Party"],["DLA","Democratic Leadership Alliance"],["LP","Labour Party"],["NDC","Nigeria Democratic Congress"],["NNPP","New Nigeria Peoples Party"],["NRM","National Rescue Movement"],["PDP","Peoples Democratic Party"],["PRP","Peoples Redemption Party"],["SDP","Social Democratic Party"],["YP","Youth Party"],["YPP","Young Progressives Party"],["ZLP","Zenith Labour Party"]];
+const PCOL=["#2E6F95","#B5532E","#3F7D4E","#8C2F5A","#C08A1E","#4B4E9C","#2F8C8C","#9C4A2F","#6B7A2F","#7A3E8C","#2F5D8C","#A0523E","#3E8C6B","#8C6B2F","#5E3E8C","#2F7A5E","#8C3E52","#4E6F2F","#2F4E8C","#8C5A2F","#5A8C2F"];
+// [name, zone, slogan/vibe, default language, [5 LGAs], col, row]
+const STATES=[
+["Abia","SE","Home of Aba made goods and Ariaria Market","ig",["Aba North","Aba South","Umuahia North","Ohafia","Arochukwu"],5,6],
+["Adamawa","NE","Land of the Mandara Mountains and Sukur","ha",["Yola North","Yola South","Mubi North","Numan","Ganye"],7,2],
+["Akwa Ibom","SS","Land of Promise, home of afang soup","pcm",["Uyo","Eket","Ikot Ekpene","Oron","Abak"],6,6],
+["Anambra","SE","Light of the Nation, Onitsha Main Market","ig",["Awka South","Onitsha North","Nnewi North","Ekwusigo","Ihiala"],3,6],
+["Bauchi","NE","Pearl of Tourism, Yankari Game Reserve","ha",["Bauchi","Katagum","Misau","Tafawa Balewa","Alkaleri"],5,2],
+["Bayelsa","SS","Glory of All Lands, creeks and Oxbow Lake","pcm",["Yenagoa","Brass","Ogbia","Sagbama","Southern Ijaw"],2,7],
+["Benue","NC","Food Basket of the Nation","en",["Makurdi","Gboko","Otukpo","Katsina-Ala","Vandeikya"],5,4],
+["Borno","NE","Home of Peace, by Lake Chad","ha",["Maiduguri","Jere","Biu","Konduga","Bama"],7,1],
+["Cross River","SS","People's Paradise, Obudu and the Calabar Carnival","pcm",["Calabar Municipal","Calabar South","Ikom","Ogoja","Obudu"],6,5],
+["Delta","SS","The Big Heart","pcm",["Oshimili South","Warri South","Uvwie","Ughelli North","Sapele"],2,6],
+["Ebonyi","SE","Salt of the Nation","ig",["Abakaliki","Afikpo North","Ezza North","Ikwo","Ohaukwu"],5,5],
+["Edo","SS","Heartbeat of the Nation, Benin bronzes","pcm",["Oredo","Egor","Ikpoba-Okha","Esan West","Etsako West"],3,5],
+["Ekiti","SW","Fountain of Knowledge, Ikogosi warm springs","yo",["Ado Ekiti","Ikere","Ijero","Ikole","Efon"],2,4],
+["Enugu","SE","Coal City State","ig",["Enugu North","Enugu East","Nsukka","Udi","Oji River"],4,5],
+["FCT","NC","Centre of Unity, Aso Rock","en",["Abuja Municipal","Bwari","Gwagwalada","Kuje","Kwali"],3,3],
+["Gombe","NE","Jewel in the Savannah","ha",["Gombe","Akko","Billiri","Kaltungo","Dukku"],6,2],
+["Imo","SE","Eastern Heartland, Oguta Lake","ig",["Owerri Municipal","Owerri North","Okigwe","Orlu","Aboh Mbaise"],4,6],
+["Jigawa","NW","The New World, Hadejia wetlands","ha",["Dutse","Hadejia","Kazaure","Gumel","Birnin Kudu"],5,0],
+["Kaduna","NW","Centre of Learning","ha",["Kaduna North","Kaduna South","Zaria","Jema'a","Chikun"],3,2],
+["Kano","NW","Centre of Commerce, Kofar Mata dye pits","ha",["Kano Municipal","Nassarawa","Fagge","Gwale","Dala"],4,1],
+["Katsina","NW","Home of Hospitality, Gobarau Minaret","ha",["Katsina","Daura","Funtua","Malumfashi","Dutsin-Ma"],3,0],
+["Kebbi","NW","Land of Equity, Argungu Fishing Festival","ha",["Birnin Kebbi","Argungu","Yauri","Zuru","Jega"],0,1],
+["Kogi","NC","Confluence State, Lokoja","en",["Lokoja","Okene","Idah","Kabba/Bunu","Ankpa"],3,4],
+["Kwara","NC","State of Harmony","yo",["Ilorin West","Ilorin East","Ilorin South","Offa","Moro"],1,3],
+["Lagos","SW","Centre of Excellence","yo",["Ikeja","Eti-Osa","Alimosho","Surulere","Lagos Island"],0,6],
+["Nasarawa","NC","Home of Solid Minerals","en",["Lafia","Keffi","Akwanga","Karu","Nasarawa"],4,3],
+["Niger","NC","Power State, Kainji Dam","ha",["Chanchaga","Bida","Suleja","Kontagora","Borgu"],1,2],
+["Ogun","SW","Gateway State, Olumo Rock","yo",["Abeokuta South","Abeokuta North","Ijebu Ode","Sagamu","Ado-Odo/Ota"],0,5],
+["Ondo","SW","Sunshine State, Idanre Hills","yo",["Akure South","Akure North","Ondo West","Owo","Okitipupa"],2,5],
+["Osun","SW","State of the Living Spring, Osun-Osogbo Grove","yo",["Osogbo","Olorunda","Ife Central","Ilesa East","Iwo"],1,4],
+["Oyo","SW","Pace Setter State, Cocoa House Ibadan","yo",["Ibadan North","Ibadan South-West","Ogbomosho North","Oyo East","Iseyin"],0,4],
+["Plateau","NC","Home of Peace and Tourism","en",["Jos North","Jos South","Barkin Ladi","Pankshin","Shendam"],5,3],
+["Rivers","SS","Treasure Base of the Nation, Garden City","pcm",["Port Harcourt","Obio/Akpor","Eleme","Bonny","Ikwerre"],3,7],
+["Sokoto","NW","Seat of the Caliphate","ha",["Sokoto North","Sokoto South","Wamako","Tambuwal","Gwadabawa"],1,0],
+["Taraba","NE","Nature's Gift to the Nation, Mambilla Plateau","ha",["Jalingo","Wukari","Takum","Bali","Gashaka"],6,3],
+["Yobe","NE","Pride of the Sahel","ha",["Damaturu","Potiskum","Nguru","Bade","Geidam"],6,0],
+["Zamfara","NW","Farming is Our Pride","ha",["Gusau","Kaura Namoda","Talata Mafara","Anka","Bungudu"],2,1]];
+const ZONES={NC:"North Central",NE:"North East",NW:"North West",SE:"South East",SS:"South South",SW:"South West"};
+const JOBS={
+ poor:["Carpenter","Tailor","Bricklayer","Okada rider","Keke driver","Vulcaniser","Welder","Farmer","Market trader","Hawker","Barber","Cleaner","Mechanic apprentice","Plumber","Generator repairer"],
+ middle:["Software developer","Accountant","Secondary school teacher","Nurse","Banker","Civil servant","Lecturer","Pharmacist","Lawyer","Civil engineer","Journalist","Product designer"],
+ rich:["Unicorn startup founder","Oil and gas executive","Bank MD","Real estate developer","Telecom investor","Manufacturing magnate","Shipping and logistics owner"]};
+const PAY={poor:[3000,6500],middle:[22000,45000],rich:[900000,4000000]};
+const START={poor:[2000,15000],middle:[80000,400000],rich:[20e6,300e6]};
+const HOMES={poor:["Rented room in a face-me-I-face-you","Family compound","Shop space you sleep in"],middle:["Two-bedroom flat","Mini flat","Self-contain in a quiet estate"],rich:["Duplex in a gated estate","Penthouse","Family mansion"]};
+const LANGS=[["en","English"],["pcm","Pidgin"],["yo","Yorùbá"],["ha","Hausa"],["ig","Igbo"]];
+// Draft translations of core UI words. Native-speaker review required before launch.
+const T={
+ en:{welcome:"Welcome to Naija Votes 2027",vote:"Vote",eday:"Election day",pu:"Polling unit",money:"Money",day:"Day",work:"Work",news:"News",results:"Results",start:"Start",next:"Next day",lang:"Language",days_left:"days to election day",create:"Create your citizen",roll:"Roll my life"},
+ pcm:{welcome:"Welcome to Naija Votes 2027",vote:"Vote",eday:"Election day",pu:"Polling unit",money:"Money",day:"Day",work:"Work",news:"News",results:"Result",start:"Start am",next:"Next day",lang:"Language",days_left:"days remain for election",create:"Make your person",roll:"Roll my life"},
+ yo:{welcome:"Ẹ káàbọ̀ sí Naija Votes 2027",vote:"Dìbò",eday:"Ọjọ́ ìdìbò",pu:"Ibùdó ìdìbò",money:"Owó",day:"Ọjọ́",work:"Iṣẹ́",news:"Ìròyìn",results:"Èsì",start:"Bẹ̀rẹ̀",next:"Ọjọ́ tó kàn",lang:"Èdè",days_left:"ọjọ́ sí ọjọ́ ìdìbò",create:"Ṣẹ̀dá ọmọ ìlú rẹ",roll:"Yí ayé mi"},
+ ha:{welcome:"Barka da zuwa Naija Votes 2027",vote:"Zaɓe",eday:"Ranar zaɓe",pu:"Rumfar zaɓe",money:"Kuɗi",day:"Rana",work:"Aiki",news:"Labarai",results:"Sakamako",start:"Fara",next:"Rana ta gaba",lang:"Harshe",days_left:"kwanaki zuwa ranar zaɓe",create:"Ƙirƙiri ɗan ƙasa",roll:"Juya rayuwata"},
+ ig:{welcome:"Nnọọ na Naija Votes 2027",vote:"Votu",eday:"Ụbọchị ntuli aka",pu:"Ebe ntuli aka",money:"Ego",day:"Ụbọchị",work:"Ọrụ",news:"Akụkọ",results:"Nsonaazụ",start:"Malite",next:"Ụbọchị ọzọ",lang:"Asụsụ",days_left:"ụbọchị fọdụrụ ruo ntuli aka",create:"Mepụta nwa amaala gị",roll:"Tụgharịa ndụ m"}};
+const ISSUES=["Jobs","Security","Electricity","Education","Healthcare","Roads","Cost of living","Corruption"];
+const MODES={poor:[["walk","🚶","on foot"],["okada","🏍️","by okada"],["danfo","🚐","by danfo bus"]],middle:[["keke","🛺","by keke"],["ride","🚗","in a ride-hailing car"]],rich:[["suv","🚙","in your SUV with a driver"]]};
+const MODE_LINES={walk:["Sun dey shine well well.","You greet the mallam at the junction.","A pothole full of water. You jump it."],okada:["The okada man says: \"Hold well o!\"","He weaves through traffic.","Helmet? Na story."],danfo:["Conductor: \"Enter with your change!\"","The driver is playing fuji at full volume.","Someone is preaching in the bus."],keke:["The keke man takes a shortcut.","\"Drop for front!\"","Three passengers at the back, very tight."],ride:["The driver asks you to cancel and pay cash.","AC is working today.","Waze says 12 minutes."],suv:["Gateman: \"Morning oga!\"","Phone cameras flash from the pavement.","Security salutes you."]};
+const WORK_STEPS={poor:["Leaving home early","Looking for customers","Working with your hands","Customer pays small small","Counting the day's money"],middle:["Commute","Morning meeting","Focused work","NEPA took light, generator on","Closing for the day"],rich:["Driver at the gate","Board meeting","Investor call","Signing deals","Back home"]};
+const PROMO={flyer:[["Street (about 200 people)",5000],["Whole LGA (about 5,000 people)",50000],["Whole state (about 100,000 people)",500000]],news:[["One ticker line on NVT News for a day",25000],["Sponsored segment in the evening news",250000]]};
+const DAILY_CAP=1000000;
+const BAD_WORDS=["kill","die","thug","idiot","fool","stupid","rig","burn","attack","hate"];
+
+(function(){
+const KEY="naija-life-v1";
+const ART={};
+const ELECTION_DAY=10, REG_CLOSE=7, PVC_CLOSE=9;
+const $=id=>document.getElementById(id);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const naira=n=>"₦"+Math.round(n).toLocaleString("en-NG");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const reduce=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
+function hash(s){let h=2166136261;for(const c of String(s)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function seeded(seed){seed=seed||1;return()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}}
+let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!S.n)S={lang:"en",t:7*60,n:{food:70,energy:80,fun:60,social:50,hygiene:70},light:true,groceries:1,log:[],seen:{},flags:{},informed:0,civic:0,posts:[],promos:[],spent:{},tab:"life",inside:false};
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const t=k=>(T[S.lang||"en"]||T.en)[k]||T.en[k];
+const CL={poor:"Poor",middle:"Middle class",rich:"Rich"};
+
+/* ---------- region look ---------- */
+const BIOME={NW:"sahel",NE:"sahel",NC:"savanna",SW:"forest",SE:"hills",SS:"delta"};
+const BIO={
+ sahel:{name:"Sahel savanna",ground:"#E3C890",patch:"#D2B26E",wall:["#D9A066","#C98E5A","#E3B47E"],roof:["#B9834B","#A9733F"],flat:true,trees:["neem","baobab","neem"],road:"#8C6A4A",extra:"cattle"},
+ savanna:{name:"Guinea savanna",ground:"#CDB878",patch:"#B9A35F",wall:["#EAD7B5","#D9A066","#E6C9A0"],roof:["#9AA3AD","#8B5A3A"],trees:["neem","","baobab"],road:"#66615B",extra:"rocks"},
+ forest:{name:"Rainforest belt",ground:"#A6BE70",patch:"#8DAB5A",wall:["#EAD7B5","#F0E2C4","#E6D3AE"],roof:["#9AA3AD","#8B5A3A","#7E8792"],trees:["palm","","palm"],road:"#5E5A55",extra:"red"},
+ hills:{name:"Eastern hills",ground:"#99B666",patch:"#7FA350",wall:["#F0E2C4","#E6EEF2","#F4E7D0"],roof:["#B3261E","#2B4C7E","#9AA3AD"],trees:["palm","",""],road:"#5E5A55",extra:"hills"},
+ delta:{name:"Niger Delta creeks",ground:"#8FB062",patch:"#6E9A4E",wall:["#EAD7B5","#D9C3A0","#E6EEF2"],roof:["#9AA3AD","#7E8792"],trees:["palm","mangrove","palm"],road:"#5E5A55",extra:"water"}};
+const LMK={Abia:["Ariaria Market","market"],Adamawa:["Mandara Mountains","hills"],"Akwa Ibom":["Ibom Tropicana","tower"],Anambra:["Onitsha Main Market","market"],Bauchi:["Yankari Game Reserve","forest"],Bayelsa:["Oxbow Lake","water"],Benue:["River Benue","water"],Borno:["Shehu's Palace","palace"],"Cross River":["Obudu Mountain Resort","hills"],Delta:["Niger Bridge, Asaba","bridge"],Ebonyi:["Uburu Salt Lake","water"],Edo:["Oba's Palace","palace"],Ekiti:["Ikogosi Warm Springs","water"],Enugu:["Ngwo Pine Forest","forest"],FCT:["Aso Rock","rock"],Gombe:["Tula Hills","hills"],Imo:["Oguta Lake","water"],Jigawa:["Hadejia Wetlands","water"],Kaduna:["Kajuru Castle","palace"],Kano:["Kofar Mata Dye Pits","market"],Katsina:["Gobarau Minaret","tower"],Kebbi:["Argungu Fishing Ground","water"],Kogi:["Niger-Benue Confluence","water"],Kwara:["Emir's Palace, Ilorin","palace"],Lagos:["Third Mainland Bridge","bridge"],Nasarawa:["Farin Ruwa Falls","water"],Niger:["Zuma Rock","rock"],Ogun:["Olumo Rock","rock"],Ondo:["Idanre Hills","hills"],Osun:["Osun-Osogbo Sacred Grove","forest"],Oyo:["Cocoa House, Ibadan","tower"],Plateau:["Shere Hills","rock"],Rivers:["Bonny Waterfront","water"],Sokoto:["Sultan's Palace","palace"],Taraba:["Mambilla Plateau","hills"],Yobe:["Dagona Waterfowl Sanctuary","water"],Zamfara:["Gusau Dam","water"]};
+const FOOD={SW:["Amala spot","Amala, ewedu and gbegiri",2000],NW:["Tuwo joint","Tuwo shinkafa and miyan kuka",1500],NE:["Tuwo joint","Tuwo masara and miyan taushe",1500],SE:["Abacha spot","Abacha and ugba with fish",1800],SS:["Banga kitchen","Starch and banga soup",2200],NC:["Mama put","Pounded yam and egusi",2000]};
+const MKT={SW:s=>`Ọjà ${s}`,NW:s=>`Kasuwar ${s}`,NE:s=>`Kasuwar ${s}`,SE:s=>`Ahịa ${s}`,SS:s=>`${s} Market`,NC:s=>`${s} Market`};
+const ROADS=["Murtala Mohammed Way","Ahmadu Bello Way","Awolowo Road","Tafawa Balewa Way","Market Road","Station Road","School Road","Hospital Road","Unity Road","Zik Avenue","Stadium Road","New Layout Road","Old Garage Road","Palace Road"];
+
+/* ---------- world (built from the citizen's LGA) ---------- */
+const C=S.c||{si:23,li:0,pi:0,cls:"poor",job:"Carpenter",name:"",under:false};
+const ST=STATES[C.si],ZONE=ST[1],LGA=ST[4][C.li],LSHORT=LGA.split(/[ /-]/)[0],B=BIO[BIOME[ZONE]],LM=LMK[ST[0]]||["Town landmark","rock"];
+const HAS_RIVER=BIOME[ZONE]==="delta"||["water","bridge"].includes(LM[1]);
+const WORK={poor:["Workshop","workshop"],middle:["Office","office"],rich:["Company HQ","tower"]}[C.cls];
+const FD=FOOD[ZONE];
+const L0=[
+ ["home",C.under?"Flyover":"Home",C.under?"flyover":"house",[0,24],C.cls==="rich",`Where you live: ${C.under?"under a flyover near the motor park":(S.c?S.c.home:"")}.`],
+ ["work",WORK[0],WORK[1],[7,20],C.cls!=="poor",`Where you work as a ${C.job.toLowerCase()}.`],
+ ["inec","INEC Office",`inec`,[8,17],true,"INEC LGA office. Register, collect your PVC and ask questions."],
+ ["pu","Polling Unit","school",[0,24],false,"Your polling unit, in a primary school. This is where you vote."],
+ ["market",MKT[ZONE](LSHORT),"market",[6,20],false,"Foodstuff, radios, TVs and everything in between."],
+ ["buka",FD[0],"buka",[7,22],false,`Local food: ${FD[1].toLowerCase()}.`],
+ ["viewing","Viewing Centre","viewing",[10,23],true,"Big TV, plastic chairs, small fee. News and football for people without TV at home."],
+ ["kiosk","News Stand","kiosk",[6,19],false,"Newspapers on display. Plenty people read the front pages for free."],
+ ["mosque","Central Mosque","mosque",[0,24],false,"The central mosque."],
+ ["church","Church","church",[0,24],false,"A busy church with big Sunday services."],
+ ["park","Motor Park","garage",[5,22],false,"Buses, drivers and all the political gist you can handle."],
+ ["hall","Town Hall","townhall",[8,20],false,"Voter education sessions and community debates."],
+ ["board","Notice Board","board",[0,24],false,"Flyers and announcements. Campaign flyers posted in this LGA show here."],
+ ["landmark",LM[0],"lm-"+LM[1],[7,19],false,`${ST[0]}: ${ST[2]}.`]];
+if(C.under||C.wasUnder)L0.push(["shelter","Shelter","shelter",[0,24],false,"A church-run shelter that sometimes has beds."]);
+const LOC={},WAY={},nodes=[];const R0=seeded(hash(ST[0]+LGA+C.pi));
+const W0=2000,H0=1400;
+let RIVER=null;
+if(HAS_RIVER){RIVER=[];for(let i=0;i<=10;i++){RIVER.push({x:-100+i*220,y:H0*.72+Math.sin(i*.9+R0()*2)*120})}}
+L0.forEach((r,i)=>{const id=r[0];let x=250+R0()*(W0-500),y=220+R0()*(H0-440);if(id==="landmark"&&RIVER){const p=RIVER[5];x=p.x;y=p.y-10}
+  LOC[id]={id,name:r[1],area:LGA,kind:r[2],open:r[3],gen:r[4],blurb:r[5],x,y};nodes.push(LOC[id])});
+function rdist(x,y){if(!RIVER)return 1e9;let m=1e9;for(let i=1;i<RIVER.length;i++)m=Math.min(m,segDist0(x,y,RIVER[i-1],RIVER[i]));return m}
+function segDist0(px,py,a,b){const dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy;let tt=l?((px-a.x)*dx+(py-a.y)*dy)/l:0;tt=Math.max(0,Math.min(1,tt));return Math.hypot(px-(a.x+tt*dx),py-(a.y+tt*dy))}
+for(let it=0;it<300;it++){for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){const a=nodes[i],b=nodes[j];let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||.01;if(d<330){const m=(330-d)/2;dx/=d;dy/=d;a.x-=dx*m;a.y-=dy*m;b.x+=dx*m;b.y+=dy*m}}
+  nodes.forEach(n=>{n.x=Math.max(220,Math.min(W0-220,n.x));n.y=Math.max(220,Math.min(H0-180,n.y));if(RIVER&&n.id!=="landmark"&&rdist(n.x,n.y+40)<150)n.y-=12})}
+nodes.forEach(n=>{n.x=Math.round(n.x);n.y=Math.round(n.y)});
+const WW=W0,WH=H0;
+/* roads: minimum spanning tree plus a few loops */
+const EDGES=[];(function(){const ids=nodes.map(n=>n.id),inT=new Set([ids[0]]);const d=(a,b)=>Math.hypot(LOC[a].x-LOC[b].x,LOC[a].y-LOC[b].y);let ri=0;
+  while(inT.size<ids.length){let best=null;inT.forEach(a=>ids.forEach(b=>{if(inT.has(b))return;const v=d(a,b);if(!best||v<best[2])best=[a,b,v]}));inT.add(best[1]);EDGES.push([best[0],best[1],ROADS[ri++%ROADS.length]])}
+  const has=(a,b)=>EDGES.some(e=>(e[0]===a&&e[1]===b)||(e[0]===b&&e[1]===a));const cand=[];ids.forEach((a,i)=>ids.slice(i+1).forEach(b=>{if(!has(a,b))cand.push([a,b,d(a,b)])}));cand.sort((x,y)=>x[2]-y[2]);
+  let extra=0;for(const c of cand){if(extra>=5)break;if(c[2]<640){EDGES.push([c[0],c[1],ROADS[ri++%ROADS.length]]);extra++}}})();
+
+/* ---------- actions ---------- */
+const FOODMAP={SW:"Amala",NW:"Tuwo",NE:"Tuwo",SE:"Abacha",SS:"Starch and banga",NC:"Pounded yam"};
+const HOME_ACTS=C.under?[
+ {id:"sleep",label:"Sleep under the flyover",dur:420,sleep:true,fx:{energy:70,hygiene:-10},bubble:"Zzz",done:"You slept under the flyover. The traffic never stopped."},
+ {id:"radio",label:"Listen to your small radio",dur:30,media:"radio",fx:{fun:6},bubble:"Radio",done:"Radio news."}]:[
+ {id:"sleep",label:"Sleep",dur:480,sleep:true,fx:{energy:100},bubble:"Zzz",done:"You slept for 8 hours."},
+ {id:"nap",label:"Take a nap",dur:90,sleep:true,fx:{energy:30},bubble:"Zzz",done:"Short nap."},
+ {id:"bath",label:"Take a bath",dur:30,fx:{hygiene:70},bubble:"Splash",done:"Cold bath, you feel fresh."},
+ {id:"cook",label:"Cook at home",dur:40,fx:{food:45},usesFood:true,bubble:"Cooking",done:"You cooked a pot of rice and stew."},
+ {id:"tv",label:"Watch the news on your TV",dur:60,media:"tv",light:true,fx:{fun:18},bubble:"News",done:"TV news."},
+ {id:"radio",label:"Listen to the radio",dur:30,media:"radio",fx:{fun:6},bubble:"Radio",done:"Radio news."},
+ {id:"phone",label:"Scroll WhatsApp status",dur:30,fx:{fun:8,social:6},bubble:"Scrolling",done:"Everyone's status is about the election."}];
+const PAYD={poor:[3000,6500,300],middle:[22000,45000,480],rich:[900000,4000000,240]};
+const ACT={
+ home:HOME_ACTS,
+ work:[{id:"work",label:`Work as a ${C.job.toLowerCase()}`,dur:PAYD[C.cls][2],work:true,fx:{energy:-25,fun:-8,social:8,hygiene:-10},bubble:"Working",done:"Shift done."}],
+ inec:[{id:"register",label:"Register to vote",dur:120,pvcAct:"register",fx:{energy:-5},bubble:"BVAS capture",done:"You registered. Your PVC will be ready in 2 days."},
+       {id:"collect",label:"Collect your PVC",dur:90,pvcAct:"collect",fx:{},bubble:"Searching",done:""},
+       {id:"help",label:"Help a neighbour register",dur:90,fx:{social:15},civic:1,bubble:"Helping",done:"You helped Mama Ngozi register."}],
+ pu:[{id:"check",label:"Check your name on the register",dur:30,informed:1,fx:{},bubble:"Checking",done:"Your name is on the displayed register."},
+     {id:"vote",label:"Vote",dur:60,vote:true,fx:{},bubble:"Voting",done:""}],
+ market:[{id:"bribe",label:"Offer money for votes",dur:60,bribe:true,fx:{},bubble:"Sharing money",done:""},{id:"food",label:"Buy foodstuff",dur:40,cost:2000,groc:3,fx:{},bubble:"Pricing",done:"Foodstuff for 3 meals."},
+         {id:"buyradio",label:"Buy a small radio",dur:20,cost:8000,buy:"radio",fx:{fun:5},bubble:"Buying",done:"You bought a small battery radio."},
+         {id:"buytv",label:"Buy a TV",dur:30,cost:85000,buy:"tv",fx:{fun:15},bubble:"Buying",done:"You bought a 32-inch TV."},
+         {id:"haggle",label:"Gist with traders",dur:40,fx:{social:12},overhear:true,bubble:"Gisting",done:"Traders argued about the election all afternoon."}],
+ buka:[{id:"bribe",label:"Offer money for votes",dur:60,bribe:true,fx:{},bubble:"Sharing money",done:""},{id:"eat",label:FD[1],dur:40,cost:FD[2],fx:{food:60,fun:6},bubble:"Eating",done:`${FD[1]}. Belle full.`},
+       {id:"gist",label:"Gist with regulars",dur:30,fx:{social:12},overhear:true,bubble:"Gisting",done:"Everybody has an opinion about 2027."}],
+ viewing:[{id:"vnews",label:"Watch the news",dur:60,cost:100,media:"tv",fx:{fun:10,social:6},bubble:"News",done:"TV news at the viewing centre."},
+          {id:"football",label:"Watch football",dur:120,cost:200,fx:{fun:35,social:15},bubble:"Goal!",done:"Big match. The whole centre screamed."}],
+ kiosk:[{id:"glance",label:"Read the front pages for free",dur:15,media:"paper",fx:{},bubble:"Reading",done:"Front pages."},
+        {id:"paper",label:"Buy a newspaper",dur:30,cost:300,media:"paper2",fx:{fun:5},bubble:"Reading",done:"Full paper."}],
+ mosque:[{id:"pray",label:"Pray",dur:30,fx:{fun:8,social:6},bubble:"Praying",done:"You prayed and feel calm."},
+         {id:"jummah",label:"Attend Jummah",dur:90,day:4,hours:[12,15],fx:{social:25,fun:10},bubble:"Jummah",done:"Jummah. The imam reminded everyone to vote in peace."}],
+ church:[{id:"cpray",label:"Pray",dur:30,fx:{fun:8,social:6},bubble:"Praying",done:"You prayed and feel calm."},
+         {id:"service",label:"Attend Sunday service",dur:150,day:6,hours:[8,13],fx:{social:25,fun:12},bubble:"Praise",done:"Sunday service. The pastor reminded everyone to collect their PVC."}],
+ park:[{id:"bribe",label:"Offer money for votes",dur:60,bribe:true,fx:{},bubble:"Sharing money",done:""},{id:"drivers",label:"Gist with drivers",dur:40,fx:{social:12,fun:6},overhear:true,bubble:"Gisting",done:"The drivers' union argued politics for an hour."}],
+ hall:[{id:"edu",label:"Voter education session",dur:90,informed:2,fx:{social:8},bubble:"Learning",done:"INEC and NOA explained BVAS, ballot marking and result upload."},
+       {id:"debate",label:"Watch a community debate",dur:120,informed:2,fx:{fun:10,social:12},bubble:"Listening",done:"Party agents debated roads, power and jobs. Calm and civil."}],
+ board:[{id:"readfly",label:"Read the flyers",dur:15,informed:1,fx:{},bubble:"Reading",done:"You read the flyers on the board."},
+        {id:"postfly",label:"Post a flyer",dur:30,flyer:true,fx:{},bubble:"Posting",done:""}],
+ landmark:[{id:"visit",label:`Visit ${LM[0]}`,dur:90,fx:{fun:30,social:5,energy:-10},bubble:"Wow",done:`You spent the afternoon at ${LM[0]}.`}],
+ shelter:[{id:"bed",label:"Ask for a bed",dur:60,fx:{},shelter:true,bubble:"Waiting",done:""}]};
+const SKINS=["#8D5524","#6B3E26","#4A2A18","#A86B3C"];
+const CLOTHS=["#F4F1EA","#2F7D7A","#8C2F5A","#26355E","#B5532E","#3F6B3A"];
+
+/* ================= AVATAR ================= */
+function avatarSVG(c){
+  c=c||{g:"m",skin:SKINS[0],cloth:CLOTHS[0]};
+  const sk=c.skin,cl=c.cloth,dark="#2A1C14",f=c.g!=="m";
+  const legs=c.g==="f"?"#2E3B55":c.g==="h"?cl:"#3A2A20";
+  let s=`<ellipse cx="0" cy="1" rx="13" ry="4" fill="#000" opacity=".22"/>`;
+  s+=`<g class="leg-a"><rect x="-6.5" y="-16" width="5" height="16" rx="2.5" fill="${legs}"/><rect x="-7.5" y="-2" width="7" height="3" rx="1.5" fill="${f?"#F4F1EA":"#6B4A2B"}"/></g>`;
+  s+=`<g class="leg-b"><rect x="1.5" y="-16" width="5" height="16" rx="2.5" fill="${legs}"/><rect x="0.5" y="-2" width="7" height="3" rx="1.5" fill="${f?"#F4F1EA":"#6B4A2B"}"/></g>`;
+  s+=`<g class="arm-a"><rect x="-13" y="-34" width="5" height="17" rx="2.5" fill="${c.g==="h"?cl:sk}"/></g><g class="arm-b"><rect x="8" y="-34" width="5" height="17" rx="2.5" fill="${c.g==="h"?cl:sk}"/></g>`;
+  const trim=cl==="#F4F1EA"?"#C9A227":"#F2B705";
+  if(c.g==="m"){s+=`<path d="M-11,-36 Q0,-40 11,-36 L12,-10 Q0,-7 -12,-10 Z" fill="${cl}" stroke="rgba(0,0,0,.15)"/><path d="M0,-37 v11" stroke="${trim}" stroke-width="1.8"/><path d="M-4,-36 q4,7 8,0" fill="none" stroke="${trim}" stroke-width="1.5"/><path d="M-11,-35 L-4,-20 L-7,-12" stroke="#8C2F5A" stroke-width="4" fill="none" opacity=".9"/>`}
+  else if(c.g==="f"){s+=`<path d="M-10,-36 Q0,-40 10,-36 L11,-17 Q0,-14 -11,-17 Z" fill="${cl}"/><path d="M-10,-30 h20 M-10.5,-24 h21" stroke="${trim}" stroke-width="1.6" stroke-dasharray="2 2"/><path d="M-12,-17 Q0,-13 12,-17 L13,-8 Q0,-5 -13,-8 Z" fill="${cl}" opacity=".85"/>`}
+  else{s+=`<path d="M-11,-38 Q0,-42 11,-38 L13,-6 Q0,-3 -13,-6 Z" fill="${cl}"/><path d="M-11,-26 h22 M-12,-16 h24" stroke="${trim}" stroke-width="1.5" stroke-dasharray="3 2"/>`}
+  s+=`<rect x="-3" y="-41" width="6" height="5" fill="${sk}"/><circle cx="0" cy="-49" r="10" fill="${sk}"/>`;
+  s+=`<circle cx="-3.5" cy="-49" r="1.3" fill="${dark}"/><circle cx="3.5" cy="-49" r="1.3" fill="${dark}"/><path d="M-3.5,-45 q3.5,3 7,0" fill="none" stroke="${dark}" stroke-width="1.3" stroke-linecap="round"/>`;
+  if(c.g==="m")s+=`<path d="M-10,-53 Q-9,-64 1,-64 Q11,-63 10,-53 Z" fill="#8C2F5A"/><path d="M-10,-53 h20" stroke="#F2B705" stroke-width="2"/><path d="M-7,-60 l4,-2 l4,2 l4,-2 l3,1" stroke="#F2B705" stroke-width="1.2" fill="none"/>`;
+  else if(c.g==="f")s+=`<path d="M-12,-52 Q-12,-68 0,-67 Q13,-68 12,-52 Q8,-57 0,-57 Q-8,-57 -12,-52 Z" fill="#6B2F8C"/><path d="M6,-66 q12,-6 10,6 q-4,-2 -10,-2 z" fill="#6B2F8C"/><path d="M-10,-58 q10,-6 20,0" stroke="#F2B705" stroke-width="1.5" fill="none"/>`;
+  else s+=`<path d="M-12,-46 Q-14,-62 0,-62 Q14,-62 12,-46 L13,-36 Q0,-30 -13,-36 Z" fill="${cl}" opacity=".98"/><path d="M-9,-46 Q0,-58 9,-46 Q9,-40 0,-39 Q-9,-40 -9,-46 Z" fill="${sk}"/><circle cx="-3.3" cy="-47" r="1.2" fill="${dark}"/><circle cx="3.3" cy="-47" r="1.2" fill="${dark}"/><path d="M-3,-43.5 q3,2.5 6,0" fill="none" stroke="${dark}" stroke-width="1.2"/>`;
+  return s;
+}
+function portrait(c){return `<svg viewBox="-20 -72 40 40" aria-hidden="true">${avatarSVG(c)}</svg>`}
+function horseSVG(rider){
+  const c=S.char||{skin:SKINS[0],cloth:CLOTHS[0]};
+  let s=`<ellipse cx="0" cy="2" rx="40" ry="6" fill="#000" opacity=".22"/>`;
+  s+=`<g class="leg-a"><rect x="-26" y="-30" width="6" height="30" rx="3" fill="#6B3E1F"/></g><g class="leg-b"><rect x="-14" y="-30" width="6" height="30" rx="3" fill="#5A3318"/></g><g class="leg-b"><rect x="16" y="-30" width="6" height="30" rx="3" fill="#6B3E1F"/></g><g class="leg-a"><rect x="26" y="-30" width="6" height="30" rx="3" fill="#5A3318"/></g>`;
+  s+=`<ellipse cx="2" cy="-38" rx="34" ry="15" fill="#7A4524"/><path d="M28,-44 Q42,-66 50,-70 L58,-62 Q50,-50 40,-34 Z" fill="#7A4524"/><path d="M50,-72 L64,-62 L60,-56 L48,-62 Z" fill="#6B3E1F"/><circle cx="54" cy="-66" r="1.6" fill="#111"/><path d="M28,-48 Q36,-66 48,-72" stroke="#2A1A10" stroke-width="5" fill="none"/><path d="M-32,-40 q-14,6 -10,26" stroke="#2A1A10" stroke-width="5" fill="none"/>`;
+  s+=`<path d="M-18,-52 h40 v18 h-40 z" fill="#B3261E"/><path d="M-18,-34 h40" stroke="#F2B705" stroke-width="3" stroke-dasharray="5 3"/>${[-14,-4,6,16].map(x=>`<path d="M${x},-34 v8" stroke="#F2B705" stroke-width="2.5"/><circle cx="${x}" cy="-25" r="2.4" fill="#C0392B"/>`).join("")}<path d="M30,-50 l14,-12" stroke="#F2B705" stroke-width="3"/><circle cx="38" cy="-56" r="3" fill="#C9A227"/>`;
+  if(rider)s+=`<g transform="translate(2,-48)"><rect x="-8" y="-24" width="16" height="22" rx="6" fill="${c.cloth}" stroke="rgba(0,0,0,.2)"/><circle cx="0" cy="-31" r="8" fill="${c.skin}"/>${c.g==="m"?`<path d="M-8,-34 Q-7,-43 1,-43 Q9,-43 8,-34 Z" fill="#8C2F5A"/>`:c.g==="h"?`<path d="M-9,-30 Q-10,-42 0,-42 Q10,-42 9,-30 L9,-24 Q0,-20 -9,-24 Z" fill="${c.cloth}"/><circle cx="0" cy="-31" r="5.5" fill="${c.skin}"/>`:`<path d="M-9,-34 Q-9,-45 0,-44 Q10,-45 9,-34 Z" fill="#6B2F8C"/>`}<rect x="-3" y="-4" width="6" height="12" rx="3" fill="${c.cloth}"/></g>`;
+  return s;
+}
+function kekeSVG(){const c=S.char||{skin:SKINS[0]};return `<ellipse cx="0" cy="4" rx="30" ry="6" fill="#000" opacity=".25"/><path d="M-28,0 L-28,-22 Q-26,-38 -6,-40 L18,-40 Q30,-38 30,-24 L30,0 Z" fill="#F2B705" stroke="#8A6A00" stroke-width="2"/><rect x="-20" y="-32" width="18" height="16" rx="2" fill="#9CC3D5"/><rect x="4" y="-32" width="18" height="16" rx="2" fill="#9CC3D5"/><path d="M-28,-12 h58" stroke="#26355E" stroke-width="3"/><circle cx="-18" cy="2" r="6" fill="#222"/><circle cx="20" cy="2" r="6" fill="#222"/><circle cx="-10" cy="-24" r="5" fill="${c.skin}"/><circle cx="14" cy="-24" r="5" fill="#4A2A18"/>`}
+function okadaSVG(){const c=S.char||{skin:SKINS[0],cloth:CLOTHS[0]};return `<ellipse cx="0" cy="4" rx="28" ry="5" fill="#000" opacity=".25"/><circle cx="-18" cy="-6" r="9" fill="#222"/><circle cx="-18" cy="-6" r="4" fill="#888"/><circle cx="20" cy="-6" r="9" fill="#222"/><circle cx="20" cy="-6" r="4" fill="#888"/><path d="M-18,-6 L-4,-20 L14,-20 L20,-6" stroke="#B3261E" stroke-width="6" fill="none"/><rect x="-14" y="-26" width="26" height="7" rx="3" fill="#222"/><path d="M14,-22 L22,-36" stroke="#444" stroke-width="3"/><g transform="translate(8,-24)"><rect x="-6" y="-20" width="12" height="18" rx="5" fill="#2F7D5B"/><circle cx="0" cy="-26" r="7" fill="#C0392B"/><rect x="-1" y="-28" width="8" height="4" fill="#111" opacity=".6"/></g><g transform="translate(-8,-24)"><rect x="-6" y="-18" width="12" height="16" rx="5" fill="${c.cloth}"/><circle cx="0" cy="-23" r="6.5" fill="${c.skin}"/></g>`}
+function busSVG(){const c=S.char||{skin:SKINS[0]};return `<ellipse cx="0" cy="4" rx="46" ry="6" fill="#000" opacity=".25"/><rect x="-46" y="-44" width="92" height="40" rx="10" fill="#F2B705" stroke="#8A6A00" stroke-width="2"/><path d="M-46,-20 h92" stroke="#111" stroke-width="4"/><rect x="-40" y="-40" width="78" height="14" rx="3" fill="#9CC3D5"/>${[-30,-12,6,24].map(x=>`<line x1="${x}" y1="-40" x2="${x}" y2="-26" stroke="#8A6A00" stroke-width="2"/>`).join("")}<circle cx="-14" cy="-32" r="4.5" fill="${c.skin}"/><circle cx="16" cy="-32" r="4.5" fill="#4A2A18"/><rect x="-38" y="-50" width="60" height="5" rx="2" fill="#555"/><circle cx="-28" cy="-2" r="8" fill="#222"/><circle cx="28" cy="-2" r="8" fill="#222"/>`}
+
+const svg=$("map");const glowWins=[];
+function box(x,y,w,h,d,f,sd,tp,stroke){stroke=stroke||"rgba(60,40,20,.35)";const L=x-w/2,R=x+w/2,T=y-h,dy=d*.5;
+  return `<polygon points="${R},${y} ${R+d},${y-dy} ${R+d},${T-dy} ${R},${T}" fill="${sd}" stroke="${stroke}"/><polygon points="${L},${T} ${R},${T} ${R+d},${T-dy} ${L+d},${T-dy}" fill="${tp}" stroke="${stroke}"/><rect x="${L}" y="${T}" width="${w}" height="${h}" fill="${f}" stroke="${stroke}"/>`}
+function win(id,x,y,w,h){glowWins.push({id,x,y,w,h});return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1.5" fill="#86A9BD"/>`}
+function tree(x,y,s,kind){s=s||1;
+  if(kind==="palm")return `<g><ellipse cx="${x}" cy="${y+2}" rx="${12*s}" ry="${4*s}" fill="#000" opacity=".12"/><path d="M${x},${y} q${3*s},${-18*s} ${-1*s},${-34*s}" stroke="#7A5634" stroke-width="${3.5*s}" fill="none"/><g fill="#4E8A3F"><path d="M${x-1*s},${y-34*s} q${-16*s},${-4*s} ${-22*s},${8*s} q${10*s},${-12*s} ${22*s},${-8*s}"/><path d="M${x-1*s},${y-34*s} q${16*s},${-4*s} ${22*s},${8*s} q${-10*s},${-12*s} ${-22*s},${-8*s}"/><path d="M${x-1*s},${y-34*s} q${-6*s},${-14*s} ${-16*s},${-14*s} q${12*s},${2*s} ${16*s},${14*s}"/><path d="M${x-1*s},${y-34*s} q${8*s},${-14*s} ${18*s},${-12*s} q${-12*s},${2*s} ${-18*s},${12*s}"/></g></g>`;
+  if(kind==="baobab")return `<g><ellipse cx="${x}" cy="${y+2}" rx="${20*s}" ry="${5*s}" fill="#000" opacity=".13"/><path d="M${x-7*s},${y} q${2*s},${-18*s} ${1*s},${-30*s} h${12*s} q${-1*s},${12*s} ${1*s},${30*s} z" fill="#8A6A4A"/><ellipse cx="${x}" cy="${y-36*s}" rx="${24*s}" ry="${11*s}" fill="#6E8A3F"/></g>`;
+  return `<g><ellipse cx="${x}" cy="${y+2}" rx="${16*s}" ry="${5*s}" fill="#000" opacity=".13"/><rect x="${x-2.5*s}" y="${y-14*s}" width="${5*s}" height="${16*s}" fill="#6B4A2B"/><circle cx="${x}" cy="${y-20*s}" r="${15*s}" fill="#3F6B3A"/><circle cx="${x-6*s}" cy="${y-25*s}" r="${9*s}" fill="#56854A"/><circle cx="${x+6*s}" cy="${y-17*s}" r="${7*s}" fill="#335A30"/></g>`}
+function smallHouse(x,y,c,roof){return box(x,y,30,18,12,c||"#EAD7B5","#CDB58F","#E2CBA1")+`<polygon points="${x-17},${y-17} ${x+15},${y-17} ${x+28},${y-24} ${x-4},${y-24}" fill="${roof||"#9AA3AD"}" stroke="rgba(0,0,0,.25)"/>`}
+function busSmall(x,y,c){return `<g transform="translate(${x},${y}) scale(.55)"><rect x="-46" y="-44" width="92" height="40" rx="10" fill="${c}" stroke="rgba(0,0,0,.35)"/><rect x="-40" y="-40" width="78" height="14" rx="3" fill="#9CC3D5"/><circle cx="-28" cy="-2" r="8" fill="#222"/><circle cx="28" cy="-2" r="8" fill="#222"/></g>`}
+function cow(x,y){return `<g transform="translate(${x},${y})"><ellipse cx="0" cy="-8" rx="11" ry="6" fill="#F4F1EA" stroke="#999"/><circle cx="11" cy="-11" r="4" fill="#F4F1EA" stroke="#999"/><path d="M9,-15 l-3,-5 M13,-15 l3,-5" stroke="#8A6A45" stroke-width="1.5"/>${[-7,-2,4,8].map(d=>`<rect x="${d}" y="-4" width="2" height="6" fill="#999"/>`).join("")}<circle cx="-3" cy="-9" r="3" fill="#8A6A45"/></g>`}
+function wrap(id,L,g,top){
+  const x=L.x,y=L.y;
+  if(ART[id]){const A=ART[id];const bot=A.b===null?y+A.h/2-6:y+A.b;top=bot-A.h;g=`<ellipse cx="${x}" cy="${bot-8}" rx="${A.w*.46}" ry="${A.w*.12}" fill="#000" opacity=".18"/><image href="${A.src}" x="${x-A.w/2}" y="${top}" width="${A.w}" height="${A.h}"/>`}
+  const w=Math.max(92,L.name.length*9.2+26),sy=top-32;
+  const sign=`<g class="sign"><rect class="signbg" x="${x-w/2}" y="${sy}" width="${w}" height="26" rx="5" fill="#26355E" stroke="#F7E7C1" stroke-width="1.5"/><text x="${x}" y="${sy+18}" text-anchor="middle" font-family="Lilita One, Arial Black, sans-serif" font-size="15" fill="#F7E7C1">${L.name}</text></g>`;
+  return `<g class="loc" data-loc="${id}" tabindex="0" role="button" aria-label="${L.name}, ${L.area}"><ellipse class="sel-ring" id="ring-${id}" cx="${x}" cy="${y+34}" rx="110" ry="26" style="display:none"/>${g}${sign}</g>`;
+}
+function segDist(px,py,a,b){const dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy;let t=l?((px-a.x)*dx+(py-a.y)*dy)/l:0;t=Math.max(0,Math.min(1,t));return Math.hypot(px-(a.x+t*dx),py-(a.y+t*dy))}
+function rng(seed){return()=>{seed=(seed*16807)%2147483647;return seed/2147483647}}
+function np(id){const L=LOC[id];return{x:L.x,y:L.y+46}}
+function standPos(id){const L=LOC[id];return{x:L.x+40,y:L.y+72}}
+function tree2(x,y,s,k){s=s||1;
+  if(k==="neem")return `<g><ellipse cx="${x}" cy="${y+2}" rx="${16*s}" ry="${5*s}" fill="#000" opacity=".13"/><rect x="${x-2.5*s}" y="${y-14*s}" width="${5*s}" height="${16*s}" fill="#6B4A2B"/><ellipse cx="${x}" cy="${y-22*s}" rx="${19*s}" ry="${13*s}" fill="#7A9A4A"/><ellipse cx="${x-5*s}" cy="${y-26*s}" rx="${9*s}" ry="${6*s}" fill="#93B25C"/></g>`;
+  if(k==="mangrove")return `<g><path d="M${x-10*s},${y} q${4*s},${-12*s} ${10*s},${-14*s} q${6*s},${2*s} ${10*s},${14*s}" stroke="#5A4030" stroke-width="${2*s}" fill="none"/><ellipse cx="${x}" cy="${y-22*s}" rx="${18*s}" ry="${11*s}" fill="#3F6B3A"/></g>`;
+  return tree(x,y,s,k)}
+function carSVG(c){return `<ellipse cx="0" cy="4" rx="34" ry="6" fill="#000" opacity=".25"/><path d="M-34,0 v-16 q0,-6 8,-8 l10,-12 h32 l10,12 q8,2 8,8 v16 z" fill="${c}" stroke="rgba(0,0,0,.4)" stroke-width="2"/><path d="M-14,-34 h28 l8,10 h-44 z" fill="#9CC3D5"/><circle cx="-20" cy="2" r="7" fill="#222"/><circle cx="20" cy="2" r="7" fill="#222"/>`}
+function bhouse(x,y,wall,roof,w){w=w||30;return B.flat?box(x,y,w,18,12,wall,"#B9834B","#C99257")+`<rect x="${x-w/2}" y="${y-21}" width="${w}" height="4" fill="${roof}"/>`:box(x,y,w,18,12,wall,"#CDB58F","#E2CBA1")+`<polygon points="${x-w/2-2},${y-17} ${x+w/2},${y-17} ${x+w/2+13},${y-24} ${x-w/2+11},${y-24}" fill="${roof}" stroke="rgba(0,0,0,.25)"/>`}
+function building(id,L){const x=L.x,y=L.y;let g="",top=y-60;const wall=B.wall[0],roof=B.roof[0];
+  switch(L.kind){
+  case"house":
+    if(C.cls==="rich"){g+=`<rect x="${x-90}" y="${y-40}" width="180" height="84" rx="6" fill="#7FB06A" opacity=".7"/>`+box(x,y,110,70,30,"#F7F4EE","#DCD6CA","#ECE7DD")+`<rect x="${x-55}" y="${y-74}" width="110" height="6" fill="#2B2B2B"/>`;for(let r=0;r<2;r++)for(let c=0;c<3;c++)g+=win(id,x-44+c*32,y-62+r*30,22,16);g+=`<g transform="translate(${x+80},${y+30}) scale(.6)">${carSVG("#1F1F1F")}</g><path d="M${x-90},${y+44} h180" stroke="#555" stroke-width="3" stroke-dasharray="3 3"/>`;top=y-90}
+    else if(C.cls==="middle"){g+=box(x,y,100,42,26,"#F0E2C4","#D4C7AC","#E6DAC1")+`<polygon points="${x-56},${y-40} ${x+50},${y-40} ${x+76},${y-53} ${x-30},${y-53}" fill="${B.roof[1]||roof}" stroke="rgba(0,0,0,.3)"/>`+win(id,x-40,y-30,20,14)+win(id,x+20,y-30,20,14)+`<rect x="${x-9}" y="${y-24}" width="18" height="24" fill="#6B4A2B"/><path d="M${x-70},${y+20} h140" stroke="#999" stroke-width="4"/>`;top=y-60}
+    else{g+=box(x,y,92,40,24,wall,"#CDB58F","#E2CBA1")+(B.flat?`<rect x="${x-46}" y="${y-44}" width="92" height="5" fill="${roof}"/>`:`<polygon points="${x-50},${y-38} ${x+48},${y-38} ${x+72},${y-50} ${x-26},${y-50}" fill="#A9B0B8" stroke="#5E6570"/>`)+`<rect x="${x-8}" y="${y-24}" width="16" height="24" fill="#6B4A2B"/>`+win(id,x-36,y-30,16,12)+win(id,x+20,y-30,16,12)+`<rect x="${x+52}" y="${y-14}" width="16" height="16" rx="3" fill="#2B6CB0"/>`;top=y-60}
+    break;
+  case"flyover":g+=`<rect x="${x-120}" y="${y-64}" width="240" height="18" fill="#9AA3AD" stroke="#5E6570"/><rect x="${x-120}" y="${y-68}" width="240" height="5" fill="#C4CBD2"/>${[-90,0,90].map(d=>`<rect x="${x+d-8}" y="${y-46}" width="16" height="50" fill="#8E96A3"/>`).join("")}<rect x="${x-50}" y="${y-6}" width="44" height="10" rx="3" fill="#8C2F5A"/><rect x="${x+14}" y="${y-12}" width="22" height="16" rx="3" fill="#5B7F95"/>`;top=y-70;break;
+  case"workshop":g+=`<path d="M${x-70},${y} v-40 l70,-14 l70,14 v40" fill="#C9A06B" stroke="#8A6A45"/><path d="M${x-80},${y-40} l80,-18 l80,18" stroke="#9AA3AD" stroke-width="8" fill="none"/>${[0,1,2,3].map(i=>`<rect x="${x-60+i*10}" y="${y-30}" width="6" height="30" fill="#B9834B"/>`).join("")}<rect x="${x+10}" y="${y-22}" width="44" height="8" fill="#8A6A45"/>`;top=y-62;break;
+  case"office":g+=box(x,y,100,74,28,"#E9E2D2","#CFC7B6","#DDD5C3");for(let r=0;r<3;r++)for(let c=0;c<4;c++)g+=win(id,x-42+c*22,y-66+r*20,14,12);top=y-90;break;
+  case"tower":g+=box(x,y,70,150,26,"#5B7F95","#45657A","#6E93AA","#2E465E");for(let r=0;r<7;r++)for(let c=0;c<3;c++)g+=win(id,x-28+c*20,y-142+r*20,14,12);top=y-170;break;
+  case"inec":g+=box(x,y,120,46,28,"#F7F4EE","#DCD6CA","#ECE7DD")+`<rect x="${x-60}" y="${y-46}" width="120" height="10" fill="#0E8A4F"/>`+win(id,x-50,y-30,24,14)+win(id,x+26,y-30,24,14)+`<rect x="${x-12}" y="${y-24}" width="24" height="24" fill="#5B7F95"/><line x1="${x+76}" y1="${y}" x2="${x+76}" y2="${y-60}" stroke="#777" stroke-width="2"/><rect x="${x+76}" y="${y-60}" width="20" height="12" fill="#0E8A4F"/><rect x="${x+82.5}" y="${y-60}" width="7" height="12" fill="#fff"/>`;top=y-74;break;
+  case"school":g+=box(x,y,150,36,26,"#F1E3C6","#D6C4A0","#E6D4B0")+`<rect x="${x-75}" y="${y-40}" width="150" height="6" fill="${B.roof[0]}"/>`;for(let i=0;i<5;i++)g+=`<rect x="${x-64+i*28}" y="${y-24}" width="14" height="24" fill="#2B4C7E"/>`;g+=`<path d="M${x-80},${y+20} h160" stroke="#C9C0AC" stroke-width="4"/>`;top=y-60;break;
+  case"market":{const cols=["#F2B705","#26355E","#B5532E","#2F7D5B","#8C2F5A"];[[-60,-14],[-12,-22],[36,-14],[-36,12],[12,10]].forEach((p,i)=>{const sx=x+p[0],sy=y+p[1];g+=`<rect x="${sx-16}" y="${sy}" width="32" height="14" fill="#C99A63" stroke="#8A6A45"/><circle cx="${sx-8}" cy="${sy-1}" r="4.5" fill="#C0392B"/><circle cx="${sx+1}" cy="${sy-2}" r="4.5" fill="#E67E22"/><circle cx="${sx+9}" cy="${sy-1}" r="4.5" fill="#E9C46A"/><line x1="${sx}" y1="${sy}" x2="${sx}" y2="${sy-24}" stroke="#555" stroke-width="2"/><path d="M${sx-24},${sy-20} Q${sx},${sy-40} ${sx+24},${sy-20} Z" fill="${cols[i]}"/>`});top=y-62;break}
+  case"buka":g+=box(x,y,100,38,24,"#D9A066","#B9834B","#C99257")+`<polygon points="${x-60},${y-34} ${x+52},${y-34} ${x+80},${y-50} ${x-30},${y-54}" fill="#A9B0B8" stroke="#5E6570"/><ellipse cx="${x+76}" cy="${y-2}" rx="13" ry="9" fill="#3A2A1F"/><path d="M${x+72},${y-12} q-6,-12 2,-22" stroke="#fff" stroke-width="2.5" fill="none" opacity=".6"/>`+win(id,x-38,y-26,22,12);top=y-58;break;
+  case"viewing":g+=box(x,y,110,36,24,"#E6D3AE","#CDB58F","#E2CBA1")+`<circle cx="${x+40}" cy="${y-52}" r="14" fill="#E6E6E6" stroke="#999"/><line x1="${x+40}" y1="${y-38}" x2="${x+40}" y2="${y-30}" stroke="#999" stroke-width="3"/><rect x="${x-40}" y="${y-30}" width="60" height="22" fill="#111"/>`;glowWins.push({id,x:x-38,y:y-28,w:56,h:18});g+=`<rect x="${x-38}" y="${y-28}" width="56" height="18" fill="#3E7CA8"/>`;[-30,-10,10].forEach(d=>g+=`<rect x="${x+d}" y="${y+10}" width="12" height="10" rx="3" fill="#C0392B"/>`);top=y-70;break;
+  case"kiosk":g+=box(x,y,60,34,18,"#2F7D5B","#235F45","#3B8F69")+[0,1,2,3].map(i=>`<rect x="${x-26+i*13}" y="${y-28}" width="11" height="14" fill="${["#F4F1EA","#F2B705","#F4F1EA","#E6E6E6"][i]}" stroke="#999"/>`).join("")+`<path d="M${x-34},${y-34} h68 l-6,-10 h-56 z" fill="#B3261E"/>`;top=y-58;break;
+  case"mosque":g+=box(x,y,110,40,28,B.flat?"#E6C9A0":"#F3ECDD","#D2C7AF","#E5DCC6")+`<path d="M${x-26},${y-40} a26,28 0 0 1 52,0 z" fill="#2F8A5F"/><rect x="${x+60}" y="${y-96}" width="12" height="96" fill="${B.flat?"#E6C9A0":"#F3ECDD"}" stroke="#B9AE96"/><path d="M${x+60},${y-96} a6,8 0 0 1 12,0 z" fill="#2F8A5F"/>`;for(let i=0;i<3;i++){glowWins.push({id,x:x-42+i*30,y:y-26,w:14,h:14});g+=`<path d="M${x-42+i*30},${y-12} v-8 a7,6 0 0 1 14,0 v8 z" fill="#86A9BD"/>`}top=y-104;break;
+  case"church":g+=box(x,y,90,44,26,"#F4F1EA","#D6D1C4","#E7E2D5")+`<polygon points="${x-50},${y-42} ${x},${y-74} ${x+50},${y-42}" fill="#8B5A3A"/><rect x="${x-8}" y="${y-110}" width="16" height="40" fill="#F4F1EA" stroke="#B5AF9F"/><path d="M${x},${y-130} v18 M${x-7},${y-124} h14" stroke="#8B5A3A" stroke-width="3"/><rect x="${x-10}" y="${y-26}" width="20" height="26" fill="#6B4A2B"/>`;for(let i=0;i<2;i++){glowWins.push({id,x:x-36+i*58,y:y-30,w:14,h:16});g+=`<rect x="${x-36+i*58}" y="${y-30}" width="14" height="16" fill="#86A9BD"/>`}top=y-134;break;
+  case"garage":g+=`<rect x="${x-100}" y="${y-30}" width="200" height="60" rx="6" fill="#B89A6E"/>`+busSmall(x-50,y-6,"#F2B705")+busSmall(x+20,y-12,"#F4F1EA")+busSmall(x+50,y+18,"#F2B705");top=y-56;break;
+  case"townhall":g+=box(x,y,120,44,30,"#EFE7D6","#D2C7AF","#E5DCC6");for(let i=0;i<5;i++)g+=`<rect x="${x-52+i*24}" y="${y-44}" width="6" height="44" fill="#fff" stroke="#ddd"/>`;g+=`<polygon points="${x-66},${y-44} ${x},${y-66} ${x+66},${y-44}" fill="#2F7D5B"/>`;top=y-74;break;
+  case"board":{const fl=S.promos.filter(p=>p.kind==="flyer"&&p.si===C.si&&p.lga===C.li);g+=`<rect x="${x-4}" y="${y-60}" width="8" height="60" fill="#6B4A2B"/><rect x="${x+56}" y="${y-60}" width="8" height="60" fill="#6B4A2B"/><rect x="${x-14}" y="${y-110}" width="88" height="60" rx="4" fill="#C9A06B" stroke="#8A6A45" stroke-width="3"/>`+[0,1,2,3,4,5].map(i=>{const p=fl[i];return `<rect x="${x-6+(i%3)*26}" y="${y-102+Math.floor(i/3)*26}" width="20" height="22" fill="${p?(p.party>=0?PCOL[p.party]:"#F4F1EA"):"#EFE7D6"}" stroke="#999"/>`}).join("");top=y-118;break}
+  case"shelter":g+=`<path d="M${x-70},${y} l70,-60 l70,60 z" fill="#E6D3AE" stroke="#8A6A45"/><path d="M${x},${y-80} v18 M${x-7},${y-74} h14" stroke="#8B5A3A" stroke-width="3"/>`;top=y-90;break;
+  case"lm-rock":g+=`<path d="M${x-130},${y+20} Q${x-110},${y-120} ${x-20},${y-150} Q${x+60},${y-170} ${x+120},${y-60} Q${x+140},${y+10} ${x+130},${y+20} Z" fill="#8E8579" stroke="#5E574E" stroke-width="3"/><path d="M${x-60},${y-80} q30,-20 60,0 M${x-10},${y-120} q20,-10 40,6" stroke="#6E665C" stroke-width="4" fill="none"/>`+tree2(x-140,y+20,1,B.trees[0]);top=y-170;break;
+  case"lm-hills":g+=`<path d="M${x-160},${y+20} Q${x-100},${y-130} ${x-30},${y-60} Q${x+30},${y-150} ${x+90},${y-50} Q${x+130},${y-90} ${x+160},${y+20} Z" fill="#6E9A4E" stroke="#4E7A3F" stroke-width="3"/><path d="M${x-30},${y-60} q40,10 70,-20" stroke="#83A552" stroke-width="10" fill="none"/>`;top=y-150;break;
+  case"lm-water":g+=`<ellipse cx="${x}" cy="${y}" rx="140" ry="54" fill="#4F8590"/><ellipse cx="${x}" cy="${y-2}" rx="128" ry="46" fill="#7FB3B8"/><path d="M${x-60},${y} q20,-8 40,0 M${x+10},${y+12} q20,-8 40,0" stroke="#B7DADB" stroke-width="3" fill="none"/><g transform="translate(${x+50},${y-6})"><path d="M-22,0 h44 l-6,8 h-32 z" fill="#8B5A3A"/><line x1="0" y1="0" x2="0" y2="-20" stroke="#5A3E25" stroke-width="2"/></g>`+tree2(x-150,y-10,1,B.trees[0])+tree2(x+150,y,1,B.trees[2]||B.trees[0]);top=y-70;break;
+  case"lm-bridge":g+=`<path d="M${x-170},${y-30} Q${x},${y-90} ${x+170},${y-30}" stroke="#9AA3AD" stroke-width="18" fill="none"/>${[-120,-60,0,60,120].map(d=>`<rect x="${x+d-5}" y="${y-60+Math.abs(d)/4}" width="10" height="${70-Math.abs(d)/4}" fill="#8E96A3"/>`).join("")}<path d="M${x-170},${y-38} Q${x},${y-98} ${x+170},${y-38}" stroke="#C4CBD2" stroke-width="4" fill="none"/>`;top=y-100;break;
+  case"lm-palace":g+=box(x,y,170,40,40,"#C98E5A","#A9733F","#D9A06B","rgba(80,40,10,.4)")+`<path d="M${x-16},${y} v-20 a16,16 0 0 1 32,0 v20 z" fill="#4A2A18"/><path d="M${x-30},${y-40} a30,30 0 0 1 60,0 z" fill="#2F8A5F"/>`;for(let i=0;i<10;i++)g+=`<rect x="${x-84+i*17}" y="${y-46}" width="9" height="6" fill="#C98E5A" stroke="rgba(80,40,10,.4)"/>`;top=y-80;break;
+  case"lm-tower":g+=box(x,y,60,190,24,"#E9E2D2","#CFC7B6","#DDD5C3");for(let r=0;r<9;r++)for(let c=0;c<2;c++)g+=win(id,x-20+c*24,y-180+r*20,14,12);g+=`<rect x="${x-34}" y="${y-196}" width="60" height="8" fill="#2F7D5B"/>`;top=y-200;break;
+  case"lm-forest":for(let i=0;i<9;i++)g+=tree2(x-100+(i%5)*50,y-30+Math.floor(i/5)*40,1.3,i%2?"":"palm");g+=`<path d="M${x-24},${y+30} v-40 h48 v40" stroke="#8B5A3A" stroke-width="6" fill="none"/>`;top=y-90;break;
+  case"lm-market":for(let i=0;i<8;i++){const sx=x-100+(i%4)*60,sy=y-30+Math.floor(i/4)*40;g+=`<rect x="${sx-18}" y="${sy}" width="36" height="14" fill="#C99A63"/><path d="M${sx-26},${sy-2} Q${sx},${sy-26} ${sx+26},${sy-2} Z" fill="${["#F2B705","#26355E","#B5532E","#2F7D5B"][i%4]}"/>`}top=y-70;break;
+  default:g+=box(x,y,90,40,24,wall,"#CDB58F","#E2CBA1");}
+  return wrap(id,L,g,top)}
+function drawMap(){const R=seeded(hash(LGA+"deco"));
+  let s=`<defs><pattern id="grass" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M4,20 l3,-7 l3,7" stroke="rgba(60,50,20,.35)" stroke-width="1.5" fill="none"/></pattern></defs>`;
+  s+=`<rect x="-3000" y="-3000" width="${WW+6000}" height="${WH+6000}" fill="${B.ground}"/><rect x="-3000" y="-3000" width="${WW+6000}" height="${WH+6000}" fill="url(#grass)"/>`;
+  for(let i=0;i<26;i++){const x=R()*WW,y=R()*WH;s+=`<path d="M${x},${y} l160,-24 l24,70 l-160,24 z" fill="${B.patch}" opacity=".55"/>`}
+  if(B.extra==="hills"||B.extra==="rocks")for(let i=0;i<7;i++){const x=R()*WW,y=R()*WH;s+=B.extra==="hills"?`<ellipse cx="${x}" cy="${y}" rx="${120+R()*80}" ry="${50+R()*30}" fill="#7FA350" opacity=".7"/>`:`<path d="M${x-40},${y} q20,-50 50,-46 q34,4 40,46 z" fill="#9A9184" stroke="#6E665C"/>`}
+  if(B.extra==="red")for(let i=0;i<10;i++){const x=R()*WW,y=R()*WH;s+=`<ellipse cx="${x}" cy="${y}" rx="90" ry="40" fill="#B5643A" opacity=".25"/>`}
+  if(RIVER){const d="M"+RIVER.map(p=>`${p.x},${p.y}`).join(" L");s+=`<path d="${d}" stroke="#3F7580" stroke-width="96" fill="none" stroke-linejoin="round" stroke-linecap="round"/><path d="${d}" stroke="#6FA7B0" stroke-width="80" fill="none" stroke-linejoin="round"/><path d="${d}" stroke="#A9D2D6" stroke-width="3" fill="none" stroke-dasharray="20 30"/>`;
+    for(let i=1;i<RIVER.length-1;i+=2)s+=`<g transform="translate(${RIVER[i].x},${RIVER[i].y})"><path d="M-22,0 h44 l-6,7 h-32 z" fill="#8B5A3A"/><circle cx="4" cy="-6" r="4" fill="#4A2A18"/></g>`;
+    if(B.extra==="water")for(let i=0;i<30;i++){const p=RIVER[Math.floor(R()*RIVER.length)];s+=tree2(p.x+(R()-.5)*260,p.y+(R()<.5?-70:70)+(R()-.5)*30,.8,"mangrove")}}
+  const segs=EDGES.map(e=>[np(e[0]),np(e[1])]);const houses=[];
+  for(let i=0;i<3000&&houses.length<620;i++){const x=R()*WW,y=R()*WH;if(nodes.some(l=>Math.hypot(l.x-x,(l.y-y)*1.2)<160))continue;if(segs.some(sg=>segDist(x,y,sg[0],sg[1])<30))continue;if(rdist(x,y)<70)continue;if(houses.some(h=>Math.abs(h.x-x)<36&&Math.abs(h.y-y)<28))continue;houses.push({x,y})}
+  houses.sort((a,b)=>a.y-b.y).forEach((h,i)=>{s+=`<g opacity=".95">${bhouse(h.x,h.y,B.wall[i%B.wall.length],B.roof[(i*7)%B.roof.length])}</g>`});
+  for(let i=0;i<150;i++){const x=R()*WW,y=R()*WH;if(segs.some(sg=>segDist(x,y,sg[0],sg[1])<30)||nodes.some(l=>Math.hypot(l.x-x,l.y-y)<150)||rdist(x,y)<60)continue;s+=tree2(x,y,.8+R()*.5,B.trees[i%B.trees.length])}
+  if(B.extra==="cattle")for(let i=0;i<8;i++){const x=R()*WW,y=R()*WH;if(nodes.some(l=>Math.hypot(l.x-x,l.y-y)<150))continue;s+=cow(x,y)+cow(x+24,y+8)}
+  EDGES.forEach(e=>{const p=np(e[0]),q=np(e[1]);s+=`<path d="M${p.x},${p.y} L${q.x},${q.y}" stroke="#3F3B37" stroke-width="32" stroke-linecap="round"/>`});
+  EDGES.forEach(e=>{const p=np(e[0]),q=np(e[1]);s+=`<path d="M${p.x},${p.y} L${q.x},${q.y}" stroke="${B.road}" stroke-width="26" stroke-linecap="round"/><path d="M${p.x},${p.y} L${q.x},${q.y}" stroke="#E8E2D0" stroke-width="2" stroke-dasharray="12 12"/>`});
+  EDGES.forEach(e=>{const p=np(e[0]),q=np(e[1]);const len=Math.hypot(q.x-p.x,q.y-p.y);if(len<220)return;let ang=Math.atan2(q.y-p.y,q.x-p.x)*180/Math.PI;if(ang>90)ang-=180;if(ang<-90)ang+=180;const mx=(p.x+q.x)/2,my=(p.y+q.y)/2;s+=`<text x="${mx}" y="${my+4}" transform="rotate(${ang.toFixed(1)} ${mx} ${my})" text-anchor="middle" font-family="Figtree, sans-serif" font-weight="800" font-size="12.5" fill="#F7F2E4" stroke="#3F3B37" stroke-width="3" paint-order="stroke">${e[2]}</text>`});
+  s+=`<g id="traffic" pointer-events="none"></g>`;
+  Object.keys(LOC).sort((a,b)=>LOC[a].y-LOC[b].y).forEach(id=>s+=building(id,LOC[id]));
+  s+=`<rect id="night" x="-3000" y="-3000" width="${WW+6000}" height="${WH+6000}" fill="#0D1838" opacity="0" pointer-events="none"/>`;
+  s+=`<g id="glow" pointer-events="none">${glowWins.map(w=>`<rect data-g="${w.id}" x="${w.x}" y="${w.y}" width="${w.w}" height="${w.h}" rx="1.5" fill="#FFD66B"/>`).join("")}</g>`;
+  s+=`<g id="avatar" pointer-events="none"><g id="walker"></g><g id="vehicle" style="display:none"></g><g id="bubble" style="display:none"><rect id="bubbleBg" x="-40" y="-118" width="80" height="24" rx="12" fill="#FBF4E6" stroke="#26355E" stroke-width="2"/><text id="bubbleTx" x="0" y="-101" text-anchor="middle" font-family="Figtree, sans-serif" font-weight="700" font-size="13" fill="#26355E"></text></g></g>`;
+  svg.innerHTML=s}
+
+/* ================= CAMERA ================= */
+const cam={x:0,y:0,w:1100};const AR=.7;
+function camMaxW(){return Math.max(WW,WH/AR)*1.02}
+function applyCam(){cam.w=Math.max(420,Math.min(camMaxW(),cam.w));const h=cam.w*AR;
+  cam.x=Math.max(cam.w/2-200,Math.min(WW-cam.w/2+200,cam.x));cam.y=Math.max(h/2-200,Math.min(WH-h/2+200,cam.y));
+  svg.setAttribute("viewBox",`${(cam.x-cam.w/2).toFixed(1)} ${(cam.y-h/2).toFixed(1)} ${cam.w.toFixed(1)} ${h.toFixed(1)}`)}
+let follow=false;
+function centerOn(x,y,smooth){if(!smooth||reduce()){cam.x=x;cam.y=y;applyCam();return}const fx=cam.x,fy=cam.y,t0=performance.now();function f(n){const p=Math.min(1,(n-t0)/450),e=1-Math.pow(1-p,3);cam.x=fx+(x-fx)*e;cam.y=fy+(y-fy)*e;applyCam();if(p<1)requestAnimationFrame(f)}requestAnimationFrame(f)}
+const ptrs=new Map();let dragged=false,pinch0=null;
+svg.addEventListener("pointerdown",e=>{ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});dragged=false;if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch0={d:Math.hypot(a.x-b.x,a.y-b.y),w:cam.w}}});
+svg.addEventListener("pointermove",e=>{if(!ptrs.has(e.pointerId))return;const prev=ptrs.get(e.pointerId);const cur={x:e.clientX,y:e.clientY};ptrs.set(e.pointerId,cur);
+  if(ptrs.size===1){const dx=cur.x-prev.x,dy=cur.y-prev.y;if(Math.abs(dx)+Math.abs(dy)>0){const k=cam.w/svg.clientWidth;cam.x-=dx*k;cam.y-=dy*k;applyCam();}if(Math.abs(cur.x-down0(e).x)+Math.abs(cur.y-down0(e).y)>6){dragged=true;follow=false}}
+  else if(ptrs.size===2&&pinch0){const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);cam.w=pinch0.w*pinch0.d/d;applyCam();dragged=true}});
+const downs=new Map();svg.addEventListener("pointerdown",e=>downs.set(e.pointerId,{x:e.clientX,y:e.clientY}),true);function down0(e){return downs.get(e.pointerId)||{x:e.clientX,y:e.clientY}}
+["pointerup","pointercancel","pointerleave"].forEach(t=>svg.addEventListener(t,e=>{ptrs.delete(e.pointerId);downs.delete(e.pointerId);if(ptrs.size<2)pinch0=null}));
+svg.addEventListener("wheel",e=>{e.preventDefault();const r=svg.getBoundingClientRect();const fx=(e.clientX-r.left)/r.width,fy=(e.clientY-r.top)/r.height;const h=cam.w*AR;const wx=cam.x-cam.w/2+fx*cam.w,wy=cam.y-h/2+fy*h;
+  cam.w*=e.deltaY>0?1.12:1/1.12;applyCam();const h2=cam.w*AR;cam.x=wx-(fx-.5)*cam.w;cam.y=wy-(fy-.5)*h2;applyCam()},{passive:false});
+svg.addEventListener("click",e=>{if(dragged){dragged=false;return}const g=e.target.closest(".loc");if(g)select(g.dataset.loc)});
+svg.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.classList&&e.target.classList.contains("loc")){e.preventDefault();select(e.target.dataset.loc)}});
+$("zin").onclick=()=>{cam.w/=1.3;applyCam()};$("zout").onclick=()=>{cam.w*=1.3;applyCam()};$("zme").onclick=()=>centerOn(av.x,av.y-30,true);
+
+let av={x:0,y:0};
+function setAv(x,y){av={x,y};$("avatar").setAttribute("transform",`translate(${x.toFixed(1)},${y.toFixed(1)})`)}
+function bubble(t){const sb=$("sbubble");if(sb){if(!t)sb.style.display="none";else{$("sbubbleTx").textContent=t;const w2=Math.max(80,t.length*10+30);$("sbubbleBg").setAttribute("x",-w2/2);$("sbubbleBg").setAttribute("width",w2);sb.style.display=""}}
+  const b=$("bubble");if(!t){b.style.display="none";return}$("bubbleTx").textContent=t;const w=Math.max(60,t.length*8+24);$("bubbleBg").setAttribute("x",-w/2);$("bubbleBg").setAttribute("width",w);b.style.display=""}
+function refreshAvatar(){$("walker").innerHTML=avatarSVG(S.char);$("me").innerHTML=portrait(S.char)+`<span>${S.char?S.char.name:"You"}</span>`;if(S.inside&&$("savatar"))renderScene()}
+
+/* ================= TRAFFIC ================= */
+const ADJ={};EDGES.forEach(([a,b])=>{(ADJ[a]=ADJ[a]||[]).push(b);(ADJ[b]=ADJ[b]||[]).push(a)});
+const cars=[];
+function initTraffic(){const g=$("traffic");const kinds=["keke","keke","keke","okada","okada","bus","car","car","keke","okada","bus","keke","car","keke"];
+  kinds.forEach((k,i)=>{const e=EDGES[(i*5)%EDGES.length];cars.push({a:e[0],b:e[1],t:Math.random(),sp:(k==="okada"?.00016:k==="bus"?.0001:.00013)*(.8+Math.random()*.4),k})});
+  g.innerHTML=cars.map((c,i)=>`<g id="car${i}"><g class="cs">${c.k==="keke"?`<rect x="-9" y="-7" width="18" height="12" rx="4" fill="#F2B705" stroke="rgba(0,0,0,.4)"/><rect x="-6" y="-5" width="12" height="4" fill="#9CC3D5"/>`:c.k==="okada"?`<rect x="-8" y="-3" width="16" height="5" rx="2" fill="#B3261E"/><circle cx="0" cy="-5" r="3.5" fill="#4A2A18"/>`:c.k==="bus"?`<rect x="-14" y="-8" width="28" height="14" rx="4" fill="#F2B705" stroke="rgba(0,0,0,.4)"/><rect x="-11" y="-6" width="22" height="4" fill="#9CC3D5"/>`:`<rect x="-11" y="-6" width="22" height="11" rx="4" fill="${pick(["#2B4C7E","#C0392B","#F4F1EA","#2F7D5B"])}" stroke="rgba(0,0,0,.4)"/><rect x="-6" y="-4" width="12" height="4" fill="#9CC3D5"/>`}</g></g>`).join("");
+  cars.forEach((c,i)=>c.el=$("car"+i))}
+let lastF=0;
+function tickTraffic(now){const dt=Math.min(50,now-(lastF||now));lastF=now;
+  if(!document.hidden&&!reduce()&&!S.inside){const sp=paused||modalOpen?0:1;
+    cars.forEach((c,i)=>{const p=np(c.a),q=np(c.b);const len=Math.hypot(q.x-p.x,q.y-p.y)||1;c.t+=c.sp*dt*sp*(300/len)*3;
+      if(c.t>=1){c.t=0;const prev=c.a;c.a=c.b;const o=ADJ[c.a].filter(n=>n!==prev);c.b=pick(o.length?o:ADJ[c.a])}
+      const P=np(c.a),Q=np(c.b);const ang=Math.atan2(Q.y-P.y,Q.x-P.x);const off=6;const x=P.x+(Q.x-P.x)*c.t-Math.sin(ang)*off,y=P.y+(Q.y-P.y)*c.t+Math.cos(ang)*off;
+      c.el.setAttribute("transform",`translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${(ang*180/Math.PI).toFixed(0)})`)})}
+  requestAnimationFrame(tickTraffic)}
+
+/* ================= SIM STATE ================= */
+let selected=S.c?S.c.pos||"home":"home",busy=false,paused=false,pending=[],modalOpen=false;
+const clamp=v=>Math.max(0,Math.min(100,v));
+const hour=()=>Math.floor((S.t%1440)/60);
+const dayNum=()=>Math.floor(S.t/1440)+1;
+const dow=()=>Math.floor(S.t/1440)%7;
+const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const NEEDS=[["food","Food"],["energy","Energy"],["fun","Fun"],["social","Social"],["hygiene","Hygiene"]];
+const SHORT={food:"Food",energy:"Energy",fun:"Fun",social:"Social",hygiene:"Hygiene"};
+const DECAY={food:.1,energy:.07,fun:.05,social:.04,hygiene:.05};
+function fmtH(h){h=h%24;const ap=h<12?"am":"pm";const hh=h%12===0?12:h%12;return hh+ap}
+function fmtT(tm){const m=tm%1440;const h=Math.floor(m/60),mi=m%60;const ap=h<12?"am":"pm";const hh=h%12===0?12:h%12;return hh+":"+String(mi).padStart(2,"0")+ap}
+function isOpen(L,h){return h>=L.open[0]&&h<L.open[1]}
+function openText(L){return L.open[0]===0&&L.open[1]===24?"Open all day":"Open "+fmtH(L.open[0])+" to "+fmtH(L.open[1])}
+const cost=a=>a.cost||0;
+let tt;function toast(m){const e=$("toast");e.textContent=m;e.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("on"),2600)}
+function log(m){S.log.unshift({t:S.t,m});S.log=S.log.slice(0,40)}
+function note(title,body,choices,html){pending.push({title,body,choices,html})}
+function nightLevel(){const m=(S.t%1440)/60;if(m>=7&&m<17.5)return 0;if(m>=17.5&&m<20)return (m-17.5)/2.5*.55;if(m>=5&&m<7)return (7-m)/2*.55;return .55}
+
+/* ================= NEWS ================= */
+const NEWS=["INEC confirms presidential and National Assembly elections hold Saturday 16 January 2027.","21 political parties are now registered with INEC after DLA and NDC joined in February 2026.","Voter education: BVAS checks your fingerprint or face before you get a ballot.","Voter education: results from every polling unit are uploaded for the public to view after counting.","Reminder: buying or selling votes is a crime. Report it to INEC or the police.","Campaigns must end 24 hours before election day.","Keep your PVC safe. Nobody should ask you to hand it over."];
+const ADS=["Mama Ronke Jollof: party rice for your watch party.","ZoomData: 10GB for election week.","Sunshine Generators: no light, no wahala."];
+const RADIOS=["Naija FM 97.1","Harmony Radio 99.1","Gidan Rediyo 102.5","Ụzọ FM 94.3"];
+const curNews=()=>NEWS[(dayNum()*3+hour())%NEWS.length];
+const sponsored=()=>S.promos.filter(p=>p.kind==="news"&&p.day===dayNum()).map(p=>p.party===-2?p.label:`${p.label} (paid for by ${p.by})`);
+function showMedia(kind){const sp=sponsored();let h="";
+  if(kind==="tv")h=`<div class="tvscreen"><div class="chan">NVT NEWS <span class="live">LIVE</span></div><p class="headline">${esc(curNews())}</p>${sp.length?`<div class="ad">SPONSORED: ${esc(sp[0])}</div>`:""}<div class="ad">Ad: ${esc(ADS[dayNum()%ADS.length])}</div></div><p class="slots">In the full build, Arise News, Channels, TVC and NTA play here through their official YouTube live embeds.</p>`;
+  else if(kind==="radio")h=`<p>📻 <b>${esc(pick(RADIOS))}</b></p><p>${esc(curNews())}</p>${sp.length?`<p class="muted">Sponsored: ${esc(sp[0])}</p>`:""}`;
+  else h=`<ul class="papers">${NEWS.slice(0,kind==="paper2"?5:3).map((n,i)=>`<li><b>${["The Daily Ballot","Naija Times","Morning Post","The Voter","Sahel Herald"][i]}</b> ${esc(n)}</li>`).join("")}</ul>`;
+  note(kind==="tv"?"On the TV":kind==="radio"?"On the radio":"Today's papers",h,null,true)}
+
+/* ================= SIMULATION ================= */
+function advance(mins,o){o=o||{};for(let i=0;i<mins;i++){for(const k in DECAY){let r=DECAY[k];if(o.sleep){if(k==="energy")continue;r*=.4}S.n[k]=clamp(S.n[k]-r)}S.t++;if(S.t%60===0)hourly()}}
+function apply(fx){for(const k in fx)S.n[k]=clamp(S.n[k]+fx[k])}
+function hourly(){const h=hour(),d=dayNum();
+  if(S.light){if(Math.random()<.07){S.light=false;log("NEPA took light.");toast("NEPA took light")}}else if(Math.random()<.22){S.light=true;log("Light is back.");toast("Light is back")}
+  if(d===5&&h===19&&!S.flags.offer&&S.c.pvc!=="none"){S.flags.offer=1;note("A stranger at your door","A man you don't know offers you ₦10,000 to vote his way, or ₦20,000 for your PVC.",[
+    {label:"Refuse and report to INEC",fn:()=>{S.civic+=3;log("You refused a vote-buying offer and reported it.");toast("Civic badge earned")}},{label:"Just refuse",fn:()=>{S.civic++;log("You refused a vote-buying offer.")}},
+    {label:"Take the money",fn:()=>{S.c.money+=10000;if(Math.random()<.6){S.c.flagged=true;S.c.pvc="flagged";log("You took money for your vote. Investigators traced the ring and seized your PVC.");note("PVC confiscated","Investigators traced the vote-buying ring and everyone it paid. You cannot vote this election. Selling your vote is a crime.")}else log("You took ₦10,000 from a vote buyer. Nobody found out, this time.")}}])}
+  if(h===8&&d===ELECTION_DAY)note("Election day","Polls are open from 8:30am to 2:30pm. Go to your polling unit with your PVC.");
+  if(h===7&&d===ELECTION_DAY-1)log("Campaigns have ended. Election is tomorrow.")}
+function checkCritical(){if(S.n.food<=0){S.c.money=Math.max(0,S.c.money-3000);advance(120,{sleep:true});S.n.food=40;note("You fainted","Hunger knocked you down. Neighbours took you to the clinic; the bill was ₦3,000.");log("Fainted from hunger.")}
+  else if(S.n.energy<=0){advance(240,{sleep:true});S.n.energy=45;note("You slept off","You were so tired you slept off where you were.");log("Slept off.")}}
+function reason(a){const L=LOC[S.c.pos],h=hour(),d=dow(),c=S.c,dn=dayNum();
+  if(!isOpen(L,h))return L.name+" is closed now";
+  if(a.hours&&!(h>=a.hours[0]&&h<a.hours[1]))return "Only from "+fmtH(a.hours[0])+" to "+fmtH(a.hours[1]);
+  if(a.day!==undefined&&d!==a.day)return "Only on "+["Mondays","Tuesdays","Wednesdays","Thursdays","Fridays","Saturdays","Sundays"][a.day];
+  if(a.media==="tv"&&S.c.pos==="home"&&!c.tv)return "You don't have a TV. Buy one at the market or watch at the viewing centre";
+  if(a.media==="radio"&&!c.radio)return "You don't have a radio. Buy one at the market";
+  if(a.light&&!S.light&&!L.gen)return "NEPA took light";
+  if(a.usesFood&&S.groceries<=0)return "No foodstuff at home. Buy some at the market";
+  if(a.buy&&c[a.buy])return "You already have one";
+  if(a.pvcAct==="register"){if(c.pvc!=="none")return "You are already registered";if(dn>REG_CLOSE)return "Registration closed on day "+REG_CLOSE}
+  if(a.pvcAct==="collect"){if(c.pvc!=="registered")return c.pvc==="have"?"You already have your PVC":"Register first";if(dn<(c.regDay||0)+2)return "Ready from day "+((c.regDay||0)+2);if(dn>PVC_CLOSE)return "Collection closed"}
+  if(a.vote){if(dn!==ELECTION_DAY)return dn<ELECTION_DAY?`Voting is on day ${ELECTION_DAY}`:"The election is over";if(h<8||h>=15)return "Polls open 8:30am to 2:30pm";if(c.voted)return "You have voted";if(c.pvc!=="have")return "You need a PVC to vote"}
+  if(a.flyer&&dn>=ELECTION_DAY-1)return "Campaigning has ended";
+  if(a.bribe){if(dn>ELECTION_DAY||(dn===ELECTION_DAY&&h>=15))return "The election is over";if(S.flags.jail)return "You are on bail. Police are watching you";if(c.money<5000)return "You need at least ₦5,000"}
+  if(a.work&&S.flags.worked===dn)return "You already worked today";
+  if(a.shelter&&!c.under)return "You have a bed already";
+  if(cost(a)>c.money)return "Not enough money";
+  return null}
+function runClock(dur,opt){return new Promise(res=>{const ms=Math.min(1800,500+dur*2.2),t0=performance.now();let done=0;
+  function f(now){const p=Math.min(1,(now-t0)/ms);const target=Math.round(dur*p);if(target>done){advance(target-done,opt);done=target;renderHud()}if(p<1)requestAnimationFrame(f);else res()}requestAnimationFrame(f)})}
+async function doAction(a){if(busy)return;const why=reason(a);if(why){toast(why);return}
+  if(a.vote){openVote();return}if(a.bribe){openBribe();return}if(a.flyer){openPromo("flyer");return}
+  const c=S.c;busy=true;renderPanel(true);bubble(a.bubble||a.label);await runClock(a.dur,{sleep:!!a.sleep});
+  c.money-=cost(a);apply(a.fx);let msg=a.done;
+  if(a.work){const e=Math.round(rnd(PAYD[c.cls][0],PAYD[c.cls][1]));c.money+=e;S.flags.worked=dayNum();msg=`You worked as a ${c.job.toLowerCase()} and earned ${naira(e)}.`;toast("+"+naira(e))}
+  if(a.groc)S.groceries+=a.groc;if(a.usesFood)S.groceries--;if(a.buy){c[a.buy]=true;toast("New "+a.buy+"!")}
+  if(a.informed)S.informed+=a.informed;if(a.civic)S.civic+=a.civic;
+  if(a.media){S.informed+=a.media==="tv"||a.media==="paper2"?2:1;showMedia(a.media==="paper2"?"paper2":a.media);msg=`${a.done} ${curNews()}`}
+  if(a.overhear){S.informed++;msg+=` Someone said: "${curNews()}"`}
+  if(a.pvcAct==="register"){c.pvc="registered";c.regDay=dayNum()}
+  if(a.pvcAct==="collect"){if(Math.random()<.3)msg="INEC said your PVC is not ready. Come back tomorrow.";else{c.pvc="have";msg="You collected your PVC.";note("PVC collected","Keep it safe and bring it to your polling unit on election day.")}}
+  if(a.shelter){if(Math.random()<.35){c.under=false;c.wasUnder=true;c.home="Bed at the shelter";msg="The shelter had a bed. You sleep indoors now.";note("A bed indoors","From tomorrow your home is the shelter. Reload to see it on the map.")}else msg="The shelter was full today."}
+  log(msg);bubble(null);busy=false;checkCritical();save();render();flush()}
+
+/* ================= TRAVEL ================= */
+const ADJ2={};EDGES.forEach(([a,b])=>{(ADJ2[a]=ADJ2[a]||[]).push(b);(ADJ2[b]=ADJ2[b]||[]).push(a)});
+function shortest(from,to){const dist={},prev={},Q=new Set(nodes.map(n=>n.id));Q.forEach(n=>dist[n]=Infinity);dist[from]=0;
+  while(Q.size){let u=null;Q.forEach(n=>{if(u===null||dist[n]<dist[u])u=n});Q.delete(u);if(u===to||dist[u]===Infinity)break;(ADJ2[u]||[]).forEach(v=>{if(!Q.has(v))return;const p=np(u),q=np(v);const alt=dist[u]+Math.hypot(q.x-p.x,q.y-p.y);if(alt<dist[v]){dist[v]=alt;prev[v]=u}})}
+  const path=[];let x=to;while(x){path.unshift(x);x=prev[x]}return path}
+function route(dest){const ids=shortest(S.c.pos,dest);const pts=[standPos(S.c.pos)];ids.forEach(id=>pts.push(np(id)));pts.push(standPos(dest));return pts}
+function routeLen(p){let d=0;for(let i=1;i<p.length;i++)d+=Math.hypot(p[i].x-p[i-1].x,p[i].y-p[i-1].y);return d}
+const MSPEC={walk:{label:"Walk",min:d=>Math.round(d/6),fare:()=>0},okada:{label:"Okada",min:d=>Math.round(3+d/40),fare:d=>100+Math.round(d/300)*50},danfo:{label:"Danfo bus",min:d=>Math.round(10+d/30),fare:d=>150+Math.round(d/500)*50},keke:{label:"Keke",min:d=>Math.round(4+d/32),fare:d=>150+Math.round(d/250)*50},ride:{label:"Ride-hailing",min:d=>Math.round(3+d/45),fare:d=>900+Math.round(d/100)*100},suv:{label:"Your SUV",min:d=>Math.round(3+d/45),fare:()=>0}};
+const modeList=()=>["walk",...MODES[S.c.cls].map(m=>m[0]).filter(k=>k!=="walk")];
+function at(p,f){const total=routeLen(p);let target=total*f;for(let i=1;i<p.length;i++){const seg=Math.hypot(p[i].x-p[i-1].x,p[i].y-p[i-1].y);if(target<=seg){const k=seg?target/seg:0;return{x:p[i-1].x+(p[i].x-p[i-1].x)*k,y:p[i-1].y+(p[i].y-p[i-1].y)*k,dx:p[i].x-p[i-1].x}}target-=seg}const l=p[p.length-1];return{x:l.x,y:l.y,dx:1}}
+function travel(dest,mode){if(busy||dest===S.c.pos)return;const c=S.c,pts=route(dest),d=routeLen(pts),M=MSPEC[mode],fare=M.fare(d);if(fare>c.money){toast("Not enough money. You can walk.");return}
+  if(S.inside)exitScene(true);busy=true;renderPanel(true);follow=true;const V=$("vehicle"),Wk=$("walker");
+  if(mode==="walk"){V.style.display="none";Wk.style.display="";$("avatar").classList.add("walking")}else{Wk.style.display="none";V.style.display="";V.innerHTML=`<g id="vflip">${mode==="keke"?kekeSVG():mode==="okada"?okadaSVG():mode==="danfo"?busSVG():carSVG(mode==="suv"?"#1F1F1F":"#2B6CB0")}</g>`}
+  bubble(pick(MODE_LINES[mode]||MODE_LINES.walk));
+  const mins=M.min(d),ms=reduce()?400:Math.min(7000,900+d*({walk:2.2,okada:.9,danfo:1.3,keke:1.1,ride:.9,suv:.9}[mode])),t0=performance.now();let done=0;
+  function step(now){const p=Math.min(1,(now-t0)/ms),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2,pos=at(pts,e);setAv(pos.x,pos.y);const vf=$("vflip");if(vf)vf.setAttribute("transform",pos.dx<0?"scale(-1,1)":"");
+    if(follow){cam.x+=(pos.x-cam.x)*.12;cam.y+=(pos.y-40-cam.y)*.12;applyCam()}const target=Math.round(mins*p);if(target>done){advance(target-done);done=target;renderHud()}
+    if(p<1){requestAnimationFrame(step);return}
+    Wk.style.display="";V.style.display="none";$("avatar").classList.remove("walking");bubble(null);c.money-=fare;if(mode==="walk")apply({energy:-d/50,hygiene:-d/70});
+    c.pos=dest;selected=dest;let msg=`You went to ${LOC[dest].name} by ${M.label.toLowerCase()}.`;
+    if(dest!=="home"&&Math.random()<.4){S.informed++;const src=pick(["From a roadside radio","A newspaper vendor shouts","At the bus stop, someone reads aloud"]);msg+=` ${src}: "${curNews()}"`;toast(src+": "+curNews())}
+    log(msg);busy=false;follow=false;if(dest==="pu"&&dayNum()===ELECTION_DAY&&!c.voted&&!S.flags.puOffer&&c.pvc==="have"){S.flags.puOffer=1;note("Near the polling unit","A man by the school gate whispers: ₦5,000 if you vote his way. Snap your ballot and show him after.",[{label:"Refuse and tell the police officer on duty",fn:()=>{S.civic+=3;log("You reported a vote buyer at the polling unit. He was arrested.");toast("Civic badge earned")}},{label:"Ignore him",fn:()=>log("You ignored a vote buyer at the polling unit.")},{label:"Take the money",fn:()=>{if(Math.random()<.5){c.money=Math.max(0,c.money-2000);c.pvc="flagged";c.flagged=true;log("Police caught the vote buyer and everyone he paid. You were fined and could not vote.");note("Caught","A police officer saw the exchange. You paid a fine and your PVC was seized for investigation. You cannot vote today.")}else{c.money+=5000;S.flags.tookPu=1;log("You took ₦5,000 from a vote buyer. Your ballot is still secret.")}}}])}checkCritical();save();render();setTimeout(()=>{if(!busy&&S.c.pos===dest)enterScene();flush()},500)}
+  requestAnimationFrame(step)}
+
+/* ================= INTERIOR CONFIG ================= */
+const PK={sleep:"bed",nap:"sofa",bath:"shower",cook:"stove",tv:"tv",radio:"radio",phone:"chair",work:C.cls==="poor"?"bench":"desk",register:"desk",collect:"counter",help:"crowd",check:"nboard",vote:"booth",bribe:"crowd",food:"stall",buyradio:"radio",buytv:"tv",haggle:"crowd",eat:"table",gist:"crowd",vnews:"screen",football:"crowd",glance:"paper",paper:"counter",pray:"mat",jummah:"crowd",cpray:"pews",service:"crowd",drivers:"bus",edu:"board",debate:"stage",readfly:"nboard",postfly:"nboard",visit:"crowd",bed:"bed"};
+const YARD=["market","garage","board","kiosk","flyover","school","lm-rock","lm-hills","lm-water","lm-bridge","lm-palace","lm-tower","lm-forest","lm-market"];
+const SKY="#CFE3EC";
+const SCOL={house:["#E8D3AE","#9B6B43"],flyover:[SKY,"#8F8A84"],workshop:["#E6D3AE","#B5845A"],office:["#E9E2D2","#A9A39A"],tower:["#E6EEF2","#C7C9CB"],inec:["#F4F1EA","#DCD8D0"],school:[SKY,B.ground],market:[SKY,B.ground],buka:["#C99257","#B5845A"],viewing:["#3A3F4A","#6B5B4B"],kiosk:[SKY,B.ground],mosque:["#F3ECDD","#2F7D5B"],church:["#F4F1EA","#8C6B4A"],garage:[SKY,"#B89A6E"],townhall:["#EFE7D6","#C9BFAE"],board:[SKY,B.ground],shelter:["#E6D3AE","#B08A63"]};
+["lm-rock","lm-hills","lm-water","lm-bridge","lm-palace","lm-tower","lm-forest","lm-market"].forEach(k=>SCOL[k]=[SKY,B.ground]);
+
+const NPCS={aisha:{g:"h",skin:"#6B3E26",cloth:"#8C2F5A"},tunde:{g:"m",skin:"#4A2A18",cloth:"#C0392B"},basira:{g:"f",skin:"#8D5524",cloth:"#B5532E"},kayode:{g:"m",skin:"#A86B3C",cloth:"#26355E"}};
+const PR={
+  bed:(x,y)=>`<rect x="${x-104}" y="${y-118}" width="14" height="118" rx="3" fill="#5A3A20"/><rect x="${x-96}" y="${y-46}" width="196" height="46" rx="6" fill="#7A4E2D"/><rect x="${x-92}" y="${y-70}" width="188" height="30" rx="9" fill="#F4F1EA"/><rect x="${x-20}" y="${y-74}" width="114" height="36" rx="9" fill="#2F7D7A"/><path d="M${x-14},${y-60} h102" stroke="#F2B705" stroke-width="3" stroke-dasharray="7 5"/><rect x="${x-86}" y="${y-88}" width="56" height="24" rx="9" fill="#fff" stroke="#ddd"/>`,
+  stove:(x,y)=>`<rect x="${x-80}" y="${y-70}" width="160" height="70" fill="#C9A06B" stroke="#8A6A45"/><rect x="${x-56}" y="${y-92}" width="70" height="16" rx="3" fill="#333"/><rect x="${x-46}" y="${y-126}" width="50" height="28" rx="6" fill="#B5532E"/><path d="M${x-30},${y-132} q-8,-16 2,-30 M${x-14},${y-132} q8,-18 -2,-34" stroke="#fff" stroke-width="3" fill="none" opacity=".7"/>`,
+  tv:(x,y)=>`<rect x="${x-80}" y="${y-44}" width="160" height="44" rx="4" fill="#6B4A2B"/><rect x="${x-70}" y="${y-138}" width="140" height="90" rx="6" fill="#111"/><rect class="tvscreen" x="${x-62}" y="${y-130}" width="124" height="74" rx="3" fill="#3E7CA8"/>`,
+  shower:(x,y)=>`<rect x="${x-70}" y="${y-200}" width="140" height="200" fill="#CFE3E6" stroke="#9BB8BD"/>${[0,1,2,3,4].map(i=>`<line x1="${x-70}" y1="${y-200+i*40}" x2="${x+70}" y2="${y-200+i*40}" stroke="#9BB8BD"/>`).join("")}<path d="M${x-70},${y-200} q20,100 0,200 h40 q-20,-100 0,-200 z" fill="#C2578A" opacity=".85"/><path d="M${x+10},${y-36} h44 l-6,36 h-32 z" fill="#2B6CB0"/>`,
+  sofa:(x,y)=>`<rect x="${x-100}" y="${y-60}" width="200" height="60" rx="14" fill="#8C2F5A"/><rect x="${x-100}" y="${y-96}" width="200" height="44" rx="14" fill="#A23C6C"/><rect x="${x-112}" y="${y-74}" width="26" height="74" rx="10" fill="#7A2650"/><rect x="${x+86}" y="${y-74}" width="26" height="74" rx="10" fill="#7A2650"/>`,
+  chair:(x,y)=>`<rect x="${x-26}" y="${y-48}" width="52" height="10" rx="4" fill="#2F7D5B"/><rect x="${x-24}" y="${y-100}" width="48" height="54" rx="8" fill="#2F7D5B"/><rect x="${x-24}" y="${y-40}" width="6" height="40" fill="#2F7D5B"/><rect x="${x+18}" y="${y-40}" width="6" height="40" fill="#2F7D5B"/>`,
+  board:(x,y)=>`<rect x="${x-150}" y="${y-230}" width="300" height="150" fill="#2F5D4A" stroke="#6B4A2B" stroke-width="8"/><path d="M${x-120},${y-200} h110 M${x-120},${y-178} h160 M${x-120},${y-156} h80" stroke="#E8F0DC" stroke-width="3"/>${[-110,-40,30,100].map(d=>`<rect x="${x+d-22}" y="${y-30}" width="44" height="10" fill="#8A6A45"/><rect x="${x+d-20}" y="${y-20}" width="5" height="20" fill="#6B4A2B"/><rect x="${x+d+15}" y="${y-20}" width="5" height="20" fill="#6B4A2B"/>`).join("")}`,
+  counter:(x,y,c)=>`<rect x="${x-110}" y="${y-80}" width="220" height="80" fill="${c||"#B9834B"}" stroke="rgba(0,0,0,.25)"/><rect x="${x-116}" y="${y-88}" width="232" height="12" fill="#6B4A2B"/>${[-80,-30,20,70].map((d,i)=>`<ellipse cx="${x+d}" cy="${y-96}" rx="20" ry="8" fill="${["#E9C46A","#C0392B","#5FA04A","#F4F1EA"][i]}"/>`).join("")}`,
+  desk:(x,y,c)=>`<rect x="${x-90}" y="${y-70}" width="180" height="12" fill="${c||"#D9C7A3"}"/><rect x="${x-84}" y="${y-58}" width="8" height="58" fill="#555"/><rect x="${x+76}" y="${y-58}" width="8" height="58" fill="#555"/><path d="M${x-36},${y-72} l10,-46 h56 l10,46 z" fill="#3A3F4A"/><rect x="${x-22}" y="${y-114}" width="46" height="34" fill="#5BC0EB"/><rect x="${x+44}" y="${y-100}" width="34" height="28" fill="#C99A63"/><rect x="${x+46}" y="${y-106}" width="30" height="8" fill="#E9C46A"/>`,
+  screen:(x,y)=>`<rect x="${x-170}" y="${y-260}" width="340" height="160" rx="4" fill="#111"/><rect class="tvscreen" x="${x-160}" y="${y-252}" width="320" height="144" fill="#4E7FB0"/>${[0,1].map(r=>[-120,-60,0,60,120].map(d=>`<rect x="${x+d-24}" y="${y-60+r*40}" width="48" height="30" rx="6" fill="#B3261E"/>`).join("")).join("")}`,
+  snooker:(x,y)=>`<rect x="${x-130}" y="${y-74}" width="260" height="58" rx="10" fill="#6B3E26"/><rect x="${x-118}" y="${y-68}" width="236" height="46" rx="6" fill="#2F7D5B"/>${[[-30,-50,"#C0392B"],[-10,-44,"#F2B705"],[10,-52,"#111"],[60,-40,"#fff"]].map(b=>`<circle cx="${x+b[0]}" cy="${y+b[1]}" r="6" fill="${b[2]}"/>`).join("")}<rect x="${x-120}" y="${y-16}" width="12" height="16" fill="#4A2A18"/><rect x="${x+108}" y="${y-16}" width="12" height="16" fill="#4A2A18"/>`,
+  shelf:(x,y)=>`<rect x="${x-90}" y="${y-170}" width="180" height="170" fill="#E6E0D3" stroke="#B5AF9F"/>${[0,1,2].map(r=>`<rect x="${x-90}" y="${y-120+r*50}" width="180" height="6" fill="#B5AF9F"/>`+[0,1,2,3,4].map(i=>`<rect x="${x-80+i*34}" y="${y-158+r*50}" width="26" height="36" rx="3" fill="${["#C0392B","#F2B705","#2F7D5B","#2B4C7E","#E67E22"][(i+r)%5]}"/>`).join("")).join("")}`,
+  pots:(x,y)=>`<rect x="${x-90}" y="${y-30}" width="180" height="30" fill="#7A6A5A"/>${[-45,45].map(d=>`<path d="M${x+d-40},${y-30} q40,-70 80,0 z" fill="#2A2A2A"/><ellipse cx="${x+d}" cy="${y-62}" rx="36" ry="10" fill="${d<0?"#C0392B":"#4E8A3F"}"/><path d="M${x+d-8},${y-72} q-8,-18 2,-34" stroke="#fff" stroke-width="3" fill="none" opacity=".6"/>`).join("")}`,
+  table:(x,y)=>`<rect x="${x-130}" y="${y-74}" width="260" height="16" fill="#9C6B3F"/><rect x="${x-120}" y="${y-58}" width="10" height="58" fill="#7A4E2D"/><rect x="${x+110}" y="${y-58}" width="10" height="58" fill="#7A4E2D"/><rect x="${x-150}" y="${y-28}" width="300" height="10" fill="#8A5A34"/><ellipse cx="${x-40}" cy="${y-82}" rx="32" ry="9" fill="#fff"/><ellipse cx="${x-40}" cy="${y-88}" rx="18" ry="9" fill="#7A6A3A"/><ellipse cx="${x+40}" cy="${y-82}" rx="26" ry="8" fill="#4E8A3F"/>`,
+  cooler:(x,y)=>`<rect x="${x-60}" y="${y-80}" width="120" height="80" rx="10" fill="#2B6CB0"/><rect x="${x-64}" y="${y-92}" width="128" height="18" rx="6" fill="#F4F1EA"/>${[-30,-10,10,30].map(d=>`<rect x="${x+d-6}" y="${y-126}" width="12" height="34" rx="4" fill="#8C1D3A"/>`).join("")}`,
+  mat:(x,y)=>[-150,-50,50,150].map((d,i)=>`<path d="M${x+d-44},${y} l14,-60 h60 l14,60 z" fill="${["#8C2F5A","#2F7D5B","#B5532E","#26355E"][i]}"/><path d="M${x+d-22},${y-40} a22,16 0 0 1 44,0" fill="none" stroke="#F2B705" stroke-width="3"/>`).join(""),
+  gate:(x,y)=>`<rect x="${x-90}" y="${y-220}" width="180" height="220" fill="#C98E5A" stroke="#8A5A2B"/><path d="M${x-50},${y} v-110 a50,50 0 0 1 100,0 v110 z" fill="#4A2A18"/><path d="M${x-60},${y-110} a60,60 0 0 1 120,0" fill="none" stroke="#F2D27A" stroke-width="6"/>`,
+  stall:(x,y,c)=>`<rect x="${x-90}" y="${y-60}" width="180" height="60" fill="#C99A63" stroke="#8A6A45"/>${[-60,-30,0,30,60].map((d,i)=>`<circle cx="${x+d}" cy="${y-70}" r="14" fill="${(c==="cloth"?["#8C2F5A","#26355E","#F2B705","#2F7D5B","#B5532E"]:["#C0392B","#E67E22","#E9C46A","#C0392B","#8B5A3A"])[i]}"/>`).join("")}<line x1="${x}" y1="${y-60}" x2="${x}" y2="${y-200}" stroke="#555" stroke-width="5"/><path d="M${x-130},${y-170} Q${x},${y-260} ${x+130},${y-170} Z" fill="${c==="cloth"?"#2F7D5B":"#F2B705"}"/>`,
+  goal:(x,y)=>`<path d="M${x-140},${y} v-120 h280 v120" fill="none" stroke="#fff" stroke-width="8"/>${[...Array(9)].map((_,i)=>`<line x1="${x-120+i*30}" y1="${y-120}" x2="${x-120+i*30}" y2="${y-4}" stroke="#fff" opacity=".35"/>`).join("")}<circle cx="${x+60}" cy="${y+30}" r="12" fill="#fff" stroke="#111"/><g transform="translate(${x-180},${y+20}) scale(2.3)">${avatarSVG(NPCS.tunde)}</g>`,
+  stands:(x,y)=>[0,1,2,3].map(r=>`<rect x="${x-180+r*12}" y="${y-40-r*36}" width="${360-r*24}" height="36" fill="${["#2F7D5B","#3B8F69"][r%2]}" stroke="#1E5A40"/>`+[...Array(9-r)].map((_,i)=>`<circle cx="${x-160+r*12+i*40}" cy="${y-50-r*36}" r="9" fill="${["#C0392B","#F2B705","#26355E","#fff"][(i+r)%4]}"/>`).join("")).join(""),
+  track:(x,y)=>`<path d="M${x-260},${y} L${x+260},${y} L${x+230},${y-50} L${x-230},${y-50} Z" fill="#C2553A"/>${[1,2,3].map(i=>`<path d="M${x-260+i*8},${y-i*12.5} L${x+260-i*8},${y-i*12.5}" stroke="#fff" stroke-width="2"/>`).join("")}`,
+  stage:(x,y)=>`<rect x="${x-200}" y="${y-60}" width="400" height="60" fill="#3A2A20"/><rect x="${x-200}" y="${y-250}" width="12" height="190" fill="#555"/><rect x="${x+188}" y="${y-250}" width="12" height="190" fill="#555"/><rect x="${x-200}" y="${y-262}" width="400" height="16" fill="#555"/>${[-140,-60,20,100].map((d,i)=>`<circle cx="${x+d}" cy="${y-240}" r="9" fill="${["#F2B705","#C2578A","#5BC0EB","#F2B705"][i]}"/>`).join("")}`,
+  bench:(x,y)=>`<rect x="${x-90}" y="${y-44}" width="180" height="12" fill="#8A5A34"/><rect x="${x-90}" y="${y-80}" width="180" height="10" fill="#8A5A34"/><rect x="${x-80}" y="${y-34}" width="8" height="34" fill="#555"/><rect x="${x+72}" y="${y-34}" width="8" height="34" fill="#555"/>`,
+  window:(x,y)=>`<rect x="${x-220}" y="${y-250}" width="440" height="200" fill="#BFD9E6" stroke="#8E96A3" stroke-width="10"/><rect class="skyglass" x="${x-215}" y="${y-245}" width="430" height="190" fill="#BFD9E6"/><path d="M${x-210},${y-80} H${x+210}" stroke="#7C7F86" stroke-width="14"/><g transform="translate(${x+40},${y-150}) rotate(-8)"><rect x="-70" y="-9" width="140" height="18" rx="9" fill="#F4F1EA" stroke="#8E96A3"/><path d="M-10,-8 L-40,-50 L-22,-50 L20,-8 Z M-10,8 L-40,50 L-22,50 L20,8 Z" fill="#DDE1E6" stroke="#8E96A3"/></g>`,
+  rail:(x,y)=>`<rect x="${x-140}" y="${y-60}" width="280" height="8" fill="#9AA3AD"/>${[-130,-60,10,80,130].map(d=>`<rect x="${x+d}" y="${y-60}" width="6" height="60" fill="#8E96A3"/>`).join("")}<rect x="${x-70}" y="${y-150}" width="140" height="40" rx="6" fill="#2F7D5B"/><text x="${x}" y="${y-124}" text-anchor="middle" font-family="Figtree,sans-serif" font-weight="800" font-size="18" fill="#fff">Arrivals</text>`,
+  checkin:(x,y)=>`<rect x="${x-120}" y="${y-80}" width="240" height="80" fill="#F4F1EA" stroke="#B5AF9F"/><rect x="${x-120}" y="${y-86}" width="240" height="10" fill="#2F7D5B"/><rect x="${x-60}" y="${y-170}" width="120" height="40" rx="6" fill="#26355E"/><text x="${x}" y="${y-144}" text-anchor="middle" font-family="Figtree,sans-serif" font-weight="800" font-size="16" fill="#F2B705">LAGOS 18:40</text>`,
+  pos:(x,y)=>`<rect x="${x-60}" y="${y-70}" width="120" height="70" fill="#F4F1EA" stroke="#B5AF9F"/><rect x="${x-60}" y="${y-70}" width="120" height="16" fill="#F2B705"/><rect x="${x-16}" y="${y-98}" width="32" height="28" rx="4" fill="#26355E"/><line x1="${x+50}" y1="${y}" x2="${x+50}" y2="${y-190}" stroke="#555" stroke-width="5"/><path d="M${x-50},${y-170} Q${x+50},${y-240} ${x+150},${y-170} Z" fill="#C0392B"/>`,
+  grill:(x,y)=>`<rect x="${x-70}" y="${y-60}" width="140" height="10" fill="#333"/><rect x="${x-64}" y="${y-50}" width="128" height="30" fill="#555"/>${[-40,-15,10,35].map(d=>`<rect x="${x+d-8}" y="${y-72}" width="16" height="12" rx="3" fill="#8B3A1F"/>`).join("")}<path d="M${x-20},${y-80} q-10,-30 6,-60 M${x+16},${y-80} q10,-30 -6,-66" stroke="#ddd" stroke-width="5" fill="none" opacity=".7"/>`,
+  crowd:(x,y)=>[[-90,0,"m","#4A2A18","#2F7D7A"],[-30,10,"h","#6B3E26","#F2B705"],[30,-4,"m","#8D5524","#B5532E"],[90,6,"f","#4A2A18","#26355E"]].map(p=>`<g transform="translate(${x+p[0]},${y+p[1]}) scale(1.9)">${avatarSVG({g:p[2],skin:p[3],cloth:p[4]})}</g>`).join(""),
+  npc:(x,y,c)=>`<g transform="translate(${x},${y}) scale(2.4)">${avatarSVG(NPCS[c])}</g>`,
+  sign:(x,y)=>`<rect x="${x-6}" y="${y-170}" width="12" height="170" fill="#6B4A2B"/><rect x="${x-90}" y="${y-200}" width="180" height="70" rx="6" fill="#F4F1EA" stroke="#26355E" stroke-width="5"/><text x="${x}" y="${y-158}" text-anchor="middle" font-family="Figtree,sans-serif" font-weight="800" font-size="22" fill="#B3261E">TO LET</text>`,
+  horse:(x,y)=>`<g transform="translate(${x},${y}) scale(2.2)">${horseSVG(false)}</g>`,
+  bus:(x,y)=>`<g transform="translate(${x},${y}) scale(2.2)">${busSVG()}</g>`,
+  pool:(x,y)=>`<path d="M${x-220},${y} L${x+220},${y} L${x+180},${y-110} L${x-180},${y-110} Z" fill="#4FA8D1" stroke="#EDEBE6" stroke-width="10"/><path d="M${x-150},${y-60} q30,-10 60,0 t60,0 t60,0 t60,0" stroke="#BFE6F5" stroke-width="4" fill="none"/>`,
+  gym:(x,y)=>`<rect x="${x-90}" y="${y-20}" width="120" height="20" rx="6" fill="#333"/><path d="M${x+20},${y-20} l20,-90 h10" stroke="#555" stroke-width="8" fill="none"/><rect x="${x+50}" y="${y-60}" width="60" height="8" fill="#777"/><circle cx="${x+50}" cy="${y-56}" r="16" fill="#222"/><circle cx="${x+110}" cy="${y-56}" r="16" fill="#222"/>`,
+  laptop:(x,y)=>`<rect x="${x-90}" y="${y-70}" width="180" height="12" fill="#D9C7A3"/><rect x="${x-84}" y="${y-58}" width="8" height="58" fill="#555"/><rect x="${x+76}" y="${y-58}" width="8" height="58" fill="#555"/><rect x="${x-34}" y="${y-112}" width="68" height="42" rx="3" fill="#333"/><rect x="${x-30}" y="${y-108}" width="60" height="34" fill="#5BC0EB"/>`
+};
+PR.radio=(x,y)=>`<rect x="${x-60}" y="${y-60}" width="120" height="60" rx="10" fill="#8C2F5A"/><circle cx="${x-24}" cy="${y-30}" r="18" fill="#2A2A2A"/><rect x="${x+4}" y="${y-48}" width="44" height="12" rx="2" fill="#F2B705"/><line x1="${x+40}" y1="${y-60}" x2="${x+70}" y2="${y-110}" stroke="#999" stroke-width="3"/>`;
+PR.booth=(x,y)=>`<rect x="${x-90}" y="${y-110}" width="180" height="110" fill="#F4F1EA" stroke="#999" stroke-width="3"/><rect x="${x-90}" y="${y-120}" width="180" height="14" fill="#0E8A4F"/><rect x="${x-30}" y="${y-60}" width="60" height="60" fill="#5B7F95"/><rect x="${x+100}" y="${y-60}" width="60" height="60" fill="#F4F1EA" stroke="#555" stroke-width="3"/><rect x="${x+120}" y="${y-62}" width="20" height="5" fill="#333"/>`;
+PR.paper=(x,y)=>`<rect x="${x-110}" y="${y-140}" width="220" height="140" fill="#2F7D5B"/>${[0,1,2,3,4,5].map(i=>`<rect x="${x-100+(i%3)*68}" y="${y-130+Math.floor(i/3)*64}" width="60" height="54" fill="#F4F1EA" stroke="#999"/><rect x="${x-94+(i%3)*68}" y="${y-124+Math.floor(i/3)*64}" width="48" height="8" fill="#333"/>`).join("")}`;
+PR.pews=(x,y)=>[0,1,2].map(r=>`<rect x="${x-150}" y="${y-30-r*40}" width="300" height="14" fill="#8B5A3A"/><rect x="${x-150}" y="${y-52-r*40}" width="300" height="8" fill="#6B4A2B"/>`).join("")+`<rect x="${x-8}" y="${y-200}" width="16" height="60" fill="#8B5A3A"/><rect x="${x-24}" y="${y-184}" width="48" height="12" fill="#8B5A3A"/>`;
+PR.nboard=(x,y)=>{const fl=S.promos.filter(p=>p.kind==="flyer"&&p.si===C.si&&p.lga===C.li);return `<rect x="${x-6}" y="${y-160}" width="12" height="160" fill="#6B4A2B"/><rect x="${x-110}" y="${y-230}" width="220" height="130" rx="6" fill="#C9A06B" stroke="#8A6A45" stroke-width="5"/>`+[0,1,2,3,4,5].map(i=>{const p=fl[i];return `<rect x="${x-98+(i%3)*68}" y="${y-220+Math.floor(i/3)*60}" width="60" height="52" fill="${p?(p.party>=0?PCOL[p.party]:"#F4F1EA"):"#EFE7D6"}" stroke="#999"/>${p?`<text x="${x-68+(i%3)*68}" y="${y-188+Math.floor(i/3)*60}" text-anchor="middle" font-family="Figtree,sans-serif" font-weight="800" font-size="16" fill="${p.party>=0?"#fff":"#333"}">${p.party>=0?PARTIES[p.party][0]:"VOTE"}</text>`:""}`}).join("")};
+
+const SLOTS=[[250,440],[600,420],[860,450],[330,650],[650,640],[900,660],[140,640]];
+const WALLKINDS=["window","board","screen"];
+function sceneProps(id){const acts=ACT[id];const props=[];let si=0;
+  acts.forEach(a=>{let k=PK[a.id]||"counter";let extra;if(Array.isArray(k)){extra=k[1];k=k[0]}
+    if(props.some(p=>p.act===a.id))return;let [x,y]=SLOTS[si%SLOTS.length];si++;if(WALLKINDS.includes(k)){y=k==="window"?330:400;x=Math.min(Math.max(x,260),740)}props.push({kind:k,act:a.id,x,y,extra})});
+  return props}
+const sv=$("scene");let scAv={x:500,y:690},sceneLoc=null;
+function renderScene(){
+  const L=LOC[S.loc],col=SCOL[L.kind]||["#E8D3AE","#9B6B43"],yard=YARD.includes(L.kind);sceneLoc=S.loc;
+  let s=`<defs><pattern id="sdots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.5" fill="#000" opacity=".12"/></pattern></defs>`;
+  if(!yard){s+=`<rect width="1000" height="320" fill="${col[0]}"/><rect x="0" y="312" width="1000" height="14" fill="rgba(0,0,0,.18)"/><polygon points="0,326 1000,326 1000,700 0,700" fill="${col[1]}"/>`;for(let i=-12;i<=12;i++)s+=`<line x1="${500+i*48}" y1="326" x2="${500+i*120}" y2="700" stroke="rgba(0,0,0,.12)" stroke-width="2"/>`;
+    s+=`<rect x="790" y="40" width="120" height="100" rx="4" fill="#F4F1EA" stroke="rgba(0,0,0,.2)" stroke-width="6"/><rect class="skyglass" x="796" y="46" width="108" height="88" fill="#BFD9E6"/><line x1="500" y1="0" x2="500" y2="40" stroke="#333" stroke-width="2"/><circle class="bulb" cx="500" cy="46" r="10" fill="#FFE9A8"/>`}
+  else{s+=`<rect width="1000" height="300" class="skyglass" fill="${col[0]}"/><path d="M0,300 V230 h60 v-40 h80 v60 h50 v-90 h70 v80 h90 v-50 h60 v70 h80 v-110 h40 v110 h90 v-60 h70 v40 h90 v-70 h70 v100 h50 V300 Z" fill="rgba(60,50,40,.22)"/>`+tree(80,300,1.4,"palm")+tree(930,300,1.5)+`<rect y="300" width="1000" height="400" fill="${col[1]}"/><rect y="300" width="1000" height="400" fill="url(#sdots)"/>`}
+  sceneProps(S.loc).sort((a,b)=>a.y-b.y).forEach(p=>{const a=ACT[S.loc].find(z=>z.id===p.act);const body=PR[p.kind](p.x,p.y,p.extra);
+    const ty={window:p.y-280,board:p.y-260,screen:p.y-290,stands:p.y-200,stall:p.y-270,pos:p.y-270,shower:p.y-230,stage:p.y-290,npc:p.y-180,crowd:p.y-180,gate:p.y-270,sign:p.y-240,horse:p.y-200,bus:p.y-150,goal:p.y-170}[p.kind]||p.y-170;
+    const w=Math.max(120,a.label.length*9.5+30);
+    s+=`<g class="prop" data-act="${p.act}" tabindex="0" role="button" aria-label="${a.label}">${body}<g class="tag"><rect x="${p.x-w/2}" y="${ty}" width="${w}" height="32" rx="16" fill="#26355E" stroke="#F7E7C1" stroke-width="2"/><text x="${p.x}" y="${ty+21}" text-anchor="middle" font-family="Figtree,sans-serif" font-weight="700" font-size="16" fill="#F7E7C1">${a.label}</text></g></g>`});
+  s+=`<g id="savatar" pointer-events="none"><g transform="scale(2.5)">${avatarSVG(S.char)}</g><g id="sbubble" style="display:none"><rect id="sbubbleBg" x="-50" y="-210" width="100" height="34" rx="17" fill="#FBF4E6" stroke="#26355E" stroke-width="3"/><text id="sbubbleTx" x="0" y="-187" text-anchor="middle" font-family="Figtree,sans-serif" font-weight="800" font-size="18" fill="#26355E"></text></g></g>`;
+  s+=`<rect id="snight" width="1000" height="700" fill="#0D1838" opacity="0" pointer-events="none"/>`;
+  sv.innerHTML=s;scAv={x:500,y:690};placeScAv();$("scenetitle").textContent=L.name;updateScene()}
+function placeScAv(){const g=$("savatar");if(g)g.setAttribute("transform",`translate(${scAv.x.toFixed(1)},${scAv.y.toFixed(1)})`)}
+function updateScene(){if(!S.inside||!$("snight"))return;const L=LOC[S.loc],yard=YARD.includes(L.kind),nl=nightLevel(),pw=S.light||L.gen;
+  $("snight").setAttribute("opacity",(yard?nl:(nl>.15?(pw?.12:.62):0)).toFixed(2));
+  sv.querySelectorAll(".skyglass").forEach(r=>r.setAttribute("fill",nl>.15?"#1B2A55":(yard?(SCOL[L.kind]||["#E9D3A6"])[0]:"#BFD9E6")));
+  sv.querySelectorAll(".bulb").forEach(b=>b.setAttribute("fill",pw?"#FFE9A8":"#555"));sv.querySelectorAll(".tvscreen").forEach(b=>b.setAttribute("fill",pw?"#3E7CA8":"#111"));
+  sv.querySelectorAll(".prop").forEach(p=>{const a=ACT[S.loc].find(z=>z.id===p.dataset.act);p.style.opacity=a&&reason(a)?".5":"1"})}
+function walkTo(x,y){return new Promise(res=>{const g=$("savatar");if(!g){res();return}const from={...scAv},d=Math.hypot(x-from.x,y-from.y),ms=reduce()?120:Math.min(1100,250+d*1.4),t0=performance.now();g.classList.add("walking");
+  function f(now){const p=Math.min(1,(now-t0)/ms);scAv={x:from.x+(x-from.x)*p,y:from.y+(y-from.y)*p};placeScAv();if(p<1)requestAnimationFrame(f);else{g.classList.remove("walking");res()}}requestAnimationFrame(f)})}
+function propSpot(act){const p=sceneProps(S.loc).find(z=>z.act===act);if(!p)return null;if(p.kind==="window")return{x:p.x-80,y:p.y+150};if(WALLKINDS.includes(p.kind))return{x:p.x+120,y:p.y+80};if(p.kind==="npc")return{x:p.x-80,y:p.y+10};return{x:p.x+(p.x>500?-150:150),y:Math.min(690,p.y+30)}}
+async function doActionHere(a){if(busy)return;const why=reason(a);if(why){toast(why);return}if(S.inside){const sp=propSpot(a.id);if(sp){busy=true;renderPanel(true);await walkTo(sp.x,sp.y);busy=false}}doAction(a)}
+function enterScene(){S.inside=true;selected=S.loc;$("map").style.display="none";$("zoombar").hidden=true;$("scene").style.display="";$("scenebar").hidden=false;renderScene();render();save()}
+function exitScene(quiet){S.inside=false;$("scene").style.display="none";$("map").style.display="";$("zoombar").hidden=false;$("scenebar").hidden=true;centerOn(av.x,av.y-30,false);if(!quiet){render();save()}}
+sv.addEventListener("click",e=>{const g=e.target.closest(".prop");if(!g)return;const a=ACT[S.loc].find(z=>z.id===g.dataset.act);if(a)doActionHere(a)});
+sv.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.classList&&e.target.classList.contains("prop")){e.preventDefault();const a=ACT[S.loc].find(z=>z.id===e.target.dataset.act);if(a)doActionHere(a)}});
+$("exitbtn").addEventListener("click",()=>{if(!busy)exitScene()});
+/* ================= CAMPAIGN ================= */
+const SIMNAMES=["Bisi","Chinedu","Aminu","Ngozi","Tunde","Zainab","Efe","Ibrahim","Kemi","Emeka","Hauwa","Segun","Ifeoma","Musa","Tari","Funmi"];
+const spentToday=()=>S.spent[dayNum()]||0;
+function seedPosts(){if(S.posts.length)return;const R=seeded(hash(S.c.name+"p"));for(let i=0;i<10;i++){S.posts.push({by:SIMNAMES[Math.floor(R()*16)],sim:true,party:Math.floor(R()*PARTIES.length),issues:[ISSUES[Math.floor(R()*ISSUES.length)]],note:"",day:1,place:STATES[Math.floor(R()*STATES.length)][0]})}}
+const cleanTxt=s=>{const l=s.toLowerCase();return !BAD_WORDS.some(w=>new RegExp("\\b"+w+"\\b").test(l))&&!/https?:|www\./.test(l)};
+function campaignHTML(){seedPosts();const c=S.c,dn=dayNum(),black=dn>=ELECTION_DAY-1,mine=S.posts.find(p=>p.mine&&p.day===dn);
+  return `<section class="card"><h2>Support box</h2><p class="muted small">No chat. Post one support card a day: the party you back and why. Your support is public; your vote is secret.</p>
+  ${black?`<p class="warn">Campaigning has ended. All campaigns stop 24 hours before election day.</p>`:mine?`<p class="note">You have posted today.</p>`:`<div class="form"><label>I support<select id="sp">${PARTIES.map((p,i)=>`<option value="${i}">${p[0]}, ${esc(p[1])}</option>`).join("")}</select></label><div class="lbl">Because of (up to 3)</div><div class="chips">${ISSUES.map(x=>`<label class="chip"><input type="checkbox" value="${x}"> ${x}</label>`).join("")}</div><label>Short note (80 characters)<input id="snote" maxlength="80"></label><button class="btn primary" id="post">Post support card</button></div>`}
+  <ul class="feed">${S.posts.slice().reverse().slice(0,10).map(p=>`<li><span class="pchip" style="background:${PCOL[p.party]}">${PARTIES[p.party][0]}</span><div><b>${esc(p.by)}${p.sim?` <small>(simulated)</small>`:""}</b> <small class="muted">${esc(p.place)}, day ${p.day}</small><br>Supports ${esc(PARTIES[p.party][1])} for ${esc(p.issues.join(", ")||"a better Nigeria")}.${p.note?` "${esc(p.note)}"`:""}</div></li>`).join("")}</ul></section>
+  <section class="card"><h2>Promote</h2><p class="muted small">Same prices for every party. Daily cap ${naira(DAILY_CAP)}; spent today ${naira(spentToday())}. Flyers are posted at the Notice Board on your map.</p>
+  ${black?`<p class="warn">No promotion during the blackout.</p>`:`<button class="btn" id="opennews">Buy a sponsored news message</button> <button class="btn" id="gofly">Go and post flyers</button>`}
+  <ul class="feed small">${S.promos.slice(-5).reverse().map(p=>`<li>${p.kind==="flyer"?"📋":"📺"} ${esc(p.label)} <small class="muted">day ${p.day}, paid for by ${esc(p.by)}</small></li>`).join("")||`<li class="muted">No promotions yet.</li>`}</ul></section>`}
+function wireCampaign(){const c=S.c;const post=$("post");if(post)post.onclick=()=>{const issues=[...document.querySelectorAll(".chips input:checked")].map(i=>i.value).slice(0,3),noteT=($("snote").value||"").trim();if(noteT&&!cleanTxt(noteT)){toast("That note can't be posted. Keep it positive, no links.");return}
+    S.posts.push({by:c.name,mine:true,party:+$("sp").value,issues,note:noteT,day:dayNum(),place:ST[0]});log(`You posted a support card for ${PARTIES[+$("sp").value][0]}.`);save();render()};
+  const on=$("opennews");if(on)on.onclick=()=>openPromo("news");const gf=$("gofly");if(gf)gf.onclick=()=>{S.tab="life";select("board");toast("Travel to the Notice Board, then tap Post a flyer")}}
+function openPromo(kind){const c=S.c,opts=PROMO[kind];
+  openModal(kind==="flyer"?"Post flyers":"Sponsored news",`<div class="form"><label>Promote<select id="pp"><option value="-1">Civic message: go out and vote</option>${PARTIES.map((p,i)=>`<option value="${i}">${p[0]}, ${esc(p[1])}</option>`).join("")}</select></label>${opts.map((o,i)=>`<button class="act" data-o="${i}" ${o[1]>c.money||spentToday()+o[1]>DAILY_CAP?"disabled":""}><b>${o[0]}</b><small>${naira(o[1])}</small></button>`).join("")}</div><div class="choices"><button data-x="1">Cancel</button></div>`);
+  $("mbody").onclick=async e=>{if(e.target.closest("[data-x]")){closeModal();return}const b=e.target.closest("[data-o]");if(!b||b.disabled)return;const o=opts[+b.dataset.o],pi=+$("pp").value;closeModal();
+    c.money-=o[1];S.spent[dayNum()]=spentToday()+o[1];const lab=pi<0?"Go out and vote on election day":`Vote ${PARTIES[pi][0]}, ${PARTIES[pi][1]}`;
+    if(kind==="flyer"){busy=true;bubble("Posting");await runClock(30);bubble(null);busy=false;S.promos.push({kind,party:pi,si:C.si,lga:C.li,day:dayNum(),by:c.name,label:`Flyer: ${lab}`});log(`You paid ${naira(o[1])} for flyers.`);save();location.reload();return}
+    S.promos.push({kind,party:pi,day:dayNum(),by:c.name,label:`Sponsored: ${lab}`});log(`You paid ${naira(o[1])} for a sponsored news message.`);toast("Live on NVT News today");save();render()}}
+
+/* ================= ELECTION ================= */
+function electionHTML(){const c=S.c,dn=dayNum(),left=ELECTION_DAY-dn;const steps=[["Registered",c.pvc!=="none"],["PVC collected",c.pvc==="have"],["Voted",!!c.voted]];
+  const resOK=c.voted||dn>ELECTION_DAY||(dn===ELECTION_DAY&&hour()>=15);
+  return `<section class="card"><h2>${left>0?`${left} day${left>1?"s":""} to election day`:left===0?"Election day is today":"The election is over"}</h2>
+  <ol class="pvc">${steps.map(s=>`<li class="${s[1]?"done":""}">${s[0]}</li>`).join("")}</ol>${c.flagged?`<p class="warn">Your PVC was confiscated.</p>`:""}
+  <ul class="sched"><li><b>Day ${REG_CLOSE}</b> Registration closes at the INEC office</li><li><b>Day ${PVC_CLOSE}</b> Last day to collect PVCs. Campaigns end.</li><li><b>Day ${ELECTION_DAY}</b> Election day: polls 8:30am to 2:30pm at your polling unit</li></ul>
+  <p class="muted small">Informed ${S.informed}, civic ${S.civic}. TV ${c.tv?"at home":"not owned"}, radio ${c.radio?"owned":"not owned"}.</p>
+  ${resOK?`<button class="btn primary" id="results">Watch live results</button>`:`<p class="muted small">Results go live after polls close on day ${ELECTION_DAY}.</p>`}</section>`}
+let choice=null;
+function openVote(){const c=S.c;openModal("BVAS accreditation",`<p>The presiding officer asks for your PVC and your thumb.</p><button class="pad" id="pad" aria-label="Scan fingerprint"><span>👆</span></button><p class="note" id="bv">Tap to scan your fingerprint</p>`);let tries=0;
+  $("pad").onclick=()=>{tries++;if(tries===1&&Math.random()<.25){$("bv").textContent="Fingerprint not matched. Facial capture: tap again and look at the camera.";return}$("bv").textContent="Accredited.";setTimeout(ballot,700)}}
+function ballot(){openModal("Presidential ballot",`<p class="muted small">Alphabetical, equal boxes, no logos. Choose one.</p><div class="ballot">${PARTIES.map((p,i)=>`<button class="pbox ${choice===i?"sel":""}" data-p="${i}"><b style="border-color:${PCOL[i]}">${p[0]}</b><small>${esc(p[1])}</small><span class="thumbslot">${choice===i?`<span class="print"></span>`:""}</span></button>`).join("")}</div><div class="choices"><button id="cast" ${choice===null?"disabled":""}>Thumbprint and drop in the box</button></div>`,true);
+  $("mbody").onclick=e=>{const b=e.target.closest(".pbox");if(b){choice=+b.dataset.p;ballot();return}if(e.target.closest("#cast")&&choice!==null){const c=S.c;c.voted=true;c.choice=choice;advance(60);log(`You voted. Your thumb carries the purple ink.`);closeModal();save();render();note("You voted","Your thumb carries the purple ink. Results go live when polls close.")}}}
+let sim=null,timer=null;
+function buildSim(){const c=S.c,pus=[];STATES.forEach((st,si)=>st[4].forEach((l,li)=>[0,1,2].forEach(pi=>{const turn=Math.round(rnd(150,700)*rnd(.3,.55));const w=PARTIES.map(()=>Math.pow(Math.random(),3));const sum=w.reduce((a,b)=>a+b,0);const v=w.map(x=>Math.floor(turn*x/sum));const mine=si===c.si&&li===c.li&&pi===c.pi;if(mine&&c.voted)v[c.choice]++;if(si===c.si&&li===c.li&&S.bribed)for(const k in S.bribed)v[+k]+=Math.floor(S.bribed[k]/3)+(pi===0?S.bribed[k]%3:0);pus.push({si,li,pi,v,up:false,mine})})));for(let i=pus.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pus[i],pus[j]]=[pus[j],pus[i]]}return{pus,next:0}}
+const totals=f=>{const r=PARTIES.map(()=>0);sim.pus.forEach(p=>{if(p.up&&(!f||f(p)))p.v.forEach((x,i)=>r[i]+=x)});return r};
+function openResults(){if(!sim){sim=buildSim();timer=setInterval(()=>{const k=Math.min(sim.next+9,sim.pus.length);for(;sim.next<k;sim.next++)sim.pus[sim.next].up=true;drawResults();if(sim.next>=sim.pus.length)clearInterval(timer)},500)}
+  openModal("Live collation",`<p class="disclaimer">Simulated voters vote at random with equal odds for every party. A game, not a poll or prediction. Not affiliated with INEC.</p><p class="pill" id="prog"></p><div id="bars"></div><div class="nmap" id="nmap"></div><div id="mypu"></div><div class="choices"><button data-x="1">Close</button></div>`,true);
+  $("mbody").onclick=e=>{if(e.target.closest("[data-x]"))closeModal()};drawResults()}
+function drawResults(){if(!$("bars"))return;const tot=totals(),all=tot.reduce((a,b)=>a+b,0)||1,order=tot.map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]);
+  $("prog").textContent=`${sim.pus.filter(p=>p.up).length} of ${sim.pus.length} polling units uploaded`;
+  $("bars").innerHTML=order.slice(0,6).map(([v,i])=>`<div class="bar"><span class="bl">${PARTIES[i][0]}</span><span class="bt"><span class="bf" style="width:${(v/all*100).toFixed(1)}%;background:${PCOL[i]}"></span></span><span class="bv">${v.toLocaleString()} <small>${(v/all*100).toFixed(1)}%</small></span></div>`).join("");
+  $("nmap").innerHTML=STATES.map((st,si)=>{const s=totals(p=>p.si===si),mx=Math.max(...s),lead=mx>0?s.indexOf(mx):-1;return `<div class="tile ${si===C.si?"mine":""}" style="grid-column:${st[5]+1};grid-row:${st[6]+1};background:${lead>=0?PCOL[lead]:"#cfc6ae"}"><b>${st[0].slice(0,3).toUpperCase()}</b>${lead>=0?`<small>${PARTIES[lead][0]}</small>`:""}</div>`}).join("");
+  const my=sim.pus.find(p=>p.mine);$("mypu").innerHTML=`<h3 class="h3">Your polling unit</h3>`+(my.up?`<table>${my.v.map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]).slice(0,5).map(([v,i])=>`<tr><td>${PARTIES[i][0]}${S.c.voted&&S.c.choice===i?" (includes your vote)":""}</td><td>${v}</td></tr>`).join("")}</table>`:`<p class="muted small">Waiting for upload.</p>`)}
+
+
+/* ================= VOTE BUYING (risky, unverifiable, punished) ================= */
+function openBribe(){const c=S.c;const amts=[1000,5000,10000],groups=[5,20,50];let a=1,g=0,party=0;
+  const draw=()=>{const total=amts[a]*groups[g],risk=Math.min(85,Math.round((.12+groups[g]*.006+amts[a]/200000)*100));
+    openModal("Offer money for votes",`<p class="warn">Vote buying is a crime under the Electoral Act. If you are caught you lose the money, pay a fine, lose your PVC and spend time in custody. Ballots are secret, so you can never check how anyone voted.</p>
+    <div class="form"><label>For which party<select id="bp">${PARTIES.map((p,i)=>`<option value="${i}" ${i===party?"selected":""}>${p[0]}, ${esc(p[1])}</option>`).join("")}</select></label>
+    <div class="lbl">Money per person</div><div class="seg" id="ba">${amts.map((x,i)=>`<button data-i="${i}" aria-pressed="${i===a}">${naira(x)}</button>`).join("")}</div>
+    <div class="lbl" style="margin-top:10px">How many people</div><div class="seg" id="bg">${groups.map((x,i)=>`<button data-i="${i}" aria-pressed="${i===g}">${x}</button>`).join("")}</div></div>
+    <p><b>Total ${naira(total)}</b>. Chance of getting caught: about ${risk}%.</p>
+    <div class="choices"><button data-go="1" ${total>c.money?"disabled":""}>${total>c.money?"Not enough money":"Share the money"}</button><button data-x="1">Walk away</button></div>`,true);
+    $("bp").onchange=e=>party=+e.target.value;
+    $("ba").onclick=e=>{const b=e.target.closest("button");if(b){a=+b.dataset.i;draw()}};$("bg").onclick=e=>{const b=e.target.closest("button");if(b){g=+b.dataset.i;draw()}};
+    $("mbody").onclick=async e=>{if(e.target.closest("[data-x]")){closeModal();log("You thought about buying votes, then walked away.");save();return}
+      const go=e.target.closest("[data-go]");if(!go||go.disabled)return;closeModal();busy=true;bubble("Sharing money");await runClock(60);bubble(null);busy=false;
+      const n=groups[g],per=amts[a],tot=per*n;c.money-=tot;
+      if(Math.random()*100<risk){const fine=Math.min(c.money,Math.round(c.money*.5));c.money-=fine;c.pvc=c.pvc==="none"?"none":"flagged";c.flagged=c.pvc==="flagged";S.civic=Math.max(0,S.civic-5);S.flags.jail=1;advance(720);
+        S.promos.push({kind:"news",party:-2,day:dayNum(),by:"NVT News",label:`Vote buyer arrested in ${LGA}. EFCC says investigations continue`});
+        log(`You were arrested for vote buying. You lost ${naira(tot)}, paid a ${naira(fine)} fine and spent the night in custody.`);note("Arrested","Someone you tried to pay reported you. Police arrested you in the act. Your money is gone, you paid a fine, your PVC was seized and you spent the night in a cell. You are out on bail.")}
+      else{let took=0,really=0;for(let i=0;i<n;i++){if(Math.random()<.6){took++;if(Math.random()<.5)really++}}
+        S.bribed=S.bribed||{};S.bribed[party]=(S.bribed[party]||0)+really;
+        log(`${took} of ${n} people took your ${naira(per)}. The ballot is secret, so you will never know how they voted.`);toast(`${took} took the money. ${n-took} refused.`)}
+      save();render()}};
+  draw()}
+
+/* ================= PANELS ================= */
+function select(id){if(id===S.c.pos&&selected===S.c.pos&&!busy){enterScene();return}selected=id;S.tab="life";renderPanel();renderRings();renderTabs()}
+function renderRings(){Object.keys(LOC).forEach(id=>{const r=$("ring-"+id);if(r)r.style.display=id===selected?"":"none"})}
+function renderHud(){const c=S.c;$("clock").innerHTML=`${DAYS[dow()]}, Day ${dayNum()} <small>${fmtT(S.t)}</small>`;$("money").textContent=naira(c.money);$("countdown").textContent=dayNum()<ELECTION_DAY?`${ELECTION_DAY-dayNum()} days to vote`:dayNum()===ELECTION_DAY?"Election day":"Results";
+  const avg=NEEDS.reduce((s,[k])=>s+S.n[k],0)/5;$("mood").textContent=avg>70?"Feeling fine":avg>45?"Managing":avg>25?"Stressed":"Wahala";$("nepa").hidden=S.light;
+  const nl=nightLevel();$("night").setAttribute("opacity",nl.toFixed(3));const lit=nl>.15;document.querySelectorAll("#glow rect").forEach(r=>{const L=LOC[r.dataset.g];r.setAttribute("opacity",lit&&(S.light||L.gen)?"1":"0")});updateScene();
+  $("needs").innerHTML=NEEDS.map(([k,l])=>{const v=Math.round(S.n[k]);return `<div class="need${v<25?" low":""}"><span>${l}</span><div class="track"><div class="fill f-${k}" style="width:${v}%"></div></div><b>${v}</b></div>`}).join("")}
+let lastPanel="";
+function chipsFor(a){let ch=[`<span class="chip">${a.dur>=60?(a.dur/60).toFixed(a.dur%60?1:0)+" hr":a.dur+" min"}</span>`];if(cost(a))ch.push(`<span class="chip cost">${naira(cost(a))}</span>`);for(const k in a.fx){const v=a.fx[k];ch.push(`<span class="chip ${v>0?"up":"cost"}">${v>0?"+":"−"}${SHORT[k]}</span>`)}if(a.media||a.informed||a.overhear)ch.push(`<span class="chip up">+Informed</span>`);return ch.join("")}
+function renderPanel(force){if(S.tab!=="life"){return}const L=LOC[selected],open=isOpen(L,hour());let html=`<div class="place-head"><h2>${esc(L.name)}</h2><span class="open${open?"":" no"}">${open?openText(L):"Closed now"}</span></div><div class="muted">${esc(L.blurb)}</div>`;
+  if(selected===S.c.pos){html+=S.inside?`<div class="go one"><button class="gobtn walk" data-out="1" ${busy?"disabled":""}>Go outside<small>Back to the map</small></button></div>`:`<div class="go one"><button class="gobtn keke" data-in="1" ${busy?"disabled":""}>Go inside<small>Walk into ${esc(L.name)}</small></button></div>`;
+    html+=`<div class="acts">${ACT[selected].map((a,i)=>{const why=busy?"":reason(a);return `<button class="act" data-act="${i}" ${why||busy?"disabled":""}><span class="act-name">${esc(a.label)}</span><span class="chips">${chipsFor(a)}</span>${why?`<span class="why">${esc(why)}</span>`:""}</button>`}).join("")}</div>`}
+  else{const d=routeLen(route(selected));html+=`<div class="modes">${modeList().map(k=>{const M=MSPEC[k],f=M.fare(d),m=M.min(d);const b=busy||f>S.c.money;return `<button class="mode m-${k}" data-go="${k}" ${b?"disabled":""}><b>${M.label}</b><small>${f?naira(f):"Free"}, about ${m} min</small></button>`}).join("")}</div><ul class="preview">${ACT[selected].map(a=>`<li>${esc(a.label)}</li>`).join("")}</ul>`}
+  const key=html+busy;if(!force&&key===lastPanel)return;lastPanel=key;$("place").innerHTML=html}
+$("place").addEventListener("click",e=>{const b=e.target.closest("button");if(!b||b.disabled)return;if(b.dataset.act!==undefined)doActionHere(ACT[S.c.pos][+b.dataset.act]);else if(b.dataset.go)travel(selected,b.dataset.go);else if(b.dataset.in)enterScene();else if(b.dataset.out)exitScene()});
+function renderTabs(){document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.t===S.tab?"page":"false"));
+  if(S.tab==="life"){$("place").hidden=false;$("tabbody").hidden=true;lastPanel="";renderPanel(true)}
+  else{$("place").hidden=true;$("tabbody").hidden=false;$("tabbody").innerHTML=S.tab==="campaign"?campaignHTML():electionHTML();if(S.tab==="campaign")wireCampaign();else{const r=$("results");if(r)r.onclick=openResults}}}
+document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;save();renderTabs()});
+function renderSide(){$("log").innerHTML=S.log.slice(0,6).map(e=>`<li><time>Day ${Math.floor(e.t/1440)+1}, ${fmtT(e.t)}</time>${esc(e.m)}</li>`).join("");
+  const c=S.c;$("who").innerHTML=`<span class="badge ${c.cls}">${CL[c.cls]}</span> ${esc(c.job)}. ${esc(c.home)}. <span class="muted">${esc(LGA)}, ${esc(ST[0])}. ${esc(B.name)}.</span>`}
+function render(){if(S.inside&&sceneLoc!==S.c.pos)renderScene();renderHud();renderTabs();renderRings();renderSide()}
+function openModal(title,html,wide){modalOpen=true;$("mt").textContent=title;$("mbody").innerHTML=html;$("ovm").classList.toggle("wide",!!wide);$("overlay").classList.add("on")}
+function closeModal(){$("overlay").classList.remove("on");modalOpen=false;setTimeout(flush,150)}
+function flush(){if(modalOpen||busy||!pending.length)return;const m=pending.shift();const ch=m.choices||[{label:"Okay",fn:()=>{}}];
+  openModal(m.title,`${m.html?m.body:"<p></p>"}<div class="choices">${ch.map((x,i)=>`<button data-i="${i}">${esc(x.label)}</button>`).join("")}</div>`,m.html);if(!m.html)$("mbody").querySelector("p").textContent=m.body;
+  $("mbody").onclick=e=>{const b=e.target.closest("button[data-i]");if(!b)return;closeModal();ch[+b.dataset.i].fn();checkCritical();save();render()}}
+
+/* ================= CREATE ================= */
+function creator(){const look={g:"m",skin:SKINS[0],cloth:CLOTHS[0]};
+  openModal("Create your citizen",`<div class="creator"><div class="stage"><svg viewBox="-30 -75 60 85" aria-hidden="true"><g id="cprev"></g></svg></div><div>
+   <div class="field"><label for="cname">Name</label><input id="cname" maxlength="16" autocomplete="off" placeholder="e.g. Muiz"></div>
+   <div class="field"><label for="cst">State</label><select id="cst">${STATES.map((s,i)=>`<option value="${i}" ${i===23?"selected":""}>${s[0]}</option>`).join("")}</select></div>
+   <div class="field"><label for="clg">Local government</label><select id="clg"></select></div>
+   <div class="field"><span class="lbl">Look</span><div class="seg" id="cg"><button data-g="m">Kaftan and fila</button><button data-g="f">Aso-oke and gele</button><button data-g="h">Gown and hijab</button></div></div>
+   <div class="field"><span class="lbl">Skin tone</span><div class="seg" id="cs">${SKINS.map(s=>`<button class="swatch" data-v="${s}" style="background:${s}" aria-label="Skin tone"></button>`).join("")}</div></div>
+   <div class="field"><span class="lbl">Outfit</span><div class="seg" id="cc">${CLOTHS.map(s=>`<button class="swatch" data-v="${s}" style="background:${s}" aria-label="Outfit colour"></button>`).join("")}</div></div>
+   <p class="muted small">Your class, job, home and money are rolled once and saved for good.</p><button class="startbtn" id="cgo">Roll my life</button></div></div>`,true);
+  const fill=()=>{$("clg").innerHTML=STATES[+$("cst").value][4].map((l,i)=>`<option value="${i}">${l}</option>`).join("")};$("cst").onchange=fill;fill();
+  const upd=()=>{$("cprev").innerHTML=avatarSVG(look);document.querySelectorAll("#cg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.g===look.g));document.querySelectorAll("#cs button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===look.skin));document.querySelectorAll("#cc button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===look.cloth))};
+  $("cg").onclick=e=>{const b=e.target.closest("button");if(b){look.g=b.dataset.g;upd()}};$("cs").onclick=e=>{const b=e.target.closest("button");if(b){look.skin=b.dataset.v;upd()}};$("cc").onclick=e=>{const b=e.target.closest("button");if(b){look.cloth=b.dataset.v;upd()}};upd();
+  $("cgo").onclick=()=>{const name=($("cname").value||"").trim();if(!name){toast("Enter your name");return}const si=+$("cst").value,li=+$("clg").value;
+    const r=Math.random(),cls=r<.63?"poor":r<.95?"middle":"rich",under=cls==="poor"&&Math.random()<.15,p=Math.random();
+    S.char={name,...look};S.c={name,si,li,pi:Math.floor(Math.random()*3),cls,job:pick(JOBS[cls]),home:under?"Under a flyover near the motor park":pick(HOMES[cls]),under,money:Math.round(rnd(...START[cls])),pvc:p<.55?"have":p<.8?"registered":"none",regDay:-1,pos:"home",
+      tv:cls==="rich"||(cls==="middle"&&Math.random()<.85)||(cls==="poor"&&!under&&Math.random()<.2),radio:cls!=="poor"?Math.random()<.7:Math.random()<(under?.3:.6)};
+    S.lang=STATES[si][3];S.t=7*60;S.log=[];log(`${name} started life in ${STATES[si][4][li]}, ${STATES[si][0]}.`);S.flags.reveal=1;save();location.reload()}}
+function reveal(){const c=S.c;S.flags.reveal=0;save();openModal("Your life",`<div class="stamp ${c.cls}">${CL[c.cls]}</div><dl class="facts"><div><dt>Job</dt><dd>${esc(c.job)}</dd></div><div><dt>Home</dt><dd>${esc(c.home)}</dd></div><div><dt>Money</dt><dd>${naira(c.money)}</dd></div><div><dt>PVC</dt><dd>${c.pvc==="have"?"You have it":c.pvc==="registered"?"Registered, never collected":"Not registered"}</dd></div><div><dt>TV at home</dt><dd>${c.tv?"Yes":"No"}</dd></div><div><dt>Radio</dt><dd>${c.radio?"Yes":"No"}</dd></div></dl>
+  <p class="vibe">${esc(LGA)}, ${esc(ST[0])}: ${esc(ST[2])}. ${esc(B.name)}.</p><p class="muted small">Election day is day ${ELECTION_DAY}. Drag the map, tap places, and live your life on the way to the ballot.</p><div class="choices"><button data-x="1">Start</button></div>`,true);$("mbody").onclick=e=>{if(e.target.closest("[data-x]"))closeModal()}}
+
+/* ================= BOOT ================= */
+$("langsel").innerHTML=LANGS.map(([k,n])=>`<option value="${k}" ${k===S.lang?"selected":""}>${n}</option>`).join("");$("langsel").onchange=e=>{S.lang=e.target.value;save()};
+$("pause").onclick=()=>{paused=!paused;$("pause").textContent=paused?"Play":"Pause"};
+$("reset").onclick=()=>{openModal("Start a new life?","<p>This wipes your citizen. In the real game, lives are permanent.</p><div class='choices'><button data-y='1'>Wipe and restart</button><button data-x='1'>Cancel</button></div>");$("mbody").onclick=e=>{if(e.target.closest("[data-y]")){localStorage.removeItem(KEY);location.reload()}if(e.target.closest("[data-x]"))closeModal()}};
+drawMap();
+if(!S.c){$("statevibe").textContent="36 states and the FCT";creator()}else{
+  Object.defineProperty(S,"loc",{get(){return S.c.pos},enumerable:false});
+  $("statevibe").textContent=`${LGA}, ${ST[0]}: ${ST[2]}`;
+  initTraffic();requestAnimationFrame(tickTraffic);const p0=standPos(S.c.pos);setAv(p0.x,p0.y);cam.w=1100;centerOn(p0.x,p0.y-30,false);refreshAvatar();
+  if(S.inside){$("map").style.display="none";$("zoombar").hidden=true;$("scene").style.display="";$("scenebar").hidden=false;renderScene()}
+  render();if(S.flags.reveal)reveal();else flush();
+  setInterval(()=>{if(paused||busy||modalOpen||document.hidden)return;advance(2);checkCritical();renderHud();if(S.tab==="life")renderPanel();if(S.t%30===0){renderSide();save()}flush()},1000);setInterval(save,5000)}
+})();
+
+</script>
+</body>
+</html>

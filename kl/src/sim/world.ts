@@ -1,7 +1,7 @@
 // World layout: projects real coordinates to map pixels and finds routes.
 // Ported from reference/kwara-life.html so distances, fares and times match.
-import { PLACES, WAYPOINTS } from "../data/locations";
-import { ROADS } from "../data/roads";
+import { PLACES, WAYPOINTS } from "../data/ilorin/places";
+import { ROADS } from "../data/ilorin/roads";
 
 export interface Point {
   x: number;

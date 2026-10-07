@@ -1,8 +1,8 @@
 import type { Character } from "../data/character";
 import type { FriendId } from "../data/friends";
-import type { GoalId } from "../data/actions";
+import type { GoalId } from "../data/ilorin/actions";
 import type { NeedKey } from "../data/needs";
-import { START_PLACE } from "../data/locations";
+import { START_PLACE } from "../data/ilorin/places";
 
 export interface LogEntry {
   t: number;

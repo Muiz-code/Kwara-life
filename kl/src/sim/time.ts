@@ -1,4 +1,4 @@
-import type { Place } from "../data/locations";
+import type { Place } from "../data/ilorin/places";
 
 export const MIN_PER_HOUR = 60;
 export const MIN_PER_DAY = 1440;

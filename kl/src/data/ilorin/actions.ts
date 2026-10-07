@@ -1,6 +1,6 @@
 // Every action you can take at a place. Ported from reference/kwara-life.html.
-import type { NeedKey } from "./needs";
-import type { FriendId } from "./friends";
+import type { NeedKey } from "../needs";
+import type { FriendId } from "../friends";
 
 export type GoalId = "phone" | "fly";
 export type OnceFlag = "applied";

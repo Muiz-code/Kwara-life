@@ -1,5 +1,5 @@
-import type { Action } from "../data/actions";
-import { PLACE } from "../data/locations";
+import type { Action } from "../data/ilorin/actions";
+import { PLACE } from "../data/ilorin/places";
 import type { GameState } from "./state";
 import { clone, log, naira, note } from "./state";
 import type { Rng } from "./rng";

@@ -1,4 +1,4 @@
-import { PLACE } from "../data/locations";
+import { PLACE } from "../data/ilorin/places";
 import type { GameState } from "./state";
 import { log, naira, note } from "./state";
 import type { Rng } from "./rng";

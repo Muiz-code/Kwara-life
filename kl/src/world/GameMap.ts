@@ -2,9 +2,9 @@
 // Reads the game store; never writes game state except selecting a place.
 import { Application, Assets, Container, Graphics, PerspectiveMesh, Sprite, Text, Texture, type Ticker } from "pixi.js";
 import { Viewport } from "pixi-viewport";
-import { AD_SLOTS } from "../data/billboards";
-import { PLACE, PLACES } from "../data/locations";
-import { ROADS } from "../data/roads";
+import { AD_SLOTS } from "../data/ilorin/billboards";
+import { PLACE, PLACES } from "../data/ilorin/places";
+import { ROADS } from "../data/ilorin/roads";
 import type { GameStore, GameStoreApi } from "../store/game";
 import { ADJ, WORLD_H, WORLD_W, easeInOut, nodePos, placePos, pointAlong, standPos } from "../sim/world";
 import { nightLevel } from "../sim/time";

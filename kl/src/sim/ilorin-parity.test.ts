@@ -3,15 +3,15 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { PLACES, WAYPOINTS } from "../data/locations";
-import { ROADS } from "../data/roads";
-import { ACTIONS } from "../data/actions";
+import { PLACES, WAYPOINTS } from "../data/ilorin/places";
+import { ROADS } from "../data/ilorin/roads";
+import { ACTIONS } from "../data/ilorin/actions";
 import { FRIENDS } from "../data/friends";
 import { DECAY } from "../data/needs";
 import { WORLD_H, WORLD_W, placePos, route } from "./world";
 import { MODES, MODE_IDS } from "./travel";
 
-const html = readFileSync(path.resolve(__dirname, "../../../reference/kwara-life.html"), "utf8");
+const html = readFileSync(path.resolve(__dirname, "../../reference/kwara-life.html"), "utf8");
 
 function slice(from: string, to: string): string {
   const a = html.indexOf(from);

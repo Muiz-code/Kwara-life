@@ -1,8 +1,8 @@
 import { createStore } from "zustand/vanilla";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
-import { findAction } from "../data/actions";
+import { findAction } from "../data/ilorin/actions";
 import type { Character } from "../data/character";
-import { PLACE } from "../data/locations";
+import { PLACE } from "../data/ilorin/places";
 import {
   advance, checkCritical, clone, finishAction, finishTrip, freshState, log, note, resolveChoice,
   startAction, startTrip, tripAnimMs, type ActionPlan, type ChoiceId, type GameState, type ModeId, type Rng, type Trip,

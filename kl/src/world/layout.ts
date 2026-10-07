@@ -1,7 +1,7 @@
 // Pure placement helpers for the map: where billboards stand and what a tap hits.
-import { AD_SLOTS } from "../data/billboards";
-import { PLACES } from "../data/locations";
-import { ROADS } from "../data/roads";
+import { AD_SLOTS } from "../data/ilorin/billboards";
+import { PLACES } from "../data/ilorin/places";
+import { ROADS } from "../data/ilorin/roads";
 import { nodePos, placePos, standPos, type Point } from "../sim/world";
 import { BILLBOARD_W, TILE_BASE, TILE_W } from "./art";
 

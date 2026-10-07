@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { AD_SLOTS } from "../data/billboards";
-import { PLACES } from "../data/locations";
+import { AD_SLOTS } from "../data/ilorin/billboards";
+import { PLACES } from "../data/ilorin/places";
 import { placePos, standPos } from "../sim/world";
 import { billboardPositions, hitTest, roadDistance } from "./layout";
 

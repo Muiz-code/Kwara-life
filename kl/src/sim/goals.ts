@@ -1,4 +1,4 @@
-import { START_PLACE } from "../data/locations";
+import { START_PLACE } from "../data/ilorin/places";
 import type { GameState } from "./state";
 
 export interface GoalStatus {

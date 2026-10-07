@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import MapView from "./MapView";
-import type { GameMap } from "@/game/map/GameMap";
-import { getGameStore, startGameLoop, useGame } from "@/game/store";
-import { PLACE } from "@/game/data/locations";
-import { MODES, MODE_IDS, fmtTime, quoteTrip } from "@/game/sim";
+import type { GameMap } from "@/world/GameMap";
+import { getGameStore, startGameLoop, useGame } from "@/store";
+import { PLACE } from "@/data/ilorin/places";
+import { MODES, MODE_IDS, fmtTime, quoteTrip } from "@/sim";
 
 export default function Game() {
   const [map, setMap] = useState<GameMap | null>(null);

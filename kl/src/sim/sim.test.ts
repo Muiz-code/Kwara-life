@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findAction, type Action } from "../data/actions";
+import { findAction, type Action } from "../data/ilorin/actions";
 import {
   advance, blockReason, checkCritical, finishTrip, freshState, hourly, mood, performAction, performTrip,
   quoteTrip, resolveChoice, sequence, startAction, startTrip, type GameState,
