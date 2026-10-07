@@ -36,7 +36,7 @@ export function Button({
 /** A bottom sheet on phones, a side card on wide screens. */
 export function Sheet({ title, onClose, children }: { title: ReactNode; onClose?: () => void; children: ReactNode }) {
   return (
-    <div className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 max-h-[70dvh] overflow-y-auto rounded-t-3xl bg-panel p-4 pb-32 shadow-[0_-8px_30px_rgba(0,0,0,0.25)] md:inset-x-auto md:right-4 md:bottom-24 md:top-24 md:w-[400px] md:rounded-3xl md:pb-4">
+    <div className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 max-h-[70dvh] overflow-y-auto rounded-t-3xl bg-panel p-4 pb-32 shadow-[0_-8px_30px_rgba(0,0,0,0.25)] md:inset-x-auto md:right-[4.5rem] md:bottom-24 md:top-28 md:w-[400px] md:rounded-3xl md:pb-4">
       <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-line md:hidden" />
       <div className="mb-2 flex items-start justify-between gap-3">
         <h2 className="font-sign text-2xl leading-tight text-ink">{title}</h2>
