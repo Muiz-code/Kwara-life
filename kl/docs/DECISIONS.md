@@ -79,3 +79,11 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - Real-money "campaign for your favourite" promotion is NOT enabled yet. CLAUDE.md says promotion is in-game money
   only and DESIGN.md says real-money political promotion needs legal advice first. Build it behind a switch that
   stays off until a lawyer has cleared it (see the open questions in chat).
+
+### Servers and travel between them
+- Six zone servers (Supabase projects: NC, NE, NW, SE, SS, SW, each about 5 to 7 states) plus one national server,
+  as in DESIGN.md. Code connects them: identity and collation live on the national server; each citizen's life,
+  PVC and vote live on their home zone server.
+- A journey into another zone hands the citizen over to that zone's server and back. Players see a "long journey"
+  loading screen: none inside a zone, 14 seconds to a neighbouring zone, up to 30 seconds across the country
+  (sim/journey.ts handoverSeconds). The vote always stays on the home server, because you can only vote at home.

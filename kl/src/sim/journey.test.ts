@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { lgaActions, lgaPlaces } from "../data/lga";
 import { STATE } from "../data/states";
-import { castVote, currentLga, freshState, isAway, journeyKm, performAction, quoteJourney, sequence, takeJourney, type Citizen, type GameState } from ".";
+import { castVote, handoverSeconds, zoneHops, currentLga, freshState, isAway, journeyKm, performAction, quoteJourney, sequence, takeJourney, type Citizen, type GameState } from ".";
 
 const at = (iso: string) => Date.parse(iso);
 const NOW = at("2026-10-12T10:00:00+01:00");
@@ -101,5 +101,15 @@ describe("away from home", () => {
     expect(isAway(home)).toBe(false);
     expect(home.loc).toBe("home");
     expect("ballot" in castVote({ ...home, loc: "pu" }, "LP", { now: POLLS, atPollingUnit: true }, never)).toBe(true);
+  });
+});
+
+describe("crossing servers", () => {
+  it("needs no handover inside a zone and up to 30 seconds across the country", () => {
+    expect(handoverSeconds("lagos/ikeja", "oyo/ibadan-north")).toBe(0);
+    expect(handoverSeconds("lagos/ikeja", "kwara/ilorin-west")).toBe(14);
+    expect(zoneHops("SW", "NE")).toBe(2);
+    expect(handoverSeconds("lagos/ikeja", "borno/maiduguri")).toBe(22);
+    for (const z of ["NW", "NE", "NC", "SW", "SS", "SE"] as const) for (const y of ["NW", "NE", "NC", "SW", "SS", "SE"] as const) expect(zoneHops(z, y)).toBeLessThanOrEqual(3);
   });
 });

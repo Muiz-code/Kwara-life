@@ -6,6 +6,7 @@ import { PRESIDENTIAL_2027 } from "../data/calendar";
 import { LGA } from "../data/geography";
 import type { ClassId } from "../data/jobs";
 import { STATE } from "../data/states";
+import type { ZoneCode } from "../data/zones";
 import { advance } from "./needs";
 import type { Rng } from "./rng";
 import { clone, log, naira, type GameState } from "./state";
@@ -136,4 +137,50 @@ export function awayReason(s: GameState, what: "home" | "inec" | "vote" | "bribe
     case "bribe":
       return "Nobody here knows you";
   }
+}
+
+// ---- Crossing servers ----
+// Each zone is its own server (Supabase shard). A journey into another zone hands the citizen over from one
+// server to the other, shown as a "long journey" loading screen. The handover itself is quick; the wait scales
+// with how far apart the zones are, up to 30 seconds. Journeys inside a zone need no handover.
+
+/** Zone neighbours, roughly by geography. */
+const ZONE_LINKS: Record<ZoneCode, ZoneCode[]> = {
+  NW: ["NE", "NC"],
+  NE: ["NW", "NC"],
+  NC: ["NW", "NE", "SW", "SS", "SE"],
+  SW: ["NC", "SS"],
+  SS: ["SW", "SE", "NC"],
+  SE: ["SS", "NC"],
+};
+
+/** Number of zone hops between two zones (0 when the same). */
+export function zoneHops(a: ZoneCode, b: ZoneCode): number {
+  if (a === b) return 0;
+  const seen = new Set<ZoneCode>([a]);
+  let frontier: ZoneCode[] = [a];
+  for (let hops = 1; frontier.length; hops++) {
+    const next: ZoneCode[] = [];
+    for (const z of frontier) {
+      for (const n of ZONE_LINKS[z]) {
+        if (n === b) return hops;
+        if (!seen.has(n)) {
+          seen.add(n);
+          next.push(n);
+        }
+      }
+    }
+    frontier = next;
+  }
+  return 3;
+}
+
+export const MAX_HANDOVER_SECONDS = 30;
+
+/** Real seconds of the "long journey" loading screen between two LGAs. 0 inside a zone. */
+export function handoverSeconds(fromLga: string, toLga: string): number {
+  const a = STATE[LGA[fromLga].stateCode].zone;
+  const b = STATE[LGA[toLga].stateCode].zone;
+  const hops = zoneHops(a, b);
+  return hops === 0 ? 0 : Math.min(MAX_HANDOVER_SECONDS, 6 + hops * 8);
 }
