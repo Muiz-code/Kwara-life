@@ -12,7 +12,7 @@ export interface ElectionCalendar {
   registrationClose: string;
   /** Every player is told to go and collect their PVC. Collection opens here. */
   pvcAnnouncement: string;
-  /** Last moment to collect a PVC. Placeholder until confirmed. */
+  /** Last moment to collect a PVC: 10 minutes before polls open. */
   pvcCollectionClose: string;
   pollsOpen: string;
   pollsClose: string;
@@ -26,10 +26,10 @@ export const PRESIDENTIAL_2027: ElectionCalendar = {
   campaignOpen: `2026-08-19T00:00:00${WAT}`,
   registrationOpensAfterMs: 2 * 60 * 1000,
   registrationClose: `2026-10-30T23:59:59${WAT}`,
-  pvcAnnouncement: `2026-11-05T09:00:00${WAT}`,
-  pvcCollectionClose: `2027-01-09T17:00:00${WAT}`,
-  pollsOpen: `2027-01-16T08:30:00${WAT}`,
-  pollsClose: `2027-01-16T14:30:00${WAT}`,
+  pvcAnnouncement: `2026-10-31T00:00:00${WAT}`,
+  pvcCollectionClose: `2026-11-05T07:50:00${WAT}`,
+  pollsOpen: `2026-11-05T08:00:00${WAT}`,
+  pollsClose: `2026-11-05T16:00:00${WAT}`,
 };
 
 /** Campaigning and promotion stop this long before polls open. */

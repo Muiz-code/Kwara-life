@@ -1,8 +1,9 @@
 import type { Character } from "../data/character";
 import type { FriendId } from "../data/friends";
-import type { GoalId } from "../data/ilorin/actions";
+import type { GoalId } from "../data/action";
 import type { NeedKey } from "../data/needs";
 import { START_PLACE } from "../data/ilorin/places";
+import type { Citizen } from "./roll";
 
 export interface LogEntry {
   t: number;
@@ -10,7 +11,16 @@ export interface LogEntry {
 }
 
 /** Choices are data so the queue can be saved. "ok" just closes the note. */
-export type ChoiceId = "ok" | "owambe-go" | "owambe-skip";
+export type ChoiceId =
+  | "ok"
+  | "owambe-go"
+  | "owambe-skip"
+  | "door-report"
+  | "door-refuse"
+  | "door-take"
+  | "pu-report"
+  | "pu-refuse"
+  | "pu-take";
 
 export interface Note {
   title: string;
@@ -26,6 +36,31 @@ export interface Flags {
   worked?: number;
   rode?: boolean;
   kwasu?: boolean;
+  /** Game day number of the last work shift (Naija jobs). */
+  shiftDay?: number;
+  /** Real date (WAT, YYYY-MM-DD) of the last PVC collection attempt that INEC turned away. */
+  pvcTurnedAway?: string;
+}
+
+/** A paid promotion: flyers on notice boards or a sponsored news line. */
+export interface Promo {
+  kind: "flyer" | "news";
+  /** Index into PROMO[kind]. */
+  option: number;
+  /** Party code, or "civic" for "go out and vote". */
+  party: string;
+  price: number;
+  /** Real date in WAT (YYYY-MM-DD). */
+  day: string;
+  lgaCode: string;
+}
+
+export interface SupportCard {
+  party: string;
+  issues: string[];
+  note: string;
+  /** Real date in WAT (YYYY-MM-DD). */
+  day: string;
 }
 
 export interface GameState {
@@ -51,6 +86,22 @@ export interface GameState {
   /** Day number the Durbar horse was hired, or -1. */
   horseDay: number;
   inside: boolean;
+  // ---- Naija Votes ----
+  /** The rolled citizen. Null on the Ilorin-only legacy save until the player makes one. */
+  citizen: Citizen | null;
+  informed: number;
+  civic: number;
+  /** Arrested for vote buying: on bail for the rest of the season. */
+  onBail: boolean;
+  /** Election ids this citizen has voted in. Never stores the choice. */
+  voted: string[];
+  supportCards: SupportCard[];
+  promos: Promo[];
+  /**
+   * Votes this citizen's vote buying swung in their own LGA, by party. Kept for offline results; the
+   * server keeps its own copy. The buyer is never shown this.
+   */
+  bribeEffects: Record<string, number>;
   /** Modals waiting to be shown, oldest first. */
   notes: Note[];
   /** Short messages for the toast. The store drains these; not saved. */
@@ -79,6 +130,14 @@ export function freshState(): GameState {
     flags: {},
     horseDay: -1,
     inside: false,
+    citizen: null,
+    informed: 0,
+    civic: 0,
+    onBail: false,
+    voted: [],
+    supportCards: [],
+    promos: [],
+    bribeEffects: {},
     notes: [],
     toasts: [],
   };

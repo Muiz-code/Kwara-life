@@ -5,7 +5,7 @@ import type { Character } from "../data/character";
 import { PLACE } from "../data/ilorin/places";
 import {
   advance, checkCritical, clone, finishAction, finishTrip, freshState, log, note, resolveChoice,
-  startAction, startTrip, tripAnimMs, type ActionPlan, type ChoiceId, type GameState, type ModeId, type Rng, type Trip,
+  startAction, startTrip, tripAnimMs, type ActionFlow, type ActionPlan, type ChoiceId, type GameState, type ModeId, type Rng, type Trip,
 } from "../sim";
 import { throttledStorage } from "./storage";
 
@@ -27,6 +27,8 @@ export interface GameStore {
   /** Toasts waiting to be shown, oldest first. */
   toasts: string[];
   reducedMotion: boolean;
+  /** A screen an action opened (ballot, vote-buying offer, flyers), or null. */
+  flow: ActionFlow | null;
 
   /** Once a second: idle clock. */
   tick: () => void;
@@ -42,6 +44,7 @@ export interface GameStore {
   togglePause: () => void;
   setReducedMotion: (v: boolean) => void;
   shiftToast: () => void;
+  closeFlow: () => void;
   reset: () => void;
 }
 
@@ -55,9 +58,11 @@ export const actionAnimMs = (dur: number) => Math.min(1800, 500 + dur * 2.2);
 export interface StoreOptions {
   rng?: Rng;
   storage?: StateStorage;
+  /** Real wall-clock time in ms, for the election calendar. */
+  realNow?: () => number;
 }
 
-export function createGameStore({ rng = Math.random, storage }: StoreOptions = {}) {
+export function createGameStore({ rng = Math.random, storage, realNow = Date.now }: StoreOptions = {}) {
   const persistStorage =
     storage ?? throttledStorage(typeof window !== "undefined" ? window.localStorage : undefined);
 
@@ -78,6 +83,7 @@ export function createGameStore({ rng = Math.random, storage }: StoreOptions = {
           activity: null,
           toasts: [],
           reducedMotion: false,
+          flow: null,
 
           tick: () => {
             const st = get();
@@ -105,7 +111,7 @@ export function createGameStore({ rng = Math.random, storage }: StoreOptions = {
               return;
             }
             if (a.kind === "action") {
-              const done = finishAction(g, a.plan, rng);
+              const done = finishAction(g, a.plan, rng, { now: realNow() });
               commit(done, { activity: null, selected: done.loc });
             } else {
               const done = finishTrip(g, a.trip, rng);
@@ -129,8 +135,9 @@ export function createGameStore({ rng = Math.random, storage }: StoreOptions = {
             if (isBusy(st)) return;
             const a = findAction(st.game.loc, actionId);
             if (!a) return;
-            const r = startAction(st.game, a, rng);
+            const r = startAction(st.game, a, rng, { now: realNow() });
             if ("blocked" in r) return toast(r.blocked);
+            if ("flow" in r) return set({ flow: r.flow });
             const ms = st.reducedMotion ? 120 : actionAnimMs(r.plan.dur);
             commit(r.state, { activity: { kind: "action", plan: r.plan, startedAt: now, ms, done: 0 } });
           },
@@ -179,6 +186,7 @@ export function createGameStore({ rng = Math.random, storage }: StoreOptions = {
 
           togglePause: () => set({ paused: !get().paused }),
           setReducedMotion: (v) => set({ reducedMotion: v }),
+          closeFlow: () => set({ flow: null }),
           shiftToast: () => set({ toasts: get().toasts.slice(1) }),
           reset: () => {
             const g = freshState();

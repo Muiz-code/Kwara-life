@@ -20,7 +20,7 @@ export function checkCritical(s: GameState, rng: Rng) {
   } else if (s.needs.energy <= 0) {
     advance(s, 240, rng, { sleep: true });
     s.needs.energy = 45;
-    const where = PLACE[s.loc].name;
+    const where = PLACE[s.loc]?.name ?? "where you were";
     note(s, "You slept off", `You were so tired you slept off at ${where} for 4 hours.`);
     log(s, `Slept off at ${where}.`);
   }

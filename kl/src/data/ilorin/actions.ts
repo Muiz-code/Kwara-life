@@ -1,54 +1,8 @@
 // Every action you can take at a place. Ported from reference/kwara-life.html.
-import type { NeedKey } from "../needs";
-import type { FriendId } from "../friends";
 
-export type GoalId = "phone" | "fly";
-export type OnceFlag = "applied";
+import type { Action } from "../action";
 
-export interface Action {
-  id: string;
-  label: string;
-  /** Game minutes. */
-  dur: number;
-  fx: Partial<Record<NeedKey, number>>;
-  done: string;
-  bubble?: string;
-  cost?: number;
-  earn?: number;
-  /** Cash gift received on top of earnings. */
-  tip?: number;
-  /** Only allowed between these hours, [from, to). */
-  hours?: [number, number];
-  /** Only on this day of the week (0 = Monday). */
-  day?: number;
-  /** Only on these days of the week. */
-  days?: number[];
-  /** Closed on this day of the week. */
-  noDay?: number;
-  /** Monday to Friday only. */
-  weekdays?: boolean;
-  /** Needs you to live here. */
-  home?: boolean;
-  sleep?: boolean;
-  /** 30% chance the tap is dry and you fetch water first. */
-  water?: boolean;
-  /** Needs light (NEPA or a generator). */
-  light?: boolean;
-  usesFood?: boolean;
-  /** Adds this many meals of foodstuff. */
-  groc?: number;
-  skill?: number;
-  minSkill?: number;
-  friend?: FriendId;
-  goal?: GoalId;
-  once?: OnceFlag;
-  /** Civil service shift: needs the job, once per day. */
-  job?: boolean;
-  /** Hires a Durbar horse for the rest of the day. */
-  horse?: boolean;
-  /** Pay rent and move in. */
-  rent?: boolean;
-}
+export type { Action, GoalId, OnceFlag } from "../action";
 
 export const HOME_ACTIONS: Action[] = [
   { id: "sleep", label: "Sleep", dur: 480, sleep: true, fx: { energy: 100 }, home: true, bubble: "Zzz", done: "You slept for 8 hours." },

@@ -3,6 +3,7 @@ import { log, naira, note } from "./state";
 import type { Rng } from "./rng";
 import { dayNum, dayOfWeek, hourOf } from "./time";
 import { advance, applyFx, clamp } from "./needs";
+import { resolveOffer, type OfferKind } from "./vote-buying";
 
 export const NEPA_CUT_CHANCE = 0.07;
 export const NEPA_RESTORE_CHANCE = 0.22;
@@ -76,5 +77,9 @@ export function resolveChoice(s: GameState, id: ChoiceId, rng: Rng) {
       return;
     case "ok":
       return;
+    default: {
+      const [kind, answer] = id.split("-") as [OfferKind, "report" | "refuse" | "take"];
+      resolveOffer(s, kind, answer, rng);
+    }
   }
 }

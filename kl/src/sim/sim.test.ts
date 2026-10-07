@@ -12,8 +12,9 @@ const act = (place: string, id: string): Action => findAction(place, id)!;
 function at(loc: string, day = 1, hour = 10, patch: Partial<GameState> = {}): GameState {
   return { ...freshState(), loc, t: (day - 1) * 1440 + hour * 60, ...patch };
 }
-const ok = (r: GameState | { blocked: string }): GameState => {
+const ok = (r: GameState | { blocked: string } | { flow: string }): GameState => {
   if ("blocked" in r) throw new Error(r.blocked);
+  if ("flow" in r) throw new Error(`opens ${r.flow}`);
   return r;
 };
 
@@ -123,7 +124,7 @@ describe("action rules", () => {
 
   it("sometimes the tap is dry", () => {
     const r = startAction(at("home"), act("home", "bath"), always);
-    if ("blocked" in r) throw new Error();
+    if (!("plan" in r)) throw new Error();
     expect(r.plan.dur).toBe(60);
     expect(r.plan.pre).toMatch(/Tap no run/);
   });

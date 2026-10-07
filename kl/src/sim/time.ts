@@ -32,9 +32,9 @@ export function fmtDuration(min: number): string {
   return `${min} min`;
 }
 
-export const isOpen = (p: Place, h: number) => h >= p.open[0] && h < p.open[1];
+export const isOpen = (p: Pick<Place, "open">, h: number) => h >= p.open[0] && h < p.open[1];
 
-export const openText = (p: Place) =>
+export const openText = (p: Pick<Place, "open">) =>
   p.open[0] === 0 && p.open[1] === 24 ? "Open all day" : `Open ${fmtHour(p.open[0])} to ${fmtHour(p.open[1])}`;
 
 /** Darkness from 0 (day) to 0.55 (night). Dusk 5:30pm to 8pm, dawn 5am to 7am. */

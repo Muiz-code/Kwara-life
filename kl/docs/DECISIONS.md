@@ -8,11 +8,14 @@ Kwara Life and Naija Votes 2027 are one game. Kwara Life's engine (needs, clock,
 becomes the engine for the whole country. Ilorin keeps its hand-built map and its places, actions and balance.
 
 ### Dates
-- Election day is a real date in WAT, held on the server and changeable (postponement). Default:
-  Saturday 16 January 2027, polls 8:30am to 2:30pm. Moving it moves the blackout (24 hours before polls open)
-  and posts an "INEC announces new date" news item to everyone.
+- Election day is a real date in WAT, held on the server and changeable (postponement): Thursday
+  5 November 2026, polls 8am to 4pm. This replaces the 16 January 2027 date in DESIGN.md for the game.
+  Moving it moves the blackout (24 hours before polls open) and posts an "INEC announces new date" news item.
 - Voter registration opens 2 minutes after a player creates their citizen and closes on 30 October 2026.
-- PVC collection is announced to every player on 5 November 2026 ("go and collect your PVC").
+- When registration closes, every player is told to go and collect their PVC. Collection runs from
+  31 October until 10 minutes before polls open (7:50am on 5 November).
+- Citizens created after registration closes are rolled as holding a PVC or registered with one to collect,
+  never unregistered, so they can still take part.
 - Everything else (time of day, needs, work, shop hours, Jummah and Sunday service, trips) runs on the
   player's game clock.
 
@@ -30,3 +33,11 @@ once, as in the prototype.
 ### Result privacy
 A polling unit result sheet shows a real-player breakdown only once at least 10 real players have voted there.
 Below that it shows the combined total (real, simulated and vote-buying effects) only.
+
+### Defaults chosen while porting the rules (phase B), open to change
+- Offers to sell your vote: the door-step offer (₦10,000, 60% caught) comes once, at home between 7pm and 10pm
+  game time while PVC collection is open. The polling-unit offer (₦5,000, 50% caught) comes once, at the polling
+  unit while polls are open. Refuse and report: +3 civic; refuse: +1 civic.
+- Vote buying rolls its outcome before the hour of sharing money passes (same odds as the prototype).
+- A PVC collection attempt INEC turns away ("come back tomorrow") can be retried on the next real WAT day.
+- In-game news names the game's own election date and never says INEC set it.
