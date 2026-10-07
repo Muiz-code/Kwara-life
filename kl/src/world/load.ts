@@ -1,71 +1,65 @@
 // Picking the right map for a citizen.
 //
-// Order: the hand-built Ilorin map for the three Ilorin LGAs, then the map built
-// from OpenStreetMap and committed under public/maps, then the generator as the
-// fallback for an LGA nobody has fetched yet. Players never call OpenStreetMap.
+// Every LGA is a grid town built from a seed made from its LGA code, so it is the
+// same for everyone there and different from every other LGA. The three Ilorin
+// LGAs share Ilorin, laid out from its real places.
 import { ILORIN_LGAS } from "../data/geography";
+import type { CareerId } from "../data/careers";
+import type { ClassId } from "../data/jobs";
 import type { State } from "../data/states";
-import { generateMap, type CitizenClass } from "./generate";
-import { ilorinMap, loadIlorinShapes } from "./ilorin-map";
-import { addPlayerPlaces } from "./player-places";
-import { normaliseTrips } from "./routing";
+import { ilorinTown } from "./ilorin-town";
+import { buildTown } from "./town";
+import { townSpecFor } from "./town-spec";
 import type { WorldMap } from "./types";
 
 export interface MapRequest {
-  /** LGA code, e.g. "kwara/ilorin-west". */
+  /** LGA code, e.g. "kano/fagge". */
   lgaCode: string;
   state: State;
   lgaName: string;
-  /** Polling unit index, part of the generator's seed. */
-  pu: number;
-  cls: CitizenClass;
+  cls: ClassId;
   job: string;
   home?: string;
   under?: boolean;
   wasUnder?: boolean;
+  /** In this LGA as a visitor: no home, work or shelter of theirs here. */
+  visiting?: boolean;
+  career?: CareerId;
+  /** Anything stable and unique to the citizen, so their own home is always on the same street. */
+  citizenSeed?: string;
 }
 
-export const mapUrl = (lgaCode: string) => `/maps/${lgaCode}.json`;
+/** Built maps are kept, since a town is the same every time it is built. */
+const cache = new Map<string, WorldMap>();
 
-/** Where the map came from, for the credit line and for telling the player. */
-export type MapSource = WorldMap["source"];
-
-export async function loadMap(req: MapRequest, fetcher: typeof fetch = fetch): Promise<WorldMap> {
-  if (ILORIN_LGAS.includes(req.lgaCode)) return ilorinMap(await loadIlorinShapes(fetcher));
-
-  const fetched = await fetchMap(req.lgaCode, fetcher);
-  if (fetched) {
-    return addPlayerPlaces(fetched, {
-      seed: `${req.lgaCode}/${req.pu}/${req.cls}`,
-      cls: req.cls,
-      job: req.job,
-      ...(req.home ? { home: req.home } : {}),
-      ...(req.under ? { under: true } : {}),
-      ...(req.wasUnder ? { wasUnder: true } : {}),
-    });
+export function loadMap(req: MapRequest): WorldMap {
+  if (ILORIN_LGAS.includes(req.lgaCode)) {
+    const hit = cache.get("ilorin");
+    if (hit) return hit;
+    const map = ilorinTown();
+    cache.set("ilorin", map);
+    return map;
   }
-
-  return normaliseTrips(
-    generateMap({
+  const key = JSON.stringify([req.lgaCode, req.cls, req.job, req.home, req.under, req.wasUnder, req.visiting, req.career, req.citizenSeed]);
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const { map } = buildTown(
+    townSpecFor({
+      lgaCode: req.lgaCode,
       state: req.state,
-      lga: req.lgaName,
-      pu: req.pu,
-      cls: req.cls,
-      job: req.job,
-      ...(req.home ? { home: req.home } : {}),
-      ...(req.under ? { under: true } : {}),
-      ...(req.wasUnder ? { wasUnder: true } : {}),
+      lgaName: req.lgaName,
+      ctx: {
+        cls: req.cls,
+        job: req.job,
+        home: req.home ?? "",
+        underFlyover: !!req.under,
+        ...(req.wasUnder ? { wasUnder: true } : {}),
+        ...(req.visiting ? { visiting: true } : {}),
+        ...(req.career ? { career: req.career } : {}),
+      },
+      ...(req.citizenSeed ? { citizenSeed: req.citizenSeed } : {}),
     }),
   );
-}
-
-async function fetchMap(lgaCode: string, fetcher: typeof fetch): Promise<WorldMap | null> {
-  try {
-    const res = await fetcher(mapUrl(lgaCode));
-    if (!res.ok) return null;
-    return (await res.json()) as WorldMap;
-  } catch {
-    // No map fetched for this LGA yet, or the player is offline. The generator covers it.
-    return null;
-  }
+  cache.set(key, map);
+  return map;
 }
