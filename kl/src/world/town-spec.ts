@@ -1,4 +1,4 @@
-// What goes into each LGA's town: its districts, its places, its roads out.
+// What goes into each LGA's town: its blocks, its places, its roads out.
 // Everything shared comes from a seed made from the LGA code, so every player in
 // an LGA gets the same town, and every LGA gets a different one.
 import { ROAD_NAMES, ZONE_BIOME, type BiomeId } from "../data/biomes";
@@ -8,8 +8,8 @@ import type { ClassId } from "../data/jobs";
 import { lgaPlaces, type LgaContext, type LgaPlace } from "../data/lga";
 import type { State } from "../data/states";
 import { hash, lcg } from "./generate";
-import type { Outskirts, TownPlace, TownSpec } from "./town";
-import { isPlaceKind, type DistrictId, type PlaceKind } from "./types";
+import type { Outskirts, TownPlace, TownSpec, Zone } from "./town";
+import { isPlaceKind, type PlaceKind, type ZoneKind } from "./types";
 
 /**
  * States known for farming, whose towns get green fields round the edges. Taken
@@ -30,105 +30,144 @@ export interface TownRequest {
   citizenSeed?: string;
 }
 
-/** Which district a place belongs in, and where in it the town would put it. */
-function slot(p: LgaPlace, cls: ClassId, toward: { rich: number; poor: number }): Pick<TownPlace, "district" | "prefer"> {
+/**
+ * Town plans, blocks row by row from the rich end to the poor end: estates, then
+ * schools and offices, the commercial heart with its street of adverts, then
+ * low-cost housing and the slum.
+ */
+const PLANS: ZoneKind[][][] = [
+  [
+    ["estate", "estate"],
+    ["schools", "mixed"],
+    ["commercial", "ads"],
+    ["civic", "lowcost"],
+    ["slum", "lowcost"],
+  ],
+  [
+    ["estate", "estate", "park"],
+    ["mixed", "schools", "civic"],
+    ["commercial", "ads", "commercial"],
+    ["lowcost", "slum", "lowcost"],
+  ],
+];
+
+/** Which kinds of block each place belongs in, best first. */
+function kindsFor(p: LgaPlace, cls: ClassId): ZoneKind[] {
   switch (p.id) {
-    case "hotel":
-      return { district: "rich", prefer: { a: toward.rich === 0 ? 0.85 : 0.15, c: 0.4 } };
-    case "park":
-      // Buses come in at the town entrance, on the top edge of the centre.
-      return { district: "mixed", prefer: { a: 0.5, c: 0 } };
-    case "market":
-      return { district: "mixed", prefer: { a: 0.5, c: 0.45 } };
-    case "inec":
-      return { district: "mixed", prefer: { a: 0.3, c: 0.25 } };
-    case "hall":
-      return { district: "mixed", prefer: { a: 0.35, c: 0.6 } };
-    case "board":
-      return { district: "mixed", prefer: { a: 0.45, c: 0.75 } };
-    case "pu":
-      return { district: "mixed", prefer: { a: 0.15, c: 0.85 } };
-    case "mosque":
-      return { district: "mixed", prefer: { a: 0.7, c: 0.25 } };
-    case "church":
-      return { district: "mixed", prefer: { a: 0.75, c: 0.75 } };
-    case "viewing":
-      return { district: "mixed", prefer: { a: 0.6, c: 0.6 } };
-    case "kiosk":
-      return { district: "mixed", prefer: { a: 0.55, c: 0.15 } };
-    case "landmark":
-      return { district: "mixed", prefer: { a: 0.9, c: 0.5 } };
-    case "buka":
-      return { district: "poor", prefer: { a: toward.poor === 0 ? 0.2 : 0.8, c: 0.4 } };
-    case "shelter":
-      return { district: "poor", prefer: { a: 0.5, c: 0.8 } };
     case "home":
-      if (p.kind === "flyover") return { district: "poor", prefer: { a: 0.5, c: 0.5 } };
-      if (cls === "rich") return { district: "rich", prefer: undefined };
-      // Middle class lives on the edge of the centre nearest the rich side.
-      if (cls === "middle") return { district: "mixed", prefer: { a: toward.rich === 0 ? 0.05 : 0.95, c: 0.5 } };
-      return { district: "poor", prefer: undefined };
+      if (p.kind === "flyover") return ["slum", "lowcost"];
+      return cls === "rich" ? ["estate"] : cls === "middle" ? ["mixed", "civic"] : ["lowcost", "slum"];
     case "work":
-      if (p.kind === "tower") return { district: "rich", prefer: undefined };
-      if (p.kind === "workshop") return { district: "poor", prefer: undefined };
-      return { district: "mixed", prefer: undefined };
-    default:
-      return { district: "mixed", prefer: undefined };
+      if (p.kind === "tower") return ["ads", "commercial"];
+      if (p.kind === "workshop") return ["lowcost", "slum"];
+      if (p.kind === "market") return ["commercial"];
+      if (p.kind === "school") return ["schools"];
+      return ["mixed", "civic"];
+    case "shelter": return ["slum", "lowcost"];
+    case "hotel": return ["ads", "estate", "commercial"];
+    case "park": return ["commercial"];
+    case "market": return ["commercial"];
+    case "buka": return ["lowcost", "commercial"];
+    case "inec": return ["civic", "mixed"];
+    case "hall": return ["civic", "mixed"];
+    case "board": return ["commercial", "civic"];
+    case "pu": return ["schools"];
+    case "mosque": return ["mixed", "civic", "lowcost"];
+    case "church": return ["lowcost", "mixed"];
+    case "viewing": return ["ads", "commercial"];
+    case "kiosk": return ["commercial", "ads"];
+    case "landmark": return ["park", "ads", "commercial"];
+    default: return ["mixed"];
   }
 }
-
-const pickName = (list: string[] | undefined, fallback: string[], r: () => number) =>
-  list && list.length ? list[Math.floor(r() * list.length)] : fallback[Math.floor(r() * fallback.length)];
 
 export function townSpecFor(req: TownRequest): TownSpec {
   const seed = hash(req.lgaCode);
   const R = lcg(seed);
-  const zone = req.state.zone;
-  const biome: BiomeId = ZONE_BIOME[zone];
-  const richFirst = R() < 0.5;
-  const order: TownSpec["order"] = richFirst ? ["rich", "mixed", "poor"] : ["poor", "mixed", "rich"];
-  const width = 3 * (4 + Math.floor(R() * 2)) + 1;
-  const lengths: Record<DistrictId, number> = {
-    rich: 4 * (2 + Math.floor(R() * 2)),
-    mixed: 3 * (4 + Math.floor(R() * 2)),
-    poor: 3 * (3 + Math.floor(R() * 2)),
-  };
+  const biome: BiomeId = ZONE_BIOME[req.state.zone];
+
+  // The plan, which way up, and which way round.
+  let plan = PLANS[Math.floor(R() * PLANS.length)].map((row) => [...row]);
+  const richAtStart = R() < 0.5;
+  if (!richAtStart) plan = plan.reverse();
+  if (R() < 0.5) plan = plan.map((row) => row.reverse());
+  const sizes = [8, 11];
+  const colSizes = plan[0].map(() => sizes[Math.floor(R() * 2)]);
+  const rowSizes = plan.map((row) => (row.includes("estate") ? 11 : sizes[Math.floor(R() * 2)]));
+
+  // Each block's name: real neighbourhoods where we have them, plain words where we do not.
   const real = LGA_DISTRICTS[req.lgaCode];
-  const names: Record<DistrictId, string> = {
-    rich: pickName(real?.rich, GENERIC_DISTRICTS.rich, R),
-    mixed: pickName(real?.mixed, GENERIC_DISTRICTS.mixed, R),
-    poor: pickName(real?.poor, GENERIC_DISTRICTS.poor, R),
+  // No two blocks share a name: each takes the first of its names still free.
+  const used = new Set<string>();
+  const firstFree = (names: string[], fallback: string): string => {
+    const name = names.find((n) => !used.has(n)) ?? `${fallback} ${used.size + 1}`;
+    used.add(name);
+    return name;
   };
+  const nameOf = (k: ZoneKind): string => {
+    const mixed = real?.mixed.length ? real.mixed : [];
+    switch (k) {
+      case "estate": return firstFree([...(real?.rich ?? []), "GRA", "New GRA", "Estate"], "Estate");
+      case "lowcost": return firstFree([...(real?.poor ?? []), "Low-cost", "New Layout", "Old Town"], "Low-cost");
+      // Never a real neighbourhood's name on a slum: that would insult the people who live there.
+      case "slum": return firstFree(["Railway Line", "Under the Bridge"], "Railway Line");
+      case "commercial": return firstFree([...mixed, "Central Market area", "Old Town"], "Market area");
+      case "civic":
+      case "mixed": return firstFree([...[...mixed].reverse(), ...GENERIC_DISTRICTS.mixed, "Central Area"], "Layout");
+      case "ads": return firstFree(["Commercial Avenue"], "Commercial Avenue");
+      case "schools": return firstFree(["Schools"], "Schools");
+      case "park": return firstFree([req.state.landmark.name], "Park");
+      default: return k;
+    }
+  };
+  const zones: Zone[] = plan.flatMap((row, r) => row.map((kind, c) => ({ kind, col: c, row: r, name: nameOf(kind) })));
+
+  // The town entrance comes in along the main road above the commercial row.
+  const commercialRow = zones.find((z) => z.kind === "commercial")!.row;
   const capital = CAPITALS[req.state.code]?.name;
   const outskirts: Outskirts[] = [
-    { name: capital ? `${capital} Road` : "Expressway", from: "mixed", side: "top", length: 5, highway: true },
+    { name: capital ? `${capital} Road` : "Expressway", side: "start", at: commercialRow, length: 5, highway: true },
   ];
 
-  // Within a district, a = 0 is the end nearest the start of town.
-  const toward = { rich: richFirst ? 0 : 1, poor: richFirst ? 1 : 0 };
   const cls = req.ctx.cls;
   const personalSeed = hash(`${req.lgaCode}/${req.citizenSeed ?? ""}`);
   const mine = lcg(personalSeed);
+  const zoneIndex = (kinds: ZoneKind[], personal: boolean) => {
+    for (const k of kinds) {
+      const of = zones.map((z, i) => ({ z, i })).filter((x) => x.z.kind === k);
+      if (!of.length) continue;
+      // The motor park goes in the commercial block by the entrance.
+      if (k === "commercial") return of.sort((a, b) => a.z.col - b.z.col)[0].i;
+      return of[Math.floor((personal ? mine() : R()) * of.length)].i;
+    }
+    return zones.findIndex((z) => z.kind === "mixed" || z.kind === "commercial");
+  };
+
   const places: TownPlace[] = lgaPlaces({ ...req.ctx, state: req.state, lgaName: req.lgaName }).map((p) => {
     const kind: PlaceKind = isPlaceKind(p.kind) ? p.kind : "house";
-    const where = slot(p, cls, toward);
     const personal = p.id === "home" || p.id === "work" || p.id === "shelter";
+    const zone = zoneIndex(kindsFor(p, cls), personal);
+    const prefer =
+      p.id === "park" ? { a: 0, c: 0 } // by the entrance, where buses come in
+      : p.id === "market" ? { a: 0.5, c: 0.5 }
+      : p.id === "pu" ? { a: 0.2, c: 0.2 }
+      : undefined;
     return {
       id: p.id,
       name: p.name,
-      area: names[where.district as DistrictId] ?? req.lgaName,
+      area: zones[zone]?.name ?? req.lgaName,
       kind,
       blurb: p.blurb,
       open: p.open,
       gen: p.gen,
       ...(p.id === "home" && p.kind === "house" ? { variant: cls } : {}),
-      ...where,
-      // Which street the middle-class home is on depends on the citizen, not the LGA.
-      ...(where.prefer && p.id === "home" && cls === "middle" ? { prefer: { ...where.prefer, c: mine() } } : {}),
+      zone,
+      ...(prefer ? { prefer } : {}),
       ...(personal ? { personal: true } : {}),
     };
   });
 
+  const riverOn = biome === "delta" || req.state.landmark.kind === "water" || req.state.landmark.kind === "bridge";
   return {
     id: req.lgaCode,
     name: req.lgaName,
@@ -136,16 +175,16 @@ export function townSpecFor(req: TownRequest): TownSpec {
     state: req.state.code,
     seed,
     personalSeed,
-    order,
-    lengths,
-    width,
-    names,
-    river: biome === "delta" || req.state.landmark.kind === "water" || req.state.landmark.kind === "bridge",
+    colSizes,
+    rowSizes,
+    zones,
+    ...(riverOn ? { riverAfterCol: Math.max(0, Math.floor(colSizes.length / 2) - 1) } : {}),
     hills: biome === "hills",
     farmland: FARMING_STATES.has(req.state.code),
     outskirts,
     places,
     meanTrip: PROTOTYPE_MEAN_TRIP,
     streetNames: ROAD_NAMES,
+    placeGap: 1,
   };
 }

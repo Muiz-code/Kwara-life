@@ -18,7 +18,8 @@ import { ilorinTown } from "./ilorin-town";
 import { billboardPositions, hitTest, standAt, tileBase } from "./layout";
 import { pointAlong, router, type MapRoute, type RoadGraph } from "./routing";
 import { drawTile, KIND_ART } from "./tiles";
-import { lookTile, tileFor, type LookTile } from "./tile-art";
+import { lookTile, sharedTile, tileFor, type LookTile } from "./tile-art";
+import { drawShacks } from "./shacks";
 import { buildTownGround } from "./town-ground";
 import { Traffic } from "./traffic";
 import type { MapPlace, Point, WorldMap } from "./types";
@@ -238,6 +239,11 @@ export class GameMap {
         s.scale.set(b.flip ? -k : k, k);
         s.position.set(0, base);
         c.addChild(s);
+      } else if (b.kind === "shacks") {
+        const g = new Graphics();
+        drawShacks(g, Math.round(b.x * 7 + b.y * 13));
+        g.position.set(0, base - 18);
+        c.addChild(g);
       } else {
         const g = new Graphics();
         drawTile(g, "house", biome);
@@ -411,8 +417,10 @@ export class GameMap {
   }
 
   private buildingArt(kind: string): string | null {
-    const known: LookTile[] = ["duplex", "flats", "compound", "house"];
-    return known.includes(kind as LookTile) ? lookTile(kind as LookTile, this.map.biome) : null;
+    const look: LookTile[] = ["duplex", "flats", "compound", "house", "market", "buka"];
+    if (look.includes(kind as LookTile)) return lookTile(kind as LookTile, this.map.biome);
+    if (kind === "office" || kind === "school") return sharedTile(kind);
+    return null;
   }
 
   /** The trip's path along this map's own streets, from where the player stands to where they are going. */

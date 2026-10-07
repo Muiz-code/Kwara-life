@@ -35,6 +35,10 @@ interface Car {
   drawn: Partial<Record<Heading, Graphics>>;
   sprite?: Sprite;
   heading?: Heading;
+  /** Time left standing at a bus stop, in ms. */
+  dwell?: number;
+  /** The stop it last pulled in at, so it does not stop there twice in a row. */
+  lastStop?: number;
 }
 
 export class Traffic {
@@ -47,6 +51,7 @@ export class Traffic {
   private hw: number;
   private hh: number;
   private noEntry = new Set<number>();
+  private stopAt = new Set<number>();
 
   constructor(
     private map: WorldMap,
@@ -59,6 +64,10 @@ export class Traffic {
     this.hh = map.grid?.hh ?? 60;
     // Cars stay on the road: the vertex inside each plot is for people, not traffic.
     for (const g of Object.values(graph.gate)) if (g.own) this.noEntry.add(g.v);
+    for (const p of map.stops ?? []) {
+      const v = graph.verts.find((x) => Math.hypot(x.x - p.x, x.y - p.y) < 4);
+      if (v) this.stopAt.add(v.id);
+    }
     for (const p of map.lights ?? []) {
       const v = graph.verts.find((x) => Math.hypot(x.x - p.x, x.y - p.y) < 4);
       if (v) this.lightAt.add(v.id);
@@ -67,7 +76,11 @@ export class Traffic {
     if (hasArt(TRAFFIC_LIGHT_ART)) {
       // A pole on the left corner of the junction for traffic along u, and one
       // on the right corner, mirrored, for traffic along v.
-      for (const p of map.lights ?? []) {
+      for (const p of map.stops ?? []) {
+      const v = graph.verts.find((x) => Math.hypot(x.x - p.x, x.y - p.y) < 4);
+      if (v) this.stopAt.add(v.id);
+    }
+    for (const p of map.lights ?? []) {
         for (const axis of ["u", "v"] as const) {
           const pole = new Container();
           const sp = new Sprite(Texture.from(TRAFFIC_LIGHT_ART));
@@ -139,10 +152,21 @@ export class Traffic {
     this.drawLights(lights);
     if (!running) return;
     for (const c of this.cars) {
+      // A danfo standing at a bus stop while passengers get on and off.
+      if (c.dwell && c.dwell > 0) {
+        c.dwell -= dt;
+        continue;
+      }
       const P = this.graph.verts[c.a];
       const Q = this.graph.verts[c.b];
       const len = Math.hypot(Q.x - P.x, Q.y - P.y) || 1;
       let step = (c.speed * dt * 300) / len;
+      if (c.kind === "danfo" && this.stopAt.has(c.b) && c.lastStop !== c.b && c.t < 0.5 && c.t + step >= 0.5) {
+        c.t = 0.5;
+        c.dwell = 2500;
+        c.lastStop = c.b;
+        continue;
+      }
       // Stop at the line on red or amber, unless already in the junction.
       if (this.lightAt.has(c.b) && lights[this.axisOf(c)] !== "green" && c.t < 0.5) {
         step = Math.min(step, Math.max(0, 0.42 - c.t));
