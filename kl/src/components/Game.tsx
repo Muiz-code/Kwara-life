@@ -44,6 +44,9 @@ export default function Game() {
       home: citizen.home,
       under: citizen.underFlyover,
       wasUnder: citizen.wasUnder,
+      visiting: lgaCode !== citizen.lgaCode,
+      career: citizen.career,
+      citizenSeed: `${citizen.name}|${citizen.createdAt}`,
     }).then((m) => alive && getGameStore().getState().setWorld(m));
     return () => {
       alive = false;

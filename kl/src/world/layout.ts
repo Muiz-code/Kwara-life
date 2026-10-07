@@ -80,6 +80,9 @@ function anchorOf(map: WorldMap, id: string): Point | null {
   return j ? { x: j.x, y: j.y } : null;
 }
 
+/** How far below a place's point its tile's bottom edge sits. On a grid town the tile's base fills its plot. */
+export const tileBase = (map: WorldMap) => (map.grid ? map.grid.hh - 8 : TILE_BASE);
+
 export type MapHit = { kind: "place"; id: string } | { kind: "billboard"; id: string } | null;
 
 /**
@@ -96,8 +99,9 @@ export function hitTest(
 ): MapHit {
   let best: MapHit = null;
   let bestY = -Infinity;
+  const base = tileBase(map);
   for (const pl of map.places) {
-    const bottom = pl.y + TILE_BASE;
+    const bottom = pl.y + base;
     const top = bottom - (tileHeights[pl.id] ?? TILE_W) - 34; // include the name sign
     if (Math.abs(p.x - pl.x) < TILE_W / 2 - 10 && p.y < bottom && p.y > top && bottom > bestY) {
       best = { kind: "place", id: pl.id };

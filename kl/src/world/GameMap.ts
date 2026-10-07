@@ -14,11 +14,15 @@ import {
   TRAFFIC_W, VEHICLE_ART, VEHICLE_W,
 } from "./art";
 import { buildGround } from "./ground";
-import { ilorinMap, loadIlorinShapes } from "./ilorin-map";
-import { billboardPositions, hitTest, standAt } from "./layout";
-import { pointAlong, router, type RoadGraph } from "./routing";
+import { ilorinTown } from "./ilorin-town";
+import { billboardPositions, hitTest, standAt, tileBase } from "./layout";
+import { pointAlong, router, type MapRoute, type RoadGraph } from "./routing";
 import { drawTile, KIND_ART } from "./tiles";
+import { lookTile, tileFor, type LookTile } from "./tile-art";
+import { buildTownGround } from "./town-ground";
+import { Traffic } from "./traffic";
 import type { MapPlace, Point, WorldMap } from "./types";
+import { ALL_VEHICLE_ART } from "./vehicles";
 
 /** Vehicle sprite for each transport mode on any map (danfo, ride-hailing and SUV reuse the nearest sprite). */
 const SPRITE_FOR_MODE: Record<string, ModeId> = {
@@ -89,6 +93,12 @@ function devMap(): WorldMap | undefined {
   return (window as unknown as { __naijaMap?: WorldMap }).__naijaMap;
 }
 
+/** A camera position for screenshots, set on the window before the canvas starts. Never in production. */
+function devView(): { zoom: number; x?: number; y?: number } | undefined {
+  if (process.env.NODE_ENV === "production") return undefined;
+  return (window as unknown as { __naijaView?: { zoom: number; x?: number; y?: number } }).__naijaView;
+}
+
 export class GameMap {
   private app = new Application();
   private viewport!: Viewport;
@@ -114,6 +124,13 @@ export class GameMap {
   /** Bouncing marker above the player's head so you can always find yourself. */
   private marker = new Graphics();
   private cars: Car[] = [];
+  private traffic: Traffic | null = null;
+  private loaded = new Set<string>();
+  private route: ReturnType<typeof router> | null = null;
+  /** The path the current trip is drawn along, worked out once per trip. */
+  private tripPath: { key: number; pts: Point[] } | null = null;
+  /** District names: shown when zoomed out, like neighbourhood names on a map. */
+  private districtLabels = new Container();
   private following = false;
   private lastNight = -1;
   private destroyed = false;
@@ -124,13 +141,9 @@ export class GameMap {
     this.map = map;
   }
 
-  /**
-   * The map defaults to the hand-built Ilorin one, as before, with its real road
-   * shapes when they have been fetched.
-   */
+  /** The map defaults to Ilorin, now built as a grid town like every other LGA. */
   static async create(host: HTMLElement, store: GameStoreApi, cb: MapCallbacks = {}, map?: WorldMap): Promise<GameMap> {
-    const fallback = devMap() ?? ilorinMap(await loadIlorinShapes());
-    const m = new GameMap(store, cb, map ?? fallback);
+    const m = new GameMap(store, cb, map ?? devMap() ?? ilorinTown());
     await m.init(host);
     return m;
   }
@@ -168,11 +181,20 @@ export class GameMap {
     const sign = cssFont("--font-lilita", "'Lilita One', 'Arial Black', sans-serif");
     await Promise.all([document.fonts?.load(`16px ${sign}`), document.fonts?.load(`800 13px ${ui}`)]).catch(() => {});
     // Only the art this map actually uses, so a phone on mobile data loads less.
-    const art = [...new Set(map.places.map((p) => p.art ?? KIND_ART[p.kind]).filter(Boolean) as string[])];
-    await Assets.load([...new Set([...art, ...Object.values(AVATAR_ART), ...Object.values(VEHICLE_ART), BILLBOARD_ART])]);
+    // A file that is missing or fails is simply drawn in code instead.
+    const art = new Set<string>([...Object.values(AVATAR_ART), ...Object.values(VEHICLE_ART), BILLBOARD_ART]);
+    for (const p of map.places) {
+      const src = this.artFor(p);
+      if (src) art.add(src);
+    }
+    for (const b of map.buildings ?? []) if (b.art ?? this.buildingArt(b.kind)) art.add((b.art ?? this.buildingArt(b.kind))!);
+    if (map.grid) for (const v of ALL_VEHICLE_ART) art.add(v);
+    const results = await Promise.allSettled([...art].map((src) => Assets.load(src).then(() => src)));
+    for (const r of results) if (r.status === "fulfilled") this.loaded.add(r.value);
     if (this.destroyed) return;
 
-    this.graph = router(map).graph;
+    this.route = router(map);
+    this.graph = this.route.graph;
     this.boards = billboardPositions(map);
 
     const vp = new Viewport({
@@ -196,7 +218,7 @@ export class GameMap {
     vp.on("clicked", (e) => this.onTap(e.world.x, e.world.y));
     this.app.renderer.on("resize", (w: number, h: number) => vp.resize(w, h, W, H));
 
-    vp.addChild(buildGround(map, { ui }));
+    vp.addChild(map.grid ? buildTownGround(map, { ui, sign }) : buildGround(map, { ui }));
     vp.addChild(this.ring);
 
     // Buildings and billboards share one layer, drawn back to front.
@@ -204,15 +226,39 @@ export class GameMap {
     things.sortableChildren = true;
     vp.addChild(things);
     const biome = BIOMES[map.biome];
-    for (const p of map.places) {
-      const src = p.art ?? KIND_ART[p.kind];
+    const base = tileBase(map);
+    // The town's ordinary buildings, each on its own plot, turned to face its street.
+    for (const b of map.buildings ?? []) {
+      const src = b.art ?? this.buildingArt(b.kind);
       const c = new Container();
-      let height = TILE_W;
-      if (src && Assets.cache.has(src)) {
+      if (src && this.loaded.has(src)) {
         const s = new Sprite(Texture.from(src));
         s.anchor.set(0.5, 1);
-        s.scale.set(TILE_W / s.texture.width);
-        s.position.set(0, TILE_BASE);
+        const k = TILE_W / s.texture.width;
+        s.scale.set(b.flip ? -k : k, k);
+        s.position.set(0, base);
+        c.addChild(s);
+      } else {
+        const g = new Graphics();
+        drawTile(g, "house", biome);
+        g.position.set(0, base - TILE_BASE);
+        c.addChild(g);
+      }
+      c.position.set(b.x, b.y);
+      c.zIndex = b.y + base;
+      c.cullable = true;
+      things.addChild(c);
+    }
+    for (const p of map.places) {
+      const src = this.artFor(p);
+      const c = new Container();
+      let height = TILE_W;
+      if (src && this.loaded.has(src)) {
+        const s = new Sprite(Texture.from(src));
+        s.anchor.set(0.5, 1);
+        const k = TILE_W / s.texture.width;
+        s.scale.set(p.flip ? -k : k, k);
+        s.position.set(0, base);
         c.addChild(s);
         height = s.height;
       } else {
@@ -229,8 +275,9 @@ export class GameMap {
           this.lit[p.id] = lit;
         }
       }
+      if (!(src && this.loaded.has(src))) c.children[0]?.position.set(0, base - TILE_BASE);
       c.position.set(p.x, p.y);
-      c.zIndex = p.y + TILE_BASE;
+      c.zIndex = p.y + base;
       c.cullable = true;
       things.addChild(c);
       this.tileHeights[p.id] = height;
@@ -281,13 +328,18 @@ export class GameMap {
     }
 
     // Traffic is depth-sorted with the buildings so tiles hide cars passing behind them.
-    this.initTraffic(things);
+    if (map.grid) {
+      const lightsLayer = new Container();
+      this.traffic = new Traffic(map, this.graph, things, lightsLayer, (src) => this.loaded.has(src));
+      things.addChild(lightsLayer);
+      lightsLayer.zIndex = 1e9;
+    } else this.initTraffic(things);
 
     // Place name signs stay readable above buildings.
     const signs = new Container();
     vp.addChild(signs);
     for (const p of map.places) {
-      const top = p.y + TILE_BASE - this.tileHeights[p.id];
+      const top = p.y + base - this.tileHeights[p.id];
       const t = new Text({ text: p.name, style: { fontFamily: sign, fontSize: 15, fill: SIGN_TEXT } });
       t.anchor.set(0.5);
       const w = Math.max(92, t.width + 26);
@@ -298,6 +350,18 @@ export class GameMap {
       c.cullable = true;
       signs.addChild(c);
     }
+
+    for (const d of map.districts ?? []) {
+      const t = new Text({
+        text: d.name.toUpperCase(),
+        style: { fontFamily: sign, fontSize: 64, fill: 0x26355e, letterSpacing: 6, stroke: { color: 0xf7e7c1, width: 10 } },
+      });
+      t.anchor.set(0.5);
+      t.position.set(d.x, d.y);
+      this.districtLabels.addChild(t);
+    }
+    this.districtLabels.alpha = 0;
+    vp.addChild(this.districtLabels);
 
     // The player.
     this.walker = new Sprite(Texture.from(AVATAR_ART.m));
@@ -321,6 +385,13 @@ export class GameMap {
     const start = standAt(map, this.store.getState().game.loc);
     vp.setZoom(Math.min(1.2, Math.max(0.35, host.clientWidth / Math.min(1100, Math.max(620, host.clientWidth * 1.6)))));
     vp.moveCenter(start.x, start.y - 30);
+    // While developing, a screenshot can ask for the whole town in view.
+    const look = devView();
+    if (look) {
+      vp.clampZoom({ minWidth: 200, maxWidth: W * 4 });
+      vp.setZoom(look.zoom);
+      vp.moveCenter(look.x ?? W / 2, look.y ?? H / 2);
+    }
 
     this.unsub.push(
       this.store.subscribe((s, prev) => {
@@ -329,6 +400,35 @@ export class GameMap {
       }),
     );
     this.app.ticker.add(this.frame);
+  }
+
+  /** The tile for a place: its own art, else the town's art for its kind and look, else none. */
+  private artFor(p: MapPlace): string | null {
+    if (p.art) return p.art;
+    if (this.map.grid) {
+      const cls = p.variant === "rich" || p.variant === "middle" || p.variant === "poor" ? p.variant : undefined;
+      return tileFor({ kind: p.kind, look: this.map.biome, state: this.map.state ?? "", ...(cls ? { cls } : {}) });
+    }
+    return KIND_ART[p.kind] ?? null;
+  }
+
+  private buildingArt(kind: string): string | null {
+    const known: LookTile[] = ["duplex", "flats", "compound", "house"];
+    return known.includes(kind as LookTile) ? lookTile(kind as LookTile, this.map.biome) : null;
+  }
+
+  /** The trip's path along this map's own streets, from where the player stands to where they are going. */
+  private pathFor(from: string, to: string, key: number, fallback: Point[]): Point[] {
+    if (this.tripPath?.key === key) return this.tripPath.pts;
+    let pts = fallback;
+    try {
+      const r: MapRoute | undefined = this.route?.route(from, to);
+      if (r) pts = [standAt(this.map, from), ...r.pts.slice(1, -1), standAt(this.map, to)];
+    } catch {
+      // A place this map does not have: fall back to the sim's own line.
+    }
+    this.tripPath = { key, pts };
+    return pts;
   }
 
   private setLook(s: GameStore) {
@@ -361,6 +461,7 @@ export class GameMap {
 
     // Traffic keeps moving unless the game is paused or a note is open.
     const running = !st.paused && st.game.notes.length === 0 && !st.reducedMotion;
+    this.traffic?.update(dt, now, running);
     if (running && this.cars.length) {
       for (const c of this.cars) {
         const p = this.graph.verts[c.a];
@@ -393,7 +494,8 @@ export class GameMap {
     let dx = 1;
     if (a?.kind === "trip") {
       const p = Math.min(1, Math.max(0, (now - a.startedAt) / a.ms));
-      const at = pointAlong(a.trip.route.pts, easeInOut(p));
+      const path = this.pathFor(st.game.loc, a.trip.dest, a.startedAt, a.trip.route.pts);
+      const at = pointAlong(path, easeInOut(p));
       pos = at;
       dx = at.dx;
       mode = SPRITE_FOR_MODE[a.trip.mode] ?? "keke";
@@ -434,6 +536,10 @@ export class GameMap {
     } else if (!a) {
       this.following = false;
     }
+
+    // District names fade in as you zoom out, and out as you zoom in to the streets.
+    const z = this.viewport.scale.x;
+    this.districtLabels.alpha = Math.max(0, Math.min(0.9, (0.45 - z) / 0.2));
 
     // Selection ring.
     const sel = this.tilePos(st.selected);

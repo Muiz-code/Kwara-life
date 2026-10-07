@@ -8,16 +8,14 @@
 //
 // Chromium is preinstalled in the build container, so launch it with software GL.
 import { mkdir, readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import { register } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 register("./ts-hook.mjs", import.meta.url);
 const { STATES } = await import("../src/data/states.ts");
 const { LGAS, ILORIN_LGAS } = await import("../src/data/geography.ts");
-const { generateMap } = await import("../src/world/generate.ts");
-const { normaliseTrips } = await import("../src/world/routing.ts");
 const { addPlayerPlaces } = await import("../src/world/player-places.ts");
+const { townFor } = await import("../src/world/load.ts");
 
 // Playwright is a developer tool, not something the game ships, so it is not a
 // dependency of the app. Install it where you run this: npm i playwright
@@ -48,15 +46,12 @@ async function mapFor(code) {
       seed: `${file}/0/poor`, cls: "poor", job: "Tailor", home: "a rented room",
     });
   }
-  if (!code || ILORIN_LGAS.includes(code)) return null;
+  if (!code || ILORIN_LGAS.includes(code)) return null; // the app's own default is Ilorin
   const lga = LGAS.find((l) => l.code === code);
   if (!lga) throw new Error(`Unknown LGA: ${code}`);
   const state = STATES.find((s) => s.code === lga.stateCode);
-  const mapFile = path.join(ROOT, "public", "maps", `${code}.json`);
-  const citizen = { seed: `${code}/0/poor`, cls: "poor", job: "Tailor", home: "a rented room" };
-  if (existsSync(mapFile)) return addPlayerPlaces(JSON.parse(await readFile(mapFile, "utf8")), citizen);
-  console.log(`  no map under public/maps for ${code}, drawing the generated one`);
-  return normaliseTrips(generateMap({ state, lga: lga.name, pu: 0, cls: "poor", job: "Tailor", home: "a rented room" }));
+  const cls = valueOf("--class", "poor");
+  return townFor({ lgaCode: code, state, lgaName: lga.name, cls, job: "Tailor", home: "a rented room", citizenSeed: "shot" });
 }
 
 const map = await mapFor(lgaCode);
@@ -73,6 +68,12 @@ const page = await browser.newPage({ viewport: { width: size[0], height: size[1]
 page.on("console", (m) => console.log(`  page: ${m.type()}: ${m.text()}`));
 page.on("pageerror", (e) => console.log(`  page error: ${e.message}`));
 if (map) await page.addInitScript((m) => { window.__naijaMap = m; }, map);
+// --zoom 0.2 shows a whole town; --at x,y centres the camera there.
+const zoom = valueOf("--zoom", null);
+if (zoom) {
+  const at = valueOf("--at", null)?.split(",").map(Number);
+  await page.addInitScript((v) => { window.__naijaView = v; }, { zoom: Number(zoom), ...(at ? { x: at[0], y: at[1] } : {}) });
+}
 await page.goto(url, { waitUntil: "load", timeout: 60_000 });
 await page.waitForTimeout(wait);
 await page.screenshot({ path: out });

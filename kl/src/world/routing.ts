@@ -46,8 +46,11 @@ interface Vertex {
 
 export interface RoadGraph {
   verts: Vertex[];
-  /** Vertex id of each place's gate, and the gate point itself. */
-  gate: Record<string, { v: number; p: Point; road: number }>;
+  /**
+   * Vertex id of each place's gate, and the gate point itself. When the place has
+   * its own gates, v is a vertex at the place itself joined to each of them.
+   */
+  gate: Record<string, { v: number; p: Point; road: number; own?: boolean }>;
 }
 
 /** Grid index so welding and snapping stay fast on big maps. */
@@ -194,8 +197,23 @@ export function buildGraph(map: WorldMap): RoadGraph {
   });
 
   // Snap every place to the nearest point on a road, splitting that road segment.
+  // A place with its own gates is joined to each of them instead.
   const gate: RoadGraph["gate"] = {};
   for (const pl of map.places) {
+    if (pl.gates?.length) {
+      const id = verts.length;
+      verts.push({ id, x: pl.x, y: pl.y, edges: [] });
+      for (const gp of pl.gates) {
+        const hit = nearest(gp);
+        if (!hit) continue;
+        const gv = vertexAt(hit.p);
+        link(hit.a, gv, hit.road);
+        link(gv, hit.b, hit.road);
+        link(id, gv, hit.road);
+      }
+      gate[pl.id] = { v: id, p: { x: pl.x, y: pl.y }, road: -1, own: true };
+      continue;
+    }
     const hit = nearest(pl);
     if (!hit) continue;
     const v = vertexAt(hit.p);
@@ -321,14 +339,14 @@ export function routeOn(map: WorldMap, graph: RoadGraph, from: string, to: strin
     if (c === A.v) break;
   }
   const along = chain.map((v) => ({ x: graph.verts[v].x, y: graph.verts[v].y }));
-  // Walk out of the first place and into the last one.
-  const pts = [{ x: start.x, y: start.y }, ...along, { x: end.x, y: end.y }];
+  // Walk out of the first place and into the last one (already in the chain when they have their own gates).
+  const pts = [...(A.own ? [] : [{ x: start.x, y: start.y }]), ...along, ...(B.own ? [] : [{ x: end.x, y: end.y }])];
   const roads: MapRoad[] = [];
   for (const ri of roadIdx) {
     const r = map.roads[ri];
     if (r && roads[roads.length - 1] !== r) roads.push(r);
   }
-  return { ids: [from, to], pts, length: polylineLength(pts), highway: roads.some((r) => r.highway), roads };
+  return { ids: [from, to], pts, length: polylineLength(pts) * (map.lengthScale ?? 1), highway: roads.some((r) => r.highway), roads };
 }
 
 /** Routes with the graph built once, for maps that are routed over many times. */
