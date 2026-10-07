@@ -5,6 +5,7 @@ import { createGameStore, type GameStore, type GameStoreApi } from "./game";
 
 export * from "./game";
 export { startGameLoop } from "./loop";
+export { clockJumped, clockNow, debugMode, jumpClockTo } from "./clock";
 
 let store: GameStoreApi | null = null;
 

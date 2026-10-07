@@ -8,6 +8,7 @@ import {
   startAction, startTrip, tripAnimMs, rollCitizen, castVote, postSupportCard, buyPromo, applyForJob,
   buyVotes as buyVotesSim, type Ballot, type CardInput, type PromoInput, type BribeInput, type Opening, startingMoney, takeJourney, currentLga, handoverSeconds, type JourneyMode, type ActionFlow, type ActionPlan, type ChoiceId, type GameState, type Rng, type Trip,
 } from "../sim";
+import { clockNow } from "./clock";
 import { throttledStorage } from "./storage";
 import { findActionAt, placeInfo, tripWorldFor } from "./world";
 import type { WorldMap } from "../world";
@@ -86,7 +87,7 @@ export interface StoreOptions {
   realNow?: () => number;
 }
 
-export function createGameStore({ rng = Math.random, storage, realNow = Date.now }: StoreOptions = {}) {
+export function createGameStore({ rng = Math.random, storage, realNow = clockNow }: StoreOptions = {}) {
   const persistStorage =
     storage ?? throttledStorage(typeof window !== "undefined" ? window.localStorage : undefined);
 

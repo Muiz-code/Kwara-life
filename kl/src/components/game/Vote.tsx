@@ -46,10 +46,18 @@ export function VotePanel({ onClose, onResults }: { onClose: () => void; onResul
       </ol>
       {c.pvc === "seized" && <p className="mb-2 font-bold text-danger">Your PVC was seized. You cannot vote this election.</p>}
       <ul className="mb-3 divide-y divide-line text-sm">
-        <li className="py-1.5"><b>Registration</b> closes {longDate(CAL.registrationClose)}, at the INEC office in {LGA[c.lgaCode].name}</li>
-        <li className="py-1.5"><b>PVC collection</b> {longDate(CAL.pvcAnnouncement)} to {longDate(CAL.pvcCollectionClose)}</li>
-        <li className="py-1.5"><b>Campaigns end</b> 24 hours before polls open</li>
-        <li className="py-1.5"><b>Election day</b> {longDate(CAL.pollsOpen)} to 4pm, at your polling unit</li>
+        <li className="py-1.5">
+          <b>Registration</b> closes {longDate(CAL.registrationClose)}, at the INEC office in {LGA[c.lgaCode].name}
+        </li>
+        <li className="py-1.5">
+          <b>PVC collection</b> {longDate(CAL.pvcAnnouncement)} to {longDate(CAL.pvcCollectionClose)}
+        </li>
+        <li className="py-1.5">
+          <b>Campaigns end</b> 24 hours before polls open
+        </li>
+        <li className="py-1.5">
+          <b>Election day</b> {longDate(CAL.pollsOpen)} to 4pm, at your polling unit
+        </li>
       </ul>
       {phase === "polls-open" && <TurnoutCounter />}
       <p className="text-xs text-ink-soft">
@@ -202,7 +210,11 @@ export function Results({ onClose }: { onClose: () => void }) {
         {STATES.map((s) => {
           const lead = leader(snap.states[s.code]);
           return (
-            <div key={s.code} className="rounded-md p-1 text-center text-[10px] font-bold text-white" style={{ gridColumn: GRID[s.code][0] + 1, gridRow: GRID[s.code][1] + 1, background: lead >= 0 ? PARTIES[lead].colour : "#cfc6ae" }}>
+            <div
+              key={s.code}
+              className="rounded-md p-1 text-center text-[10px] font-bold text-white"
+              style={{ gridColumn: GRID[s.code][0] + 1, gridRow: GRID[s.code][1] + 1, background: lead >= 0 ? PARTIES[lead].colour : "#cfc6ae" }}
+            >
               {s.name.slice(0, 3).toUpperCase()}
             </div>
           );
@@ -216,24 +228,33 @@ export function Results({ onClose }: { onClose: () => void }) {
 function Finale({ winner, onClose }: { winner: number; onClose: () => void }) {
   const p = PARTIES[winner];
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto p-6 text-center text-white" style={{ background: `radial-gradient(circle at 50% 30%, ${p.colour}, #0F1730 70%)` }}>
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto p-6 text-center text-white"
+      style={{ background: `radial-gradient(circle at 50% 30%, ${p.colour}, #0F1730 70%)` }}
+    >
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         {Array.from({ length: 40 }, (_, i) => (
-          <span key={i} className="absolute top-[-10px] h-3 w-2 animate-[confetti_4s_linear_infinite] motion-reduce:hidden" style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i % 10) * 0.4}s`, background: ["#F2B705", "#FFFFFF", "#0E7A4B", p.colour][i % 4] }} />
+          <span
+            key={i}
+            className="absolute top-[-10px] h-3 w-2 animate-[confetti_4s_linear_infinite] motion-reduce:hidden"
+            style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i % 10) * 0.4}s`, background: ["#F2B705", "#FFFFFF", "#0E7A4B", p.colour][i % 4] }}
+          />
         ))}
       </div>
-      <p className="text-sm font-bold tracking-widest uppercase opacity-80">Naija Votes 2027 has a winner</p>
-      <h1 className="my-3 font-sign text-6xl">{p.code}</h1>
-      <p className="text-2xl font-bold">{p.name}</p>
-      <div className="mt-8 max-w-xl space-y-3 rounded-3xl bg-black/30 p-5 text-left">
-        <p className="font-bold">Thank you for voting.</p>
-        <p>You queued, you thumbprinted, you waited for the count. That is how it works in real life too.</p>
-        <p>When the real election comes: collect your PVC, come out on election day, protect your vote, and choose wisely. Nobody should buy your future for one day&apos;s money.</p>
-        <p className="text-sm opacity-80">{DISCLAIMER} The result of this game says nothing about any real election.</p>
+      <div className="relative flex flex-col items-center">
+        <p className="text-sm font-bold tracking-widest uppercase opacity-80">Naija Votes 2027 has a winner</p>
+        <h1 className="my-3 font-sign text-6xl">{p.code}</h1>
+        <p className="text-2xl font-bold">{p.name}</p>
+        <div className="mt-8 max-w-xl space-y-3 rounded-3xl bg-black/30 p-5 text-left">
+          <p className="font-bold">Thank you for voting.</p>
+          <p>You queued, you thumbprinted, you waited for the count. That is how it works in real life too.</p>
+          <p>When the real election comes: collect your PVC, come out on election day, protect your vote, and choose wisely. Nobody should buy your future for one day&apos;s money.</p>
+          <p className="text-sm opacity-80">{DISCLAIMER} The result of this game says nothing about any real election.</p>
+        </div>
+        <Button tone="keke" className="mt-6" onClick={onClose}>
+          Close
+        </Button>
       </div>
-      <Button tone="keke" className="mt-6" onClick={onClose}>
-        Close
-      </Button>
     </div>
   );
 }

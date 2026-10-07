@@ -14,13 +14,17 @@ import PlaceSheet, { JourneyOverlay } from "./game/PlaceSheet";
 import { BribeModal, CampaignPanel, PromoModal } from "./game/Campaign";
 import { BallotFlow, Results, VotePanel } from "./game/Vote";
 import { PhonePanel } from "./game/Phone";
-import { DISCLAIMER } from "./game/ui";
+import { DISCLAIMER, useNow } from "./game/ui";
+import { PRESIDENTIAL_2027 as CAL, seasonClosed } from "@/data/calendar";
 
 export default function Game() {
   const [map, setMap] = useState<GameMap | null>(null);
   const [tab, setTab] = useState<Tab | null>(null);
   const [revealed, setRevealed] = useState(true);
   const [results, setResults] = useState(false);
+  // When polls close the results open for everyone, once; the Vote tab can replay them.
+  const [seenResults, setSeenResults] = useState(false);
+  const over = seasonClosed(CAL, useNow(5000));
   const citizen = useGame((s) => s.game.citizen);
   const lgaCode = useGame((s) => currentLga(s.game));
   const world = useGame((s) => s.world);
@@ -128,7 +132,14 @@ export default function Game() {
       {citizen && !revealed && <Reveal onStart={() => setRevealed(true)} />}
       {citizen && revealed && <Notes />}
       <JourneyOverlay />
-      {results && <Results onClose={() => setResults(false)} />}
+      {(results || (citizen && revealed && over && !seenResults)) && (
+        <Results
+          onClose={() => {
+            setResults(false);
+            setSeenResults(true);
+          }}
+        />
+      )}
       <Toasts />
     </div>
   );
