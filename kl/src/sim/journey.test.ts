@@ -5,7 +5,7 @@ import { castVote, currentLga, freshState, isAway, journeyKm, performAction, quo
 
 const at = (iso: string) => Date.parse(iso);
 const NOW = at("2026-10-12T10:00:00+01:00");
-const POLLS = at("2026-11-05T10:00:00+01:00");
+const POLLS = at("2026-11-14T10:00:00+01:00");
 const never = sequence(0.99);
 const look = { g: "m" as const, skin: "#8D5524", cloth: "#F4F1EA" };
 
@@ -50,7 +50,7 @@ describe("travelling between states", () => {
 
   it("raises bus fares in election week", () => {
     const normal = quoteJourney(make(), "fct/abuja-municipal", "bus", NOW).fare;
-    const rush = quoteJourney(make(), "fct/abuja-municipal", "bus", at("2026-11-03T10:00:00+01:00")).fare;
+    const rush = quoteJourney(make(), "fct/abuja-municipal", "bus", at("2026-11-12T10:00:00+01:00")).fare;
     expect(rush).toBeGreaterThan(normal * 1.4);
   });
 

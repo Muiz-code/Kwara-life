@@ -20,6 +20,9 @@ export interface ElectionCalendar {
 
 export const WAT = "+01:00";
 
+/** The game opens to players. The season runs one month and ends on election day. */
+export const LAUNCH = `2026-10-14T00:00:00+01:00`;
+
 export const PRESIDENTIAL_2027: ElectionCalendar = {
   id: "presidential-2027",
   name: "Presidential and National Assembly election",
@@ -27,9 +30,9 @@ export const PRESIDENTIAL_2027: ElectionCalendar = {
   registrationOpensAfterMs: 2 * 60 * 1000,
   registrationClose: `2026-10-30T23:59:59${WAT}`,
   pvcAnnouncement: `2026-10-31T00:00:00${WAT}`,
-  pvcCollectionClose: `2026-11-05T07:50:00${WAT}`,
-  pollsOpen: `2026-11-05T08:00:00${WAT}`,
-  pollsClose: `2026-11-05T16:00:00${WAT}`,
+  pvcCollectionClose: `2026-11-14T07:50:00${WAT}`,
+  pollsOpen: `2026-11-14T08:00:00${WAT}`,
+  pollsClose: `2026-11-14T16:00:00${WAT}`,
 };
 
 /** Campaigning and promotion stop this long before polls open. */
