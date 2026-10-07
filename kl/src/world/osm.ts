@@ -496,3 +496,30 @@ export function shapeBetween(res: OverpassResponse, a: LatLng, b: LatLng): [numb
   const road = simplify(line.slice(1, -1), 6);
   return road.map((p) => [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10] as [number, number]);
 }
+
+/**
+ * The lat and lng box the LGA's civic places sit in, with a margin. The fetch
+ * script asks Overpass for residential streets inside this box only, which is a
+ * far lighter question than every street in the LGA.
+ */
+export function civicBounds(res: OverpassResponse, marginDeg = 0.02): { south: number; west: number; north: number; east: number } | null {
+  const pts: LatLng[] = [];
+  for (const e of res.elements) {
+    if (!e.tags) continue;
+    const kind = classify(e.tags);
+    if (!kind || !CIVIC_KINDS.includes(kind)) continue;
+    const ll = coord(e);
+    if (ll) pts.push(ll);
+  }
+  if (pts.length < 2) return null;
+  // Trim the ends, so one place out in the bush does not widen the box.
+  const lats = pts.map((p) => p.lat).sort((a, b) => a - b);
+  const lngs = pts.map((p) => p.lng).sort((a, b) => a - b);
+  const cut = Math.floor(pts.length * 0.1);
+  return {
+    south: lats[cut] - marginDeg,
+    west: lngs[cut] - marginDeg,
+    north: lats[lats.length - 1 - cut] + marginDeg,
+    east: lngs[lngs.length - 1 - cut] + marginDeg,
+  };
+}

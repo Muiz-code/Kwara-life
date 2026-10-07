@@ -26,7 +26,7 @@ const { STATES } = await import("../src/data/states.ts");
 const { ZONE_BIOME } = await import("../src/data/biomes.ts");
 const { PLACES, WAYPOINTS } = await import("../src/data/ilorin/places.ts");
 const { ROADS } = await import("../src/data/ilorin/roads.ts");
-const { osmToWorldMap, shapeBetween } = await import("../src/world/osm.ts");
+const { civicBounds, osmToWorldMap, shapeBetween } = await import("../src/world/osm.ts");
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CACHE = path.join(ROOT, ".osm-cache");
@@ -77,6 +77,8 @@ const PLACE_FILTERS = [
 const MAIN_ROADS = "^(trunk|primary|secondary|tertiary)$";
 const ALL_ROADS = "^(trunk|primary|secondary|tertiary|residential|unclassified)$";
 const HIGHWAYS = flag("--with-residential") ? ALL_ROADS : MAIN_ROADS;
+/** The streets of the town, asked for separately inside a small box. */
+const STREETS = "^(residential|unclassified|living_street)$";
 
 /** The Overpass query for one LGA, by its name inside its state. */
 function lgaQuery(stateName, lgaName) {
@@ -99,9 +101,9 @@ out center tags;`;
 }
 
 /** Roads and places around a point, for the hand-built Ilorin map's shapes. */
-function aroundQuery(south, west, north, east) {
+function aroundQuery(south, west, north, east, classes = HIGHWAYS) {
   return `[out:json][timeout:300];
-(way(${south},${west},${north},${east})["highway"~"${HIGHWAYS}"];);
+(way(${south},${west},${north},${east})["highway"~"${classes}"];);
 out geom;`;
 }
 
@@ -155,6 +157,24 @@ async function buildLga(lga) {
   // A cached answer belongs to the query that fetched it, so the key says which.
   const key = `${state.code}--${slug(lga.name)}${flag("--with-residential") ? "-full" : ""}`;
   const raw = await overpass(key, lgaQuery(state.name, lga.name));
+
+  // Second, much smaller question: the streets of the town itself. Asking for
+  // every residential way in a whole LGA is what makes Overpass turn you away.
+  if (!flag("--main-only")) {
+    const box = civicBounds(raw);
+    if (box) {
+      try {
+        const streets = await overpass(
+          `${key}-streets`,
+          aroundQuery(box.south.toFixed(4), box.west.toFixed(4), box.north.toFixed(4), box.east.toFixed(4), STREETS),
+        );
+        raw.elements.push(...streets.elements);
+      } catch (err) {
+        console.warn(`  ${lga.code}: no answer for the streets (${err.message}). Main roads only`);
+      }
+    }
+  }
+
   const { map, missing, stats } = osmToWorldMap(raw, {
     id: lga.code,
     name: lga.name,
