@@ -1,5 +1,5 @@
 // Pure placement helpers for any LGA map: where billboards stand and what a tap hits.
-import { roadFinder, segmentDistance } from "./routing";
+import { projectOnSegment, segmentDistance } from "./routing";
 import { BILLBOARD_W, TILE_BASE, TILE_W } from "./art";
 import type { BillboardSlot, Point, WorldMap } from "./types";
 
@@ -7,7 +7,11 @@ export { segmentDistance };
 
 /** Distance from a point to the nearest road. */
 export function roadDistance(map: WorldMap, p: Point): number {
-  return roadFinder(map).distance(p);
+  let best = Infinity;
+  for (const r of map.roads) {
+    for (let i = 1; i < r.pts.length; i++) best = Math.min(best, projectOnSegment(p, r.pts[i - 1], r.pts[i]).d);
+  }
+  return best;
 }
 
 /** Where the player stands when at a place: beside the building, facing the road. */
@@ -19,7 +23,7 @@ export function standAt(map: WorldMap, id: string): Point {
 }
 
 /** Clear of building tiles and roads, with room for a board of the given width. */
-function isFree(map: WorldMap, p: Point, taken: Point[], roads: ReturnType<typeof roadFinder>): boolean {
+function isFree(map: WorldMap, p: Point, taken: Point[]): boolean {
   if (map.places.some((pl) => Math.hypot(pl.x - p.x, pl.y - p.y) < 140)) return false;
   // Keep clear of the spot where the player stands outside each place.
   if (map.places.some((pl) => {
@@ -27,7 +31,7 @@ function isFree(map: WorldMap, p: Point, taken: Point[], roads: ReturnType<typeo
     return Math.hypot(s.x - p.x, s.y - p.y) < 120;
   })) return false;
   if (taken.some((t) => Math.hypot(t.x - p.x, t.y - p.y) < BILLBOARD_W)) return false;
-  const d = roads.distance({ x: p.x, y: p.y - 10 });
+  const d = roadDistance(map, { x: p.x, y: p.y - 10 });
   return d > 30 && d < 130;
 }
 
@@ -37,12 +41,8 @@ function isFree(map: WorldMap, p: Point, taken: Point[], roads: ReturnType<typeo
  * close to a road, so boards face traffic without covering buildings.
  */
 export function billboardPositions(map: WorldMap): Record<string, Point> {
-  // In a town a board needs a plot of its own, like any building: an empty plot
-  // on a street, near the place it advertises beside.
-  if (map.lots) return boardsOnPlots(map);
   const out: Record<string, Point> = {};
   const taken: Point[] = [];
-  const roads = roadFinder(map);
   for (const slot of map.billboards ?? defaultSlots(map)) {
     const c = anchorOf(map, slot.near);
     if (!c) continue;
@@ -52,39 +52,13 @@ export function billboardPositions(map: WorldMap): Record<string, Point> {
       for (let i = 0; i < 24 && !found; i++) {
         const ang = start + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * (Math.PI / 12);
         const p = { x: Math.round(c.x + Math.cos(ang) * r), y: Math.round(c.y + Math.sin(ang) * r * 0.75) };
-        if (isFree(map, p, taken, roads)) found = p;
+        if (isFree(map, p, taken)) found = p;
       }
     }
     // A tight map may have no clear ground. Skip the board rather than cover a building.
     if (!found) continue;
     out[slot.id] = found;
     taken.push(found);
-  }
-  return out;
-}
-
-function boardsOnPlots(map: WorldMap): Record<string, Point> {
-  const out: Record<string, Point> = {};
-  const free = (map.lots ?? []).filter((l) => l.use === "garden" && l.gates.length > 0 && l.district !== "out");
-  const used = new Set<number>();
-  for (const slot of map.billboards ?? defaultSlots(map)) {
-    const c = anchorOf(map, slot.near);
-    if (!c) continue;
-    let best = -1;
-    let bestD = 900;
-    free.forEach((l, i) => {
-      if (used.has(i)) return;
-      const d = Math.hypot(l.x - c.x, l.y - c.y);
-      if (d < bestD) {
-        bestD = d;
-        best = i;
-      }
-    });
-    // Nothing free nearby: no board, rather than one on somebody's plot.
-    if (best < 0) continue;
-    used.add(best);
-    // Stand at the back of the plot so the board faces the street in front.
-    out[slot.id] = { x: free[best].x, y: free[best].y + (map.grid?.hh ?? 60) * 0.35 };
   }
   return out;
 }
@@ -109,9 +83,6 @@ function anchorOf(map: WorldMap, id: string): Point | null {
   return j ? { x: j.x, y: j.y } : null;
 }
 
-/** How far below a place's point its tile's bottom edge sits. On a grid town the tile's base fills its plot. */
-export const tileBase = (map: WorldMap) => (map.grid ? map.grid.hh - 8 : TILE_BASE);
-
 export type MapHit = { kind: "place"; id: string } | { kind: "billboard"; id: string } | null;
 
 /**
@@ -128,9 +99,8 @@ export function hitTest(
 ): MapHit {
   let best: MapHit = null;
   let bestY = -Infinity;
-  const base = tileBase(map);
   for (const pl of map.places) {
-    const bottom = pl.y + base;
+    const bottom = pl.y + TILE_BASE;
     const top = bottom - (tileHeights[pl.id] ?? TILE_W) - 34; // include the name sign
     if (Math.abs(p.x - pl.x) < TILE_W / 2 - 10 && p.y < bottom && p.y > top && bottom > bestY) {
       best = { kind: "place", id: pl.id };
