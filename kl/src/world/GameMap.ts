@@ -378,8 +378,6 @@ export class GameMap {
     vp.addChild(this.player);
     this.setLook(this.store.getState());
 
-    // The ODbL credit for OpenStreetMap data (map.attribution) is printed by the React HUD
-    // under the disclaimer, so it never sits under the tabs.
 
     // Start the camera on the player.
     const start = standAt(map, this.store.getState().game.loc);

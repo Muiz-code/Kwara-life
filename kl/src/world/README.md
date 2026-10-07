@@ -42,9 +42,8 @@ biome sets the ground, trees and the look of every building.
 - `routing.ts`: routes along the streets; `lengthScale` keeps fares and times at
   the prototype's scale however big the town is drawn.
 
-The older pieces (`osm.ts`, `player-places.ts`, `ilorin-map.ts`, `generate.ts`,
-`ground.ts`, `scripts/osm-lga.mjs`) are from the OpenStreetMap approach, which was
-dropped. They are tested but no longer used by the game.
+`generate.ts` and `ground.ts` are the prototype's free-form LGA builder and its
+renderer, kept as a tested reference; the game uses the grid towns.
 
 ## Art
 

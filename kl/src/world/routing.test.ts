@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { PLACES } from "../data/ilorin/places";
-import { ROADS } from "../data/ilorin/roads";
-import { nodePos, placePos, route as simRoute, type Route } from "../sim/world";
-import { ilorinMap, shapeKey } from "./ilorin-map";
+import { type Route } from "../sim/world";
 import { generateMap } from "./generate";
 import { STATES } from "../data/states";
 import { meanTripLength, normaliseTrips, pointAlong, polylineLength, router, TARGET_MEAN_TRIP } from "./routing";
-import { fitShape, simplify } from "./shape";
 import type { MapPlace, WorldMap } from "./types";
 
 const place = (id: string, x: number, y: number): MapPlace => ({
@@ -78,76 +74,6 @@ describe("routing on road shapes", () => {
     const mid = pointAlong(pts, 0.5);
     expect([mid.x, mid.y]).toEqual([100, 0]);
     expect(pointAlong(pts, 1)).toMatchObject({ x: 100, y: 100 });
-  });
-});
-
-describe("the Ilorin map as a WorldMap", () => {
-  const map = ilorinMap();
-
-  it("keeps every place where the hand-built layout put it", () => {
-    expect(map.places.map((p) => p.id)).toEqual(PLACES.map((p) => p.id));
-    for (const p of map.places) expect({ x: p.x, y: p.y }).toEqual(placePos(p.id));
-    expect(map.places.every((p) => p.art)).toBe(true);
-    expect(map.start).toBe("home");
-  });
-
-  it("keeps every road between the same two junctions", () => {
-    expect(map.roads.length).toBe(ROADS.length);
-    map.roads.forEach((r, i) => {
-      expect(r.pts[0]).toEqual(nodePos(ROADS[i].a));
-      expect(r.pts[r.pts.length - 1]).toEqual(nodePos(ROADS[i].b));
-      expect(r.name).toBe(ROADS[i].name);
-    });
-  });
-
-  it("routes the same trips as the hand-built router, within a few per cent", () => {
-    const r = router(map);
-    for (const [a, b] of [["home", "unilorin"], ["po", "kwasu"], ["home", "airport"], ["palace", "sawmill"]]) {
-      const mine = r.route(a, b).length;
-      const want = simRoute(a, b).length;
-      expect(Math.abs(mine - want) / want).toBeLessThan(0.06);
-    }
-    expect(Math.abs(meanTripLength(map) - TARGET_MEAN_TRIP) / TARGET_MEAN_TRIP).toBeLessThan(0.05);
-  });
-
-  it("draws the real road line when shapes are fetched", () => {
-    const a = nodePos("po");
-    const b = nodePos("palace");
-    // A road that bends gently to one side, in the fetch script's own pixels.
-    const raw: [number, number][] = [[0, 0], [40, 22], [80, 22], [120, 0]];
-    const withShapes = ilorinMap({ [shapeKey("po", "palace")]: raw });
-    const road = withShapes.roads.find((r) => r.name === "Ibrahim Taiwo Rd")!;
-    expect(road.pts.length).toBe(4);
-    expect(road.pts[0]).toEqual(a);
-    expect(road.pts[3]).toEqual(b);
-    expect(polylineLength(road.pts)).toBeGreaterThan(Math.hypot(b.x - a.x, b.y - a.y));
-    expect(withShapes.source).toBe("osm");
-    expect(withShapes.attribution).toContain("OpenStreetMap");
-  });
-
-  it("keeps the straight line when the fetched shape wanders off", () => {
-    // A route that went round the long way is the wrong road, not a bend.
-    const wild: [number, number][] = [[0, 0], [60, 400], [140, 420], [200, 0]];
-    const map2 = ilorinMap({ [shapeKey("po", "palace")]: wild });
-    const road = map2.roads.find((r) => r.name === "Ibrahim Taiwo Rd")!;
-    expect(road.pts).toEqual([nodePos("po"), nodePos("palace")]);
-  });
-});
-
-describe("fitting and simplifying shapes", () => {
-  it("turns and scales a shape onto its two ends", () => {
-    const raw: [number, number][] = [[0, 0], [5, 5], [10, 0]];
-    const out = fitShape(raw, { x: 100, y: 100 }, { x: 100, y: 300 });
-    expect(out[0]).toEqual({ x: 100, y: 100 });
-    expect(out[2]).toEqual({ x: 100, y: 300 });
-    // The bend keeps its size relative to the road.
-    expect(out[1]).toEqual({ x: 0, y: 200 });
-  });
-
-  it("drops points that add nothing", () => {
-    const line = [{ x: 0, y: 0 }, { x: 10, y: 0.2 }, { x: 20, y: 0 }, { x: 30, y: 9 }];
-    expect(simplify(line, 1).length).toBe(3);
-    expect(simplify(line, 20).length).toBe(2);
   });
 });
 
