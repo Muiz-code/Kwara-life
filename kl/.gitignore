@@ -43,3 +43,6 @@ next-env.d.ts
 # raw Higgsfield downloads (rebuild with scripts/fetch_assets.py)
 /public/assets/raw/
 __pycache__/
+.osm-cache/
+# map screenshots from scripts/osm-shot.mjs
+/shots/

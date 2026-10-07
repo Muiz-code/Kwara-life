@@ -1,0 +1,286 @@
+{
+ "version": 0.6,
+ "generator": "hand-written test fixture, not real OpenStreetMap data",
+ "elements": [
+  {
+   "type": "way",
+   "id": 1,
+   "tags": {
+    "highway": "trunk",
+    "name": "Test Trunk Road"
+   },
+   "geometry": [
+    {
+     "lat": 9.1,
+     "lon": 7.35
+    },
+    {
+     "lat": 9.104,
+     "lon": 7.37
+    },
+    {
+     "lat": 9.102,
+     "lon": 7.39
+    },
+    {
+     "lat": 9.1,
+     "lon": 7.41
+    },
+    {
+     "lat": 9.097,
+     "lon": 7.44
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 2,
+   "tags": {
+    "highway": "primary",
+    "name": "Market Road"
+   },
+   "geometry": [
+    {
+     "lat": 9.102,
+     "lon": 7.39
+    },
+    {
+     "lat": 9.112,
+     "lon": 7.388
+    },
+    {
+     "lat": 9.122,
+     "lon": 7.392
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 3,
+   "tags": {
+    "highway": "primary",
+    "name": "School Road"
+   },
+   "geometry": [
+    {
+     "lat": 9.1,
+     "lon": 7.41
+    },
+    {
+     "lat": 9.088,
+     "lon": 7.414
+    },
+    {
+     "lat": 9.08,
+     "lon": 7.42
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 4,
+   "tags": {
+    "highway": "residential",
+    "name": "Mosque Street"
+   },
+   "geometry": [
+    {
+     "lat": 9.112,
+     "lon": 7.388
+    },
+    {
+     "lat": 9.113,
+     "lon": 7.376
+    },
+    {
+     "lat": 9.111,
+     "lon": 7.368
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 5,
+   "tags": {
+    "highway": "residential",
+    "name": "Church Street"
+   },
+   "geometry": [
+    {
+     "lat": 9.088,
+     "lon": 7.414
+    },
+    {
+     "lat": 9.084,
+     "lon": 7.402
+    },
+    {
+     "lat": 9.086,
+     "lon": 7.392
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 6,
+   "tags": {
+    "highway": "tertiary",
+    "name": "Park Lane"
+   },
+   "geometry": [
+    {
+     "lat": 9.097,
+     "lon": 7.44
+    },
+    {
+     "lat": 9.106,
+     "lon": 7.442
+    },
+    {
+     "lat": 9.114,
+     "lon": 7.438
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 7,
+   "tags": {
+    "highway": "residential",
+    "name": "Lonely Track"
+   },
+   "geometry": [
+    {
+     "lat": 9.19,
+     "lon": 7.49
+    },
+    {
+     "lat": 9.195,
+     "lon": 7.495
+    }
+   ]
+  },
+  {
+   "type": "node",
+   "id": 8,
+   "lat": 9.1005,
+   "lon": 7.4105,
+   "tags": {
+    "amenity": "townhall",
+    "name": "INEC Office, Testville"
+   }
+  },
+  {
+   "type": "node",
+   "id": 9,
+   "lat": 9.103,
+   "lon": 7.3705,
+   "tags": {
+    "amenity": "townhall",
+    "name": "Testville Local Government Secretariat"
+   }
+  },
+  {
+   "type": "node",
+   "id": 10,
+   "lat": 9.1132,
+   "lon": 7.3758,
+   "tags": {
+    "amenity": "place_of_worship",
+    "religion": "muslim",
+    "name": "Testville Central Mosque"
+   }
+  },
+  {
+   "type": "node",
+   "id": 11,
+   "lat": 9.0838,
+   "lon": 7.4021,
+   "tags": {
+    "amenity": "place_of_worship",
+    "religion": "christian",
+    "name": "Saint Test Church"
+   }
+  },
+  {
+   "type": "node",
+   "id": 12,
+   "lat": 9.1221,
+   "lon": 7.3919,
+   "tags": {
+    "amenity": "marketplace",
+    "name": "Testville Market"
+   }
+  },
+  {
+   "type": "node",
+   "id": 13,
+   "lat": 9.0879,
+   "lon": 7.4141,
+   "tags": {
+    "amenity": "school",
+    "name": "Testville Primary School"
+   }
+  },
+  {
+   "type": "node",
+   "id": 14,
+   "lat": 9.1001,
+   "lon": 7.3899,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Mama Test Buka"
+   }
+  },
+  {
+   "type": "node",
+   "id": 15,
+   "lat": 9.0969,
+   "lon": 7.4401,
+   "tags": {
+    "amenity": "bus_station",
+    "name": "Testville Motor Park"
+   }
+  },
+  {
+   "type": "node",
+   "id": 16,
+   "lat": 9.1021,
+   "lon": 7.3902,
+   "tags": {
+    "shop": "newsagent",
+    "name": "Test News Stand"
+   }
+  },
+  {
+   "type": "node",
+   "id": 17,
+   "lat": 9.1061,
+   "lon": 7.4421,
+   "tags": {
+    "amenity": "cinema",
+    "name": "Testville Viewing Centre"
+   }
+  },
+  {
+   "type": "node",
+   "id": 18,
+   "lat": 9.1141,
+   "lon": 7.4381,
+   "tags": {
+    "tourism": "attraction",
+    "name": "Test Tower"
+   }
+  },
+  {
+   "type": "node",
+   "id": 19,
+   "lat": 9.0799,
+   "lon": 7.4201,
+   "tags": {
+    "leisure": "park",
+    "name": "Test Garden"
+   }
+  }
+ ]
+}

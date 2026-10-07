@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { GameMap, MapCallbacks } from "@/game/map/GameMap";
-import { getGameStore } from "@/game/store";
+import type { GameMap, MapCallbacks } from "@/world/GameMap";
+import { getGameStore } from "@/store";
 
 interface Props extends MapCallbacks {
   /** Pause drawing (for example while an interior is open). */
@@ -23,7 +23,7 @@ export default function MapView({ active = true, onReady, onBillboard }: Props) 
     let alive = true;
     let created: GameMap | null = null;
     (async () => {
-      const { GameMap } = await import("@/game/map/GameMap");
+      const { GameMap } = await import("@/world/GameMap");
       if (!alive || !host.current) return;
       created = await GameMap.create(host.current, getGameStore(), { onBillboard: (id) => cbs.current.onBillboard?.(id) });
       if (!alive) return created.destroy();

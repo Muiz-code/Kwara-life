@@ -14,8 +14,8 @@ const lilita = Lilita_One({
 });
 
 export const metadata: Metadata = {
-  title: "Kwara Life",
-  description: "A life sim set in Ilorin, Kwara State.",
+  title: "Naija Votes 2027",
+  description: "A Nigerian life sim where you live, get your PVC and vote. A game, not affiliated with INEC, not a poll or prediction.",
 };
 
 export const viewport: Viewport = {
