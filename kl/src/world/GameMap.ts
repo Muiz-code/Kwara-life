@@ -14,21 +14,11 @@ import {
   TRAFFIC_W, VEHICLE_ART, VEHICLE_W,
 } from "./art";
 import { buildGround } from "./ground";
-import { ilorinTown } from "./ilorin-town";
-import { billboardPositions, hitTest, standAt, tileBase } from "./layout";
-import { pointAlong, router, type MapRoute, type RoadGraph } from "./routing";
+import { ilorinMap } from "./ilorin-map";
+import { billboardPositions, hitTest, standAt } from "./layout";
+import { pointAlong, router, type RoadGraph } from "./routing";
 import { drawTile, KIND_ART } from "./tiles";
-import { lookTile, sharedTile, tileFor, type LookTile } from "./tile-art";
-import { drawShacks } from "./shacks";
-import { buildTownGround } from "./town-ground";
-import { Traffic } from "./traffic";
 import type { MapPlace, Point, WorldMap } from "./types";
-import { ALL_VEHICLE_ART } from "./vehicles";
-
-/** Vehicle sprite for each transport mode on any map (danfo, ride-hailing and SUV reuse the nearest sprite). */
-const SPRITE_FOR_MODE: Record<string, ModeId> = {
-  walk: "walk", keke: "keke", okada: "okada", bus: "bus", horse: "horse", danfo: "bus", ride: "keke", suv: "keke",
-};
 
 export interface MapCallbacks {
   onBillboard?: (slotId: string) => void;
@@ -94,12 +84,6 @@ function devMap(): WorldMap | undefined {
   return (window as unknown as { __naijaMap?: WorldMap }).__naijaMap;
 }
 
-/** A camera position for screenshots, set on the window before the canvas starts. Never in production. */
-function devView(): { zoom: number; x?: number; y?: number } | undefined {
-  if (process.env.NODE_ENV === "production") return undefined;
-  return (window as unknown as { __naijaView?: { zoom: number; x?: number; y?: number } }).__naijaView;
-}
-
 export class GameMap {
   private app = new Application();
   private viewport!: Viewport;
@@ -142,9 +126,9 @@ export class GameMap {
     this.map = map;
   }
 
-  /** The map defaults to Ilorin, now built as a grid town like every other LGA. */
+  /** The map defaults to the hand-built Ilorin one, as before. */
   static async create(host: HTMLElement, store: GameStoreApi, cb: MapCallbacks = {}, map?: WorldMap): Promise<GameMap> {
-    const m = new GameMap(store, cb, map ?? devMap() ?? ilorinTown());
+    const m = new GameMap(store, cb, map ?? devMap() ?? ilorinMap());
     await m.init(host);
     return m;
   }
@@ -182,20 +166,11 @@ export class GameMap {
     const sign = cssFont("--font-lilita", "'Lilita One', 'Arial Black', sans-serif");
     await Promise.all([document.fonts?.load(`16px ${sign}`), document.fonts?.load(`800 13px ${ui}`)]).catch(() => {});
     // Only the art this map actually uses, so a phone on mobile data loads less.
-    // A file that is missing or fails is simply drawn in code instead.
-    const art = new Set<string>([...Object.values(AVATAR_ART), ...Object.values(VEHICLE_ART), BILLBOARD_ART]);
-    for (const p of map.places) {
-      const src = this.artFor(p);
-      if (src) art.add(src);
-    }
-    for (const b of map.buildings ?? []) if (b.art ?? this.buildingArt(b.kind)) art.add((b.art ?? this.buildingArt(b.kind))!);
-    if (map.grid) for (const v of ALL_VEHICLE_ART) art.add(v);
-    const results = await Promise.allSettled([...art].map((src) => Assets.load(src).then(() => src)));
-    for (const r of results) if (r.status === "fulfilled") this.loaded.add(r.value);
+    const art = [...new Set(map.places.map((p) => p.art ?? KIND_ART[p.kind]).filter(Boolean) as string[])];
+    await Assets.load([...new Set([...art, ...Object.values(AVATAR_ART), ...Object.values(VEHICLE_ART), BILLBOARD_ART])]);
     if (this.destroyed) return;
 
-    this.route = router(map);
-    this.graph = this.route.graph;
+    this.graph = router(map).graph;
     this.boards = billboardPositions(map);
 
     const vp = new Viewport({
@@ -219,7 +194,7 @@ export class GameMap {
     vp.on("clicked", (e) => this.onTap(e.world.x, e.world.y));
     this.app.renderer.on("resize", (w: number, h: number) => vp.resize(w, h, W, H));
 
-    vp.addChild(map.grid ? buildTownGround(map, { ui, sign }) : buildGround(map, { ui }));
+    vp.addChild(buildGround(map, { ui }));
     vp.addChild(this.ring);
 
     // Buildings and billboards share one layer, drawn back to front.
@@ -227,44 +202,15 @@ export class GameMap {
     things.sortableChildren = true;
     vp.addChild(things);
     const biome = BIOMES[map.biome];
-    const base = tileBase(map);
-    // The town's ordinary buildings, each on its own plot, turned to face its street.
-    for (const b of map.buildings ?? []) {
-      const src = b.art ?? this.buildingArt(b.kind);
-      const c = new Container();
-      if (src && this.loaded.has(src)) {
-        const s = new Sprite(Texture.from(src));
-        s.anchor.set(0.5, 1);
-        const k = TILE_W / s.texture.width;
-        s.scale.set(b.flip ? -k : k, k);
-        s.position.set(0, base);
-        c.addChild(s);
-      } else if (b.kind === "shacks") {
-        const g = new Graphics();
-        drawShacks(g, Math.round(b.x * 7 + b.y * 13));
-        g.position.set(0, base - 18);
-        c.addChild(g);
-      } else {
-        const g = new Graphics();
-        drawTile(g, "house", biome);
-        g.position.set(0, base - TILE_BASE);
-        c.addChild(g);
-      }
-      c.position.set(b.x, b.y);
-      c.zIndex = b.y + base;
-      c.cullable = true;
-      things.addChild(c);
-    }
     for (const p of map.places) {
-      const src = this.artFor(p);
+      const src = p.art ?? KIND_ART[p.kind];
       const c = new Container();
       let height = TILE_W;
-      if (src && this.loaded.has(src)) {
+      if (src && Assets.cache.has(src)) {
         const s = new Sprite(Texture.from(src));
         s.anchor.set(0.5, 1);
-        const k = TILE_W / s.texture.width;
-        s.scale.set(p.flip ? -k : k, k);
-        s.position.set(0, base);
+        s.scale.set(TILE_W / s.texture.width);
+        s.position.set(0, TILE_BASE);
         c.addChild(s);
         height = s.height;
       } else {
@@ -281,9 +227,8 @@ export class GameMap {
           this.lit[p.id] = lit;
         }
       }
-      if (!(src && this.loaded.has(src))) c.children[0]?.position.set(0, base - TILE_BASE);
       c.position.set(p.x, p.y);
-      c.zIndex = p.y + base;
+      c.zIndex = p.y + TILE_BASE;
       c.cullable = true;
       things.addChild(c);
       this.tileHeights[p.id] = height;
@@ -345,7 +290,7 @@ export class GameMap {
     const signs = new Container();
     vp.addChild(signs);
     for (const p of map.places) {
-      const top = p.y + base - this.tileHeights[p.id];
+      const top = p.y + TILE_BASE - this.tileHeights[p.id];
       const t = new Text({ text: p.name, style: { fontFamily: sign, fontSize: 15, fill: SIGN_TEXT } });
       t.anchor.set(0.5);
       const w = Math.max(92, t.width + 26);
@@ -384,6 +329,18 @@ export class GameMap {
     vp.addChild(this.player);
     this.setLook(this.store.getState());
 
+    // The ODbL credit for OpenStreetMap data, fixed in the corner of the screen.
+    if (map.attribution) {
+      const credit = new Text({
+        text: map.attribution,
+        style: { fontFamily: ui, fontSize: 11, fill: 0x3f2a16, stroke: { color: 0xf3e6c8, width: 3 } },
+      });
+      credit.anchor.set(0, 1);
+      const place = () => credit.position.set(8, this.app.renderer.height / this.app.renderer.resolution - 6);
+      place();
+      this.app.renderer.on("resize", place);
+      this.app.stage.addChild(credit);
+    }
 
     // Start the camera on the player.
     const start = standAt(map, this.store.getState().game.loc);
@@ -467,7 +424,6 @@ export class GameMap {
 
     // Traffic keeps moving unless the game is paused or a note is open.
     const running = !st.paused && st.game.notes.length === 0 && !st.reducedMotion;
-    this.traffic?.update(dt, now, running);
     if (running && this.cars.length) {
       for (const c of this.cars) {
         const p = this.graph.verts[c.a];
