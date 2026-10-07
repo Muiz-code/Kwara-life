@@ -1,6 +1,7 @@
 "use client";
 // Small building blocks for the game screens: glass pills and cards over the map, sheets and modals.
 import { useEffect, useState, type ReactNode } from "react";
+import { clockNow } from "@/store/clock";
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -72,9 +73,9 @@ export function Chip({ children, tone }: { children: ReactNode; tone?: "cost" | 
 
 /** Real wall-clock time, refreshed every few seconds. */
 export function useNow(everyMs = 1000) {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(() => clockNow());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), everyMs);
+    const id = setInterval(() => setNow(clockNow()), everyMs);
     return () => clearInterval(id);
   }, [everyMs]);
   return now;

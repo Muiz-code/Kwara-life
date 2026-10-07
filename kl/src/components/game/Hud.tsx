@@ -6,7 +6,7 @@ import { PRESIDENTIAL_2027 as CAL, civicPhase } from "@/data/calendar";
 import { NEWS } from "@/data/media";
 import { NEEDS, type NeedKey } from "@/data/needs";
 import { DAYS, dayOfWeek, fmtTime, mood } from "@/sim";
-import { getGameStore, useGame } from "@/store";
+import { clockJumped, debugMode, getGameStore, jumpClockTo, useGame } from "@/store";
 import { Button, DISCLAIMER, Glass, Modal, cx, naira, useNow } from "./ui";
 
 const NEED_ICON: Record<NeedKey, string> = {
@@ -89,6 +89,39 @@ const HOW_TO_PLAY = [
   "On 14 November, go to your own polling unit between 8am and 4pm and vote. If you travelled, come home first.",
 ];
 
+/** Debug only (?debug): jump the real clock to each stage of the season. */
+function ClockJumps({ onDone }: { onDone: () => void }) {
+  const at = (iso: string, plusMin = 0) => Date.parse(iso) + plusMin * 60_000;
+  const jumps: [string, number | null][] = [
+    ["Registration", null],
+    ["PVC collection", at(CAL.pvcAnnouncement, 9 * 60)],
+    ["Blackout", at(CAL.pollsOpen, -12 * 60)],
+    ["Polls open", at(CAL.pollsOpen, 30)],
+    ["Last 3 minutes", at(CAL.pollsClose, -3)],
+    ["Polls closed", at(CAL.pollsClose, 1)],
+  ];
+  return (
+    <div className="rounded-2xl border-2 border-dashed border-line p-2">
+      <div className="mb-1.5 text-xs font-bold text-ink-soft">Test: jump the clock{clockJumped() ? " (jumped)" : ""}</div>
+      <div className="flex flex-wrap gap-1.5">
+        {jumps.map(([label, t]) => (
+          <Button
+            key={label}
+            small
+            tone="ghost"
+            onClick={() => {
+              jumpClockTo(t ?? Date.now());
+              onDone();
+            }}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Options: pause, how to play, about, start again. */
 function GameMenu({ onClose }: { onClose: () => void }) {
   const paused = useGame((s) => s.paused);
@@ -116,6 +149,7 @@ function GameMenu({ onClose }: { onClose: () => void }) {
             <Button tone="danger" onClick={() => setView("reset")}>
               Start a new life
             </Button>
+            {debugMode() && <ClockJumps onDone={onClose} />}
             <Button tone="ghost" onClick={onClose}>
               Close
             </Button>
