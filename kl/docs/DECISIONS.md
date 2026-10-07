@@ -24,11 +24,16 @@ Players pick their state and LGA. Class, job, home, money, PVC status, TV and ra
 once, as in the prototype.
 
 ### Maps
-- Every LGA map uses real road shapes from OpenStreetMap, stretched evenly so tiles do not overlap.
-- Places are real: each state's famous landmarks and real civic places (INEC office, polling units, markets,
-  mosques, churches) in the right spot. Tiles reuse the house art style but match the place and the area's look
-  (for example Kaduna farmland is green, Sahel towns are dry, the Delta has creeks).
-- OpenStreetMap data is used under the ODbL: show "© OpenStreetMap contributors" on the map.
+- Every LGA is a hand-designed town generated from a seed (the LGA code), so each one is different but the same
+  for every player in it. Streets run on the isometric grid, like Lagos Life but tidier. No OpenStreetMap: no
+  outside service, no big downloads, every town readable on a phone.
+- Three districts: a rich side (GRA or estate), a mixed centre (market, motor park, INEC office, polling unit
+  school, town hall, mosque, church, viewing centre, news stand, state landmark) and a poor side (compounds,
+  workshops, buka, flyover, shelter). The citizen's home goes by class, so distance matters.
+- Real flavour only where it is real: LGA names, the state landmark, the zone's look (Sahel, savanna, rainforest,
+  hills, Delta creeks, green farmland where farming is big), local market and food names, and real neighbourhood
+  names per state (draft list in src/data/districts.ts, needs the user's review).
+- Ilorin is rebuilt in the same system with its real areas and its 27 places.
 
 ### Result privacy
 A polling unit result sheet shows a real-player breakdown only once at least 10 real players have voted there.
