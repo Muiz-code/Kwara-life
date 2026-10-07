@@ -113,3 +113,15 @@ describe("crossing servers", () => {
     for (const z of ["NW", "NE", "NC", "SW", "SS", "SE"] as const) for (const y of ["NW", "NE", "NC", "SW", "SS", "SE"] as const) expect(zoneHops(z, y)).toBeLessThanOrEqual(3);
   });
 });
+
+describe("election day and the end of the season", () => {
+  it("restricts movement during polls and freezes everything after", () => {
+    const s = make();
+    expect(quoteJourney(s, "kwara/offa", "bus", POLLS).blocked).toBe("Movement is restricted on election day");
+    expect(quoteJourney(s, "kwara/offa", "bus", Date.parse("2026-11-14T16:00:00+01:00")).blocked).toBe("The season is over. Thank you for voting");
+    const market = lgaActions({ state: STATE.lagos, lgaName: "Ikeja", cls: "middle", job: "Nurse", home: "Mini flat", underFlyover: false }).market[1];
+    expect(performAction({ ...s, loc: "market", t: 10 * 60 }, market, never, { now: POLLS, place: { name: "Market", open: [6, 20], gen: false } })).toEqual({
+      blocked: "Election day: markets and offices are closed. Go and vote",
+    });
+  });
+});

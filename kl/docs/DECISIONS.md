@@ -86,3 +86,14 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - A journey into another zone hands the citizen over to that zone's server and back. Players see a "long journey"
   loading screen: none inside a zone, 14 seconds to a neighbouring zone, up to 30 seconds across the country
   (sim/journey.ts handoverSeconds). The vote always stays on the home server, because you can only vote at home.
+
+### Voting, the end of the season and ad prices
+- No SMS or WhatsApp OTP. Voting happens in the game: walk to your polling unit, queue, BVAS, ballot. One citizen
+  per account, with free Google sign-in plus device and rate limits against multiple accounts and bots.
+- While polls are open players see a live turnout counter only (votes cast), never party standings.
+- At polls close (4pm Saturday 14 November) the game freezes for every player: no more actions or travel. Live
+  collation runs, the winning party is announced over a generic celebration video (no party marks; the party name
+  and colour are overlaid), then a closing screen thanks everyone, urges them to vote in real elections and choose
+  wisely, and shows the disclaimer.
+- Commercial ad prices: N5,000 per showing, or N4.5m per 1,000 showings. Prices live on the server so they can
+  change without a release.

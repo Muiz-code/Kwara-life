@@ -1,4 +1,5 @@
 import { PLACE } from "../data/ilorin/places";
+import { PRESIDENTIAL_2027, pollsAreOpen, seasonClosed } from "../data/calendar";
 import type { GameState } from "./state";
 import { clone, log } from "./state";
 import type { Rng } from "./rng";
@@ -76,8 +77,11 @@ export interface Trip {
  * Start a trip. The caller animates it and runs the clock for trip.minutes
  * (advance), then calls finishTrip.
  */
-export function startTrip(state: GameState, dest: string, mode: ModeId): { state: GameState; trip: Trip } | { blocked: string } {
+export function startTrip(state: GameState, dest: string, mode: ModeId, now = 0): { state: GameState; trip: Trip } | { blocked: string } {
   if (dest === state.loc) return { blocked: "You are already here" };
+  if (now && seasonClosed(PRESIDENTIAL_2027, now)) return { blocked: "The season is over. Thank you for voting" };
+  // Election day: you may only move between home and your polling unit.
+  if (now && pollsAreOpen(PRESIDENTIAL_2027, now) && !["pu", "home"].includes(dest)) return { blocked: "Movement is restricted on election day. Go and vote" };
   const q = quoteTrip(state.loc, dest);
   const why = modeBlockReason(state, mode, q);
   if (why) return { blocked: why };

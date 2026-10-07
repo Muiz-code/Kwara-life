@@ -8,6 +8,7 @@ import {
   startAction, startTrip, tripAnimMs, type ActionFlow, type ActionPlan, type ChoiceId, type GameState, type ModeId, type Rng, type Trip,
 } from "../sim";
 import { throttledStorage } from "./storage";
+import { PRESIDENTIAL_2027, seasonClosed } from "../data/calendar";
 
 export const SAVE_KEY = "kwara-life-v4";
 /** Game minutes that pass each real second while idle. */
@@ -88,6 +89,8 @@ export function createGameStore({ rng = Math.random, storage, realNow = Date.now
           tick: () => {
             const st = get();
             if (st.paused || isBusy(st) || isModalOpen(st)) return;
+            // The season is over: the game is frozen for everyone.
+            if (st.game.citizen && seasonClosed(PRESIDENTIAL_2027, realNow())) return;
             const g = clone(st.game);
             advance(g, MINUTES_PER_TICK, rng);
             checkCritical(g, rng);
@@ -145,7 +148,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = Date.now
           travel: (dest, mode, now) => {
             const st = get();
             if (isBusy(st)) return;
-            const r = startTrip(st.game, dest, mode);
+            const r = startTrip(st.game, dest, mode, realNow());
             if ("blocked" in r) return toast(r.blocked);
             const ms = st.reducedMotion ? 400 : tripAnimMs(mode, r.trip.route.length);
             commit(r.state, { activity: { kind: "trip", trip: r.trip, startedAt: now, ms, done: 0 } });

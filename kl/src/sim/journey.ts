@@ -2,7 +2,7 @@
 // sleep at home, buy votes and vote in your own LGA. Interstate trips run between state capitals; trips
 // between LGAs of the same state count as a short bus ride.
 import { CAPITALS } from "../data/capitals";
-import { PRESIDENTIAL_2027 } from "../data/calendar";
+import { PRESIDENTIAL_2027, pollsAreOpen, seasonClosed } from "../data/calendar";
 import { LGA } from "../data/geography";
 import type { ClassId } from "../data/jobs";
 import { STATE } from "../data/states";
@@ -84,7 +84,9 @@ export function quoteJourney(s: GameState, toLga: string, mode: JourneyMode, now
     fare = round500(km * 60);
   }
   let blocked: string | null = null;
-  if (km === 0) blocked = "You are already here";
+  if (seasonClosed(cal, now)) blocked = "The season is over. Thank you for voting";
+  else if (pollsAreOpen(cal, now)) blocked = "Movement is restricted on election day";
+  else if (km === 0) blocked = "You are already here";
   else if (!MODES_FOR_CLASS[c.cls].includes(mode)) blocked = mode === "car" ? "You don't have a car" : "Flights are out of your budget";
   else if (mode === "flight" && a.stateCode === b.stateCode) blocked = "No flights within a state. Take the bus";
   else if (mode === "flight" && (!CAPITALS[a.stateCode].airport || !CAPITALS[b.stateCode].airport))
