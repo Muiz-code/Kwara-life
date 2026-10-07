@@ -10,6 +10,9 @@ import { befriend } from "./friends";
 import { checkCritical } from "./critical";
 import { civicBlockReason, watDate, type CivicContext } from "./civic";
 import { currentHeadline, mediaInformed, mediaShow } from "./media";
+import { CAREERS } from "../data/careers";
+import { doWork, workBlockReason } from "./work";
+import { POS_CHARGE, cashScarcity } from "./naija-life";
 
 export const BASIRA_DISCOUNT_HEARTS = 3;
 export const BASIRA_AMALA_PRICE = 1800;
@@ -17,7 +20,9 @@ export const DRY_TAP_CHANCE = 0.3;
 
 export function actionCost(s: GameState, a: Action): number {
   if (a.id === "amala" && s.friends.basira >= BASIRA_DISCOUNT_HEARTS) return BASIRA_AMALA_PRICE;
-  return a.cost ?? 0;
+  const base = a.cost ?? 0;
+  // Cash scarcity: POS agents charge extra on anything you pay for.
+  return base && s.citizen && cashScarcity(s) ? base + POS_CHARGE : base;
 }
 
 export const horseToday = (s: GameState) => s.horseDay === dayNum(s.t);
@@ -45,7 +50,8 @@ export const SHELTER_BED_CHANCE = 0.35;
 export const PVC_NOT_READY_CHANCE = 0.3;
 
 /** Game minutes an action takes (work shifts last as long as the class's shift). */
-export const actionMinutes = (s: GameState, a: Action) => (a.shift && s.citizen ? PAY[s.citizen.cls].shiftMinutes : a.dur);
+export const actionMinutes = (s: GameState, a: Action) =>
+  a.shift && s.citizen ? (CAREERS[s.citizen.career]?.shiftMinutes ?? PAY[s.citizen.cls].shiftMinutes) : a.dur;
 
 /** Why the action can't be done right now, or null if it can. */
 export function blockReason(s: GameState, a: Action, ctx: ActionContext = {}): string | null {
@@ -71,7 +77,10 @@ export function blockReason(s: GameState, a: Action, ctx: ActionContext = {}): s
   }
   const civic = civicBlockReason(s, a, { now: ctx.now ?? 0, cal: ctx.cal });
   if (civic) return civic;
-  if (a.shift && s.flags.shiftDay === dayNum(s.t)) return "You already worked today";
+  if (a.shift) {
+    const w = workBlockReason(s, p);
+    if (w) return w;
+  }
   if (a.minSkill && s.skill < a.minSkill) return `Needs skill ${a.minSkill}. Learn at the Innovation Hub or KWASU library`;
   if (actionCost(s, a) > s.money) return "Not enough money";
   return null;
@@ -150,12 +159,9 @@ export function finishAction(state: GameState, plan: ActionPlan, rng: Rng, ctx: 
   if (a.informed) s.informed += a.informed;
   if (a.civic) s.civic += a.civic;
   if (c && a.shift) {
-    const pay = PAY[c.cls];
-    const earned = Math.round(pay.min + rng() * (pay.max - pay.min));
-    s.money += earned;
-    s.flags.shiftDay = dayNum(s.t);
-    msg = `You worked as a ${c.job.toLowerCase()} and earned ${naira(earned)}.`;
-    toast = "+" + naira(earned);
+    const w = doWork(s, rng);
+    msg = w.msg;
+    toast = w.toast;
   }
   if (c && a.buy) {
     if (a.buy === "tv") c.ownsTv = true;

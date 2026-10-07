@@ -12,8 +12,8 @@ import {
 const at = (iso: string) => Date.parse(iso);
 const EARLY = at("2026-10-10T12:00:00+01:00"); // registration open
 const PVC_TIME = at("2026-11-02T12:00:00+01:00"); // collection open
-const BLACKOUT = at("2026-11-04T09:00:00+01:00");
-const POLLS = at("2026-11-05T10:00:00+01:00");
+const BLACKOUT = at("2026-11-13T09:00:00+01:00");
+const POLLS = at("2026-11-14T10:00:00+01:00");
 const never = sequence(0.99);
 const always = sequence(0);
 
@@ -21,11 +21,11 @@ const look = { g: "m" as const, skin: "#8D5524", cloth: "#F4F1EA" };
 function citizen(patch: Partial<Citizen> = {}): Citizen {
   return {
     name: "Muiz", look, stateCode: "kwara", lgaCode: "kwara/offa", puCode: "kwara/offa/2", cls: "poor", job: "Tailor",
-    home: "Family compound", underFlyover: false, wasUnder: false, ownsTv: false, ownsRadio: true, pvc: "have",
+    home: "Family compound", career: "artisan", education: "secondary", employed: true, monthlyPay: 0, underFlyover: false, wasUnder: false, ownsTv: false, ownsRadio: true, pvc: "have",
     createdAt: at("2026-10-07T12:00:00+01:00"), registeredAt: null, ...patch,
   };
 }
-const ctxFor = (c: Citizen) => ({ state: STATE[c.stateCode], lgaName: "Offa", cls: c.cls, job: c.job, home: c.home, underFlyover: c.underFlyover, wasUnder: c.wasUnder });
+const ctxFor = (c: Citizen) => ({ state: STATE[c.stateCode], lgaName: "Offa", cls: c.cls, job: c.job, home: c.home, underFlyover: c.underFlyover, wasUnder: c.wasUnder, career: c.career });
 /** A citizen on a generated LGA map at a place, game day 1 (Monday), 10am. */
 function onMap(loc: LgaPlaceId, c = citizen(), patch: Partial<GameState> = {}): GameState {
   return { ...freshState(), citizen: c, loc, homeId: "home", t: 10 * 60, money: 50000, ...patch };
@@ -104,15 +104,23 @@ describe("civic actions on an LGA map", () => {
     expect(why(turned, "collect", PVC_TIME)).toBe("INEC said come back tomorrow");
     const got = run(turned, "collect", PVC_TIME + 86_400_000);
     expect(got.citizen!.pvc).toBe("have");
-    expect(why(onMap("inec", citizen({ pvc: "registered" })), "collect", at("2026-11-05T07:51:00+01:00"))).toBe("PVC collection has closed");
+    expect(why(onMap("inec", citizen({ pvc: "registered" })), "collect", at("2026-11-14T07:51:00+01:00"))).toBe("PVC collection has closed");
   });
 
-  it("pays a work shift by class, once a game day", () => {
-    const s = run(onMap("work", citizen({ cls: "middle", job: "Nurse" })), "work", EARLY, sequence(0.5));
-    expect(s.money).toBe(50000 + Math.round(22000 + 0.5 * (45000 - 22000)));
+  it("pays a day's share of a monthly salary, once a game day", () => {
+    const nurse = citizen({ cls: "middle", job: "Nurse", career: "worker", monthlyPay: 220000 });
+    const s = run(onMap("work", nurse), "work", EARLY, sequence(0.5));
+    expect(s.money).toBe(50000 + 10000);
     expect(s.t).toBe(10 * 60 + 480);
-    expect(s.log[0].msg).toMatch(/You worked as a nurse and earned/);
+    expect(s.log[0].msg).toBe("A full day as a nurse. You earned ₦10,000.");
     expect(why({ ...s, loc: "work" }, "work", EARLY)).toBe("You already worked today");
+  });
+
+  it("pays artisans by the day and needs a job for 9 to 5 work", () => {
+    const s = run(onMap("work"), "work", EARLY, sequence(0.5));
+    expect(s.money).toBeGreaterThan(50000);
+    const jobless = onMap("work", citizen({ career: "worker", employed: false }));
+    expect(why(jobless, "work", EARLY)).toMatch(/You don't have a job yet/);
   });
 
   it("needs a TV for TV news at home, and a radio for the radio", () => {
@@ -230,7 +238,7 @@ describe("election day", () => {
 
   it("votes once, at the polling unit, during polls, and never stores the choice", () => {
     const s = onMap("pu");
-    expect(castVote(s, "LP", { now: EARLY, atPollingUnit: true }, never)).toEqual({ blocked: "Voting is on 5 November, 8am to 4pm" });
+    expect(castVote(s, "LP", { now: EARLY, atPollingUnit: true }, never)).toEqual({ blocked: "Voting is on 14 November, 8am to 4pm" });
     expect(castVote(s, "LP", { now: POLLS, atPollingUnit: false }, never)).toEqual({ blocked: "Go to your polling unit to vote" });
     const r = castVote(s, "LP", { now: POLLS, atPollingUnit: true }, never);
     if ("blocked" in r) throw new Error(r.blocked);

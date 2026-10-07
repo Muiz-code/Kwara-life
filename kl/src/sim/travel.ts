@@ -7,6 +7,8 @@ import { advance, applyFx, clamp } from "./needs";
 import { checkCritical } from "./critical";
 import { horseToday } from "./actions";
 import { route, type Route } from "./world";
+import { FLOOD_DELAY, FUEL_FARE_FACTOR, flooded, fuelScarcity } from "./naija-life";
+import { maybePoliceStop } from "./police";
 
 export type ModeId = "walk" | "keke" | "okada" | "bus" | "horse";
 
@@ -81,7 +83,9 @@ export function startTrip(state: GameState, dest: string, mode: ModeId): { state
   if (why) return { blocked: why };
   const s = clone(state);
   s.inside = false;
-  return { state: s, trip: { dest, mode, route: q.route, minutes: q.modes[mode].minutes, fare: q.modes[mode].fare } };
+  const fare = fuelScarcity(s) ? Math.round((q.modes[mode].fare * FUEL_FARE_FACTOR) / 50) * 50 : q.modes[mode].fare;
+  if (fare > s.money) return { blocked: "Not enough money" };
+  return { state: s, trip: { dest, mode, route: q.route, minutes: q.modes[mode].minutes, fare } };
 }
 
 /** Arrive: pay, tire, roll for something happening on the way. */
@@ -125,7 +129,12 @@ export function finishTrip(state: GameState, trip: Trip, rng: Rng): GameState {
     applyFx(s, { hygiene: -15 });
     msg += " Rain caught you on the way.";
   }
+  if (flooded(s)) {
+    advance(s, FLOOD_DELAY, rng);
+    msg += " Flooded roads added 30 minutes.";
+  }
   log(s, msg);
+  if (trip.mode !== "walk" && trip.mode !== "horse") maybePoliceStop(s, false, rng);
   checkCritical(s, rng);
   return s;
 }
