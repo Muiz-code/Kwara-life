@@ -66,7 +66,11 @@ describe("job hunting", () => {
   it("posts the same openings for everyone in an LGA that week", () => {
     expect(openings("lagos/surulere", 3)).toEqual(openings("lagos/surulere", 5));
     expect(openings("lagos/surulere", 3)).not.toEqual(openings("lagos/surulere", 10));
-    for (const o of openings("kano/fagge", 1)) expect(o.monthly).toBeGreaterThanOrEqual(MINIMUM_WAGE);
+    for (let day = 1; day < 60; day += 7)
+      for (const o of openings("kano/fagge", day)) {
+        expect(o.monthly).toBeGreaterThanOrEqual(MINIMUM_WAGE);
+        if (o.minEducation === "none") expect(o.monthly).toBeLessThanOrEqual(110000);
+      }
   });
 
   it("applies, waits and sometimes gets hired", () => {

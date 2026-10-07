@@ -1,7 +1,6 @@
 // Job hunting: openings on the notice board, applications, and a random hiring decision weighted by
 // qualifications, how informed you are, competition, and a little "long leg" for the rich.
-import { CAREERS, EDUCATION_RANK, type CareerId, type Education } from "../data/careers";
-import { rollSalary } from "./roll";
+import { EDUCATION_RANK, MINIMUM_WAGE, type CareerId, type Education } from "../data/careers";
 import { seeded, type Rng } from "./rng";
 import { clone, log, naira, note, type GameState, type JobApplication } from "./state";
 import { dayNum } from "./time";
@@ -15,12 +14,13 @@ export interface Opening {
   applicants: number;
 }
 
-const HIRING: { career: CareerId; titles: string[]; minEducation: Education }[] = [
-  { career: "worker", titles: ["Security guard", "Office cleaner", "Sales rep"], minEducation: "none" },
-  { career: "worker", titles: ["Secondary school teacher", "Bank teller", "Accountant", "Nurse", "Civil servant"], minEducation: "degree" },
-  { career: "worker", titles: ["Customer care officer", "Admin officer"], minEducation: "ond" },
-  { career: "developer", titles: ["Junior developer", "Product designer"], minEducation: "secondary" },
-  { career: "politician", titles: ["Special assistant", "Ward coordinator"], minEducation: "secondary" },
+/** Kinds of openings, each with a realistic monthly pay band (never below minimum wage). */
+const HIRING: { career: CareerId; titles: string[]; minEducation: Education; pay: [number, number] }[] = [
+  { career: "worker", titles: ["Security guard", "Office cleaner", "Sales rep", "Driver"], minEducation: "none", pay: [MINIMUM_WAGE, 110000] },
+  { career: "worker", titles: ["Customer care officer", "Admin officer", "Cashier"], minEducation: "ond", pay: [90000, 180000] },
+  { career: "worker", titles: ["Secondary school teacher", "Bank teller", "Accountant", "Nurse", "Civil servant"], minEducation: "degree", pay: [150000, 400000] },
+  { career: "developer", titles: ["Junior developer", "Product designer"], minEducation: "secondary", pay: [250000, 900000] },
+  { career: "politician", titles: ["Special assistant", "Ward coordinator"], minEducation: "secondary", pay: [150000, 500000] },
 ];
 
 const hashStr = (s: string) => {
@@ -41,7 +41,7 @@ export function openings(lgaCode: string, gameDay: number): Opening[] {
       id: `${lgaCode}#${week}#${i}`,
       career,
       title: h.titles[Math.floor(R() * h.titles.length)],
-      monthly: Math.max(CAREERS[career].min, rollSalary(career, R)),
+      monthly: Math.round((h.pay[0] + Math.pow(R(), 2) * (h.pay[1] - h.pay[0])) / 1000) * 1000,
       minEducation: h.minEducation,
       applicants: 20 + Math.floor(R() * 480),
     };

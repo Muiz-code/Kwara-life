@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PRESIDENTIAL_2027 as C, blackoutStart, campaigningAllowed, canCollectPvc, canRegister, civicPhase, pollsAreOpen } from "./calendar";
+import { PRESIDENTIAL_2027 as C, seasonClosed, blackoutStart, campaigningAllowed, canCollectPvc, canRegister, civicPhase, pollsAreOpen } from "./calendar";
 
 const at = (iso: string) => Date.parse(iso);
 
@@ -29,6 +29,11 @@ describe("election calendar", () => {
     expect(campaigningAllowed(C, blackoutStart(C))).toBe(false);
     expect(pollsAreOpen(C, at("2026-11-14T07:59:59+01:00"))).toBe(false);
     expect(pollsAreOpen(C, at("2026-11-14T15:59:59+01:00"))).toBe(true);
+  });
+
+  it("closes the season when polls close", () => {
+    expect(seasonClosed(C, at("2026-11-14T15:59:59+01:00"))).toBe(false);
+    expect(seasonClosed(C, at("2026-11-14T16:00:00+01:00"))).toBe(true);
   });
 
   it("moves the blackout with a postponed election", () => {

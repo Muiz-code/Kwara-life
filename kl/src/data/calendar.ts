@@ -63,3 +63,6 @@ export const canCollectPvc = (c: ElectionCalendar, now: number) => now >= ms(c.p
 export const pollsAreOpen = (c: ElectionCalendar, now: number) => now >= ms(c.pollsOpen) && now < ms(c.pollsClose);
 
 export const campaigningAllowed = (c: ElectionCalendar, now: number) => now < blackoutStart(c);
+
+/** After polls close the season is over: the game freezes for every player and only results are shown. */
+export const seasonClosed = (c: ElectionCalendar, now: number) => now >= ms(c.pollsClose);

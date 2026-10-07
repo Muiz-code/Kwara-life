@@ -1,13 +1,20 @@
 import { createStore } from "zustand/vanilla";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
-import { findAction } from "../data/ilorin/actions";
+
 import type { Character } from "../data/character";
 import { PLACE } from "../data/ilorin/places";
 import {
   advance, checkCritical, clone, finishAction, finishTrip, freshState, log, note, resolveChoice,
-  startAction, startTrip, tripAnimMs, type ActionFlow, type ActionPlan, type ChoiceId, type GameState, type ModeId, type Rng, type Trip,
+  startAction, startTrip, tripAnimMs, rollCitizen, castVote, postSupportCard, buyPromo, applyForJob,
+  buyVotes as buyVotesSim, type Ballot, type CardInput, type PromoInput, type BribeInput, type Opening, startingMoney, takeJourney, currentLga, handoverSeconds, type JourneyMode, type ActionFlow, type ActionPlan, type ChoiceId, type GameState, type Rng, type Trip,
 } from "../sim";
 import { throttledStorage } from "./storage";
+import { findActionAt, placeInfo, tripWorldFor } from "./world";
+import type { WorldMap } from "../world";
+import type { Look } from "../data/character";
+import { PRESIDENTIAL_2027, seasonClosed } from "../data/calendar";
+import { LGA } from "../data/geography";
+import { STATE } from "../data/states";
 
 export const SAVE_KEY = "kwara-life-v4";
 /** Game minutes that pass each real second while idle. */
@@ -29,6 +36,10 @@ export interface GameStore {
   reducedMotion: boolean;
   /** A screen an action opened (ballot, vote-buying offer, flyers), or null. */
   flow: ActionFlow | null;
+  /** The map of the LGA the citizen is in. Null until loaded (the Ilorin map is the fallback). */
+  world: WorldMap | null;
+  /** Long-journey loading screen: real time it ends, and where to. */
+  journey: { until: number; to: string; seconds: number } | null;
 
   /** Once a second: idle clock. */
   tick: () => void;
@@ -36,7 +47,7 @@ export interface GameStore {
   progress: (now: number) => void;
   select: (id: string) => void;
   doAction: (actionId: string, now: number) => void;
-  travel: (dest: string, mode: ModeId, now: number) => void;
+  travel: (dest: string, mode: string, now: number) => void;
   /** Answer the note at the front of the queue. */
   answer: (choice: ChoiceId) => void;
   setInside: (inside: boolean) => void;
@@ -45,6 +56,19 @@ export interface GameStore {
   setReducedMotion: (v: boolean) => void;
   shiftToast: () => void;
   closeFlow: () => void;
+  setWorld: (map: WorldMap) => void;
+  /** Roll a new citizen from the player's picks (name, look, state, LGA). */
+  createCitizen: (input: { name: string; look: Look; stateCode: string; lgaCode: string }) => string | null;
+  /** Travel to another LGA or state. Returns a reason if blocked. */
+  journeyTo: (lgaCode: string, mode: JourneyMode) => string | null;
+  endJourney: () => void;
+  /** Ballot cast this session, kept only in memory so the player sees "includes your vote". Never saved. */
+  myBallot: Ballot | null;
+  vote: (party: string) => string | null;
+  postCard: (input: CardInput) => string | null;
+  promote: (input: PromoInput) => string | null;
+  buyVotes: (input: BribeInput) => string | null;
+  applyJob: (opening: Opening) => string | null;
   reset: () => void;
 }
 
@@ -84,10 +108,15 @@ export function createGameStore({ rng = Math.random, storage, realNow = Date.now
           toasts: [],
           reducedMotion: false,
           flow: null,
+          world: null,
+          journey: null,
+          myBallot: null,
 
           tick: () => {
             const st = get();
             if (st.paused || isBusy(st) || isModalOpen(st)) return;
+            // The season is over: the game is frozen for everyone.
+            if (st.game.citizen && seasonClosed(PRESIDENTIAL_2027, realNow())) return;
             const g = clone(st.game);
             advance(g, MINUTES_PER_TICK, rng);
             checkCritical(g, rng);
@@ -111,7 +140,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = Date.now
               return;
             }
             if (a.kind === "action") {
-              const done = finishAction(g, a.plan, rng, { now: realNow() });
+              const done = finishAction(g, a.plan, rng, { now: realNow(), place: placeInfo(st.world, g.loc) });
               commit(done, { activity: null, selected: done.loc });
             } else {
               const done = finishTrip(g, a.trip, rng);
@@ -121,7 +150,8 @@ export function createGameStore({ rng = Math.random, storage, realNow = Date.now
 
           select: (id) => {
             const st = get();
-            if (!PLACE[id]) return;
+            const known = st.world ? st.world.places.some((p) => p.id === id) : !!PLACE[id];
+            if (!known) return;
             // Tapping where you already are, twice, walks you inside.
             if (id === st.game.loc && st.selected === st.game.loc && !isBusy(st) && !st.game.inside) {
               set({ game: { ...st.game, inside: true } });
@@ -133,9 +163,10 @@ export function createGameStore({ rng = Math.random, storage, realNow = Date.now
           doAction: (actionId, now) => {
             const st = get();
             if (isBusy(st)) return;
-            const a = findAction(st.game.loc, actionId);
+            const a = findActionAt(st.game, st.world, st.game.loc, actionId);
             if (!a) return;
-            const r = startAction(st.game, a, rng, { now: realNow() });
+            const ctx = { now: realNow(), place: placeInfo(st.world, st.game.loc) };
+            const r = startAction(st.game, a, rng, ctx);
             if ("blocked" in r) return toast(r.blocked);
             if ("flow" in r) return set({ flow: r.flow });
             const ms = st.reducedMotion ? 120 : actionAnimMs(r.plan.dur);
@@ -145,7 +176,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = Date.now
           travel: (dest, mode, now) => {
             const st = get();
             if (isBusy(st)) return;
-            const r = startTrip(st.game, dest, mode);
+            const r = startTrip(st.game, dest, mode, realNow(), tripWorldFor(st.game, st.world));
             if ("blocked" in r) return toast(r.blocked);
             const ms = st.reducedMotion ? 400 : tripAnimMs(mode, r.trip.route.length);
             commit(r.state, { activity: { kind: "trip", trip: r.trip, startedAt: now, ms, done: 0 } });
@@ -187,6 +218,69 @@ export function createGameStore({ rng = Math.random, storage, realNow = Date.now
           togglePause: () => set({ paused: !get().paused }),
           setReducedMotion: (v) => set({ reducedMotion: v }),
           closeFlow: () => set({ flow: null }),
+          setWorld: (map) => set({ world: map }),
+          createCitizen: (input) => {
+            const st = get();
+            try {
+              const now = realNow();
+              const citizen = rollCitizen(input, now, rng);
+              const g = clone(st.game);
+              g.citizen = citizen;
+              g.char = { name: citizen.name, ...citizen.look };
+              g.money = startingMoney(citizen, rng);
+              g.loc = "home";
+              g.homeId = "home";
+              g.at = null;
+              const lga = LGA[citizen.lgaCode];
+              log(g, `${citizen.name} started life in ${lga.name}, ${STATE[lga.stateCode].name}.`);
+              commit(g, { selected: "home", world: null });
+              return null;
+            } catch (e) {
+              return (e as Error).message;
+            }
+          },
+          journeyTo: (lgaCode, mode) => {
+            const st = get();
+            if (isBusy(st) || st.journey) return "Wait a moment";
+            const from = currentLga(st.game);
+            const r = takeJourney(st.game, lgaCode, mode, realNow(), rng);
+            if ("blocked" in r) return r.blocked;
+            const seconds = from ? handoverSeconds(from, lgaCode) : 0;
+            commit(r, { world: null, selected: r.loc, journey: { until: realNow() + seconds * 1000, to: lgaCode, seconds } });
+            return null;
+          },
+          endJourney: () => set({ journey: null }),
+          vote: (party) => {
+            const st = get();
+            const r = castVote(st.game, party, { now: realNow(), atPollingUnit: st.game.loc === "pu" }, rng);
+            if ("blocked" in r) return r.blocked;
+            commit(r.state, { myBallot: r.ballot, flow: null });
+            return null;
+          },
+          postCard: (input) => {
+            const r = postSupportCard(get().game, input, { now: realNow() });
+            if ("blocked" in r) return r.blocked;
+            commit(r);
+            return null;
+          },
+          promote: (input) => {
+            const r = buyPromo(get().game, input, { now: realNow() });
+            if ("blocked" in r) return r.blocked;
+            commit(r.state, { flow: null });
+            return null;
+          },
+          buyVotes: (input) => {
+            const r = buyVotesSim(get().game, input, { now: realNow() }, rng);
+            if ("blocked" in r) return r.blocked;
+            commit(r.state, { flow: null });
+            return null;
+          },
+          applyJob: (opening) => {
+            const r = applyForJob(get().game, opening, rng);
+            if ("blocked" in r) return r.blocked;
+            commit(r);
+            return null;
+          },
           shiftToast: () => set({ toasts: get().toasts.slice(1) }),
           reset: () => {
             const g = freshState();
@@ -203,7 +297,11 @@ export function createGameStore({ rng = Math.random, storage, realNow = Date.now
         partialize: (s) => ({ game: { ...s.game, toasts: [] } }),
         merge: (persisted, current) => {
           const game = (persisted as { game?: GameState } | undefined)?.game;
-          if (!game || !game.needs || !PLACE[game.loc] || !PLACE[game.homeId]) return current;
+          if (!game || !game.needs) return current;
+          // Legacy Ilorin saves have no citizen and must be on an Ilorin place; citizens' places come from their map.
+          if (!game.citizen && (!PLACE[game.loc] || !PLACE[game.homeId])) return current;
+          if (game.citizen && !LGA[game.citizen.lgaCode]) return current;
+          // Fields added after the save was made get their defaults.
           return { ...current, game: { ...freshState(), ...game, toasts: [] }, selected: game.loc };
         },
       },

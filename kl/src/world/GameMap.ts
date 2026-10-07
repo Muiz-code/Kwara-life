@@ -24,6 +24,11 @@ import { Traffic } from "./traffic";
 import type { MapPlace, Point, WorldMap } from "./types";
 import { ALL_VEHICLE_ART } from "./vehicles";
 
+/** Vehicle sprite for each transport mode on any map (danfo, ride-hailing and SUV reuse the nearest sprite). */
+const SPRITE_FOR_MODE: Record<string, ModeId> = {
+  walk: "walk", keke: "keke", okada: "okada", bus: "bus", horse: "horse", danfo: "bus", ride: "keke", suv: "keke",
+};
+
 export interface MapCallbacks {
   onBillboard?: (slotId: string) => void;
 }
@@ -503,7 +508,7 @@ export class GameMap {
       const at = pointAlong(path, easeInOut(p));
       pos = at;
       dx = at.dx;
-      mode = a.trip.mode;
+      mode = SPRITE_FOR_MODE[a.trip.mode] ?? "keke";
     }
     this.player.position.set(pos.x, pos.y);
     this.player.visible = !(a?.kind === "action" && a.plan.action.goal === "fly");
