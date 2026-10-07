@@ -27,6 +27,8 @@ export function actionsAt(game: GameState, map: WorldMap | null, placeId: string
     return [...(ILORIN_ACTIONS[placeId] ?? []), ...civic];
   }
   const lgaCode = currentLga(game)!;
+  // Visiting: the town's homes and workplaces are not yours.
+  if (isAway(game) && ["home", "work", "shelter"].includes(placeId)) return [];
   const lga = LGA[lgaCode];
   const acts = lgaActions({
     state: STATE[lga.stateCode],

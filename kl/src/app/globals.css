@@ -51,3 +51,12 @@ body {
   color: var(--ink);
   -webkit-tap-highlight-color: transparent;
 }
+
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes confetti {
+  to { transform: translateY(110vh) rotate(720deg); }
+}

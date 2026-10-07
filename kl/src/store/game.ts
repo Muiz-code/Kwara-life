@@ -5,7 +5,8 @@ import type { Character } from "../data/character";
 import { PLACE } from "../data/ilorin/places";
 import {
   advance, checkCritical, clone, finishAction, finishTrip, freshState, log, note, resolveChoice,
-  startAction, startTrip, tripAnimMs, rollCitizen, startingMoney, takeJourney, currentLga, handoverSeconds, type JourneyMode, type ActionFlow, type ActionPlan, type ChoiceId, type GameState, type ModeId, type Rng, type Trip,
+  startAction, startTrip, tripAnimMs, rollCitizen, castVote, postSupportCard, buyPromo, applyForJob,
+  buyVotes as buyVotesSim, type Ballot, type CardInput, type PromoInput, type BribeInput, type Opening, startingMoney, takeJourney, currentLga, handoverSeconds, type JourneyMode, type ActionFlow, type ActionPlan, type ChoiceId, type GameState, type Rng, type Trip,
 } from "../sim";
 import { throttledStorage } from "./storage";
 import { findActionAt, placeInfo, tripWorldFor } from "./world";
@@ -61,6 +62,13 @@ export interface GameStore {
   /** Travel to another LGA or state. Returns a reason if blocked. */
   journeyTo: (lgaCode: string, mode: JourneyMode) => string | null;
   endJourney: () => void;
+  /** Ballot cast this session, kept only in memory so the player sees "includes your vote". Never saved. */
+  myBallot: Ballot | null;
+  vote: (party: string) => string | null;
+  postCard: (input: CardInput) => string | null;
+  promote: (input: PromoInput) => string | null;
+  buyVotes: (input: BribeInput) => string | null;
+  applyJob: (opening: Opening) => string | null;
   reset: () => void;
 }
 
@@ -102,6 +110,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = Date.now
           flow: null,
           world: null,
           journey: null,
+          myBallot: null,
 
           tick: () => {
             const st = get();
@@ -241,6 +250,37 @@ export function createGameStore({ rng = Math.random, storage, realNow = Date.now
             return null;
           },
           endJourney: () => set({ journey: null }),
+          vote: (party) => {
+            const st = get();
+            const r = castVote(st.game, party, { now: realNow(), atPollingUnit: st.game.loc === "pu" }, rng);
+            if ("blocked" in r) return r.blocked;
+            commit(r.state, { myBallot: r.ballot, flow: null });
+            return null;
+          },
+          postCard: (input) => {
+            const r = postSupportCard(get().game, input, { now: realNow() });
+            if ("blocked" in r) return r.blocked;
+            commit(r);
+            return null;
+          },
+          promote: (input) => {
+            const r = buyPromo(get().game, input, { now: realNow() });
+            if ("blocked" in r) return r.blocked;
+            commit(r.state, { flow: null });
+            return null;
+          },
+          buyVotes: (input) => {
+            const r = buyVotesSim(get().game, input, { now: realNow() }, rng);
+            if ("blocked" in r) return r.blocked;
+            commit(r.state, { flow: null });
+            return null;
+          },
+          applyJob: (opening) => {
+            const r = applyForJob(get().game, opening, rng);
+            if ("blocked" in r) return r.blocked;
+            commit(r);
+            return null;
+          },
           shiftToast: () => set({ toasts: get().toasts.slice(1) }),
           reset: () => {
             const g = freshState();
