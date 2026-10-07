@@ -12,7 +12,7 @@ const look = { g: "m" as const, skin: "#8D5524", cloth: "#F4F1EA" };
 function citizen(patch: Partial<Citizen> = {}): Citizen {
   return {
     name: "Ada", look, stateCode: "lagos", lgaCode: "lagos/ikeja", puCode: "lagos/ikeja/1", cls: "middle", job: "Nurse",
-    home: "Mini flat", underFlyover: false, wasUnder: false, ownsTv: true, ownsRadio: true, pvc: "have",
+    home: "Mini flat", career: "worker", education: "degree", employed: true, monthlyPay: 220000, underFlyover: false, wasUnder: false, ownsTv: true, ownsRadio: true, pvc: "have",
     createdAt: at("2026-10-07T12:00:00+01:00"), registeredAt: null, ...patch,
   };
 }
@@ -111,5 +111,17 @@ describe("crossing servers", () => {
     expect(zoneHops("SW", "NE")).toBe(2);
     expect(handoverSeconds("lagos/ikeja", "borno/maiduguri")).toBe(22);
     for (const z of ["NW", "NE", "NC", "SW", "SS", "SE"] as const) for (const y of ["NW", "NE", "NC", "SW", "SS", "SE"] as const) expect(zoneHops(z, y)).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("election day and the end of the season", () => {
+  it("restricts movement during polls and freezes everything after", () => {
+    const s = make();
+    expect(quoteJourney(s, "kwara/offa", "bus", POLLS).blocked).toBe("Movement is restricted on election day");
+    expect(quoteJourney(s, "kwara/offa", "bus", Date.parse("2026-11-14T16:00:00+01:00")).blocked).toBe("The season is over. Thank you for voting");
+    const market = lgaActions({ state: STATE.lagos, lgaName: "Ikeja", cls: "middle", job: "Nurse", home: "Mini flat", underFlyover: false }).market[1];
+    expect(performAction({ ...s, loc: "market", t: 10 * 60 }, market, never, { now: POLLS, place: { name: "Market", open: [6, 20], gen: false } })).toEqual({
+      blocked: "Election day: markets and offices are closed. Go and vote",
+    });
   });
 });

@@ -2,7 +2,7 @@
 // sleep at home, buy votes and vote in your own LGA. Interstate trips run between state capitals; trips
 // between LGAs of the same state count as a short bus ride.
 import { CAPITALS } from "../data/capitals";
-import { PRESIDENTIAL_2027 } from "../data/calendar";
+import { PRESIDENTIAL_2027, pollsAreOpen, seasonClosed } from "../data/calendar";
 import { LGA } from "../data/geography";
 import type { ClassId } from "../data/jobs";
 import { STATE } from "../data/states";
@@ -10,6 +10,8 @@ import type { ZoneCode } from "../data/zones";
 import { advance } from "./needs";
 import type { Rng } from "./rng";
 import { clone, log, naira, type GameState } from "./state";
+import { FUEL_FARE_FACTOR, fuelScarcity } from "./naija-life";
+import { maybePoliceStop } from "./police";
 
 export type JourneyMode = "bus" | "flight" | "car";
 
@@ -73,7 +75,7 @@ export function quoteJourney(s: GameState, toLga: string, mode: JourneyMode, now
   let fare = 0;
   if (mode === "bus") {
     minutes = Math.round((km / 60 + 1) * 60);
-    fare = round500((2000 + km * 30) * (rush ? RUSH_FACTOR : 1));
+    fare = round500((2000 + km * 30) * (rush ? RUSH_FACTOR : 1) * (fuelScarcity(s) ? FUEL_FARE_FACTOR : 1));
   } else if (mode === "flight") {
     minutes = Math.round((3.5 + km / 600) * 60);
     fare = round500(70000 + km * 60);
@@ -82,7 +84,9 @@ export function quoteJourney(s: GameState, toLga: string, mode: JourneyMode, now
     fare = round500(km * 60);
   }
   let blocked: string | null = null;
-  if (km === 0) blocked = "You are already here";
+  if (seasonClosed(cal, now)) blocked = "The season is over. Thank you for voting";
+  else if (pollsAreOpen(cal, now)) blocked = "Movement is restricted on election day";
+  else if (km === 0) blocked = "You are already here";
   else if (!MODES_FOR_CLASS[c.cls].includes(mode)) blocked = mode === "car" ? "You don't have a car" : "Flights are out of your budget";
   else if (mode === "flight" && a.stateCode === b.stateCode) blocked = "No flights within a state. Take the bus";
   else if (mode === "flight" && (!CAPITALS[a.stateCode].airport || !CAPITALS[b.stateCode].airport))
@@ -120,6 +124,7 @@ export function takeJourney(state: GameState, toLga: string, mode: JourneyMode, 
   }
   if (toLga === c.lgaCode) msg += " Welcome home.";
   log(s, msg);
+  if (mode !== "flight") maybePoliceStop(s, true, rng);
   return s;
 }
 

@@ -1,4 +1,5 @@
 import { PLACE } from "../data/ilorin/places";
+import { PRESIDENTIAL_2027, pollsAreOpen, seasonClosed } from "../data/calendar";
 import type { GameState } from "./state";
 import { clone, log } from "./state";
 import type { Rng } from "./rng";
@@ -7,8 +8,13 @@ import { advance, applyFx, clamp } from "./needs";
 import { checkCritical } from "./critical";
 import { horseToday } from "./actions";
 import { route, type Route } from "./world";
+import { FLOOD_DELAY, FUEL_FARE_FACTOR, flooded, fuelScarcity } from "./naija-life";
+import { maybePoliceStop } from "./police";
 
+/** Ilorin's modes. Other maps use the class-based modes in src/data/transport.ts. */
 export type ModeId = "walk" | "keke" | "okada" | "bus" | "horse";
+/** Any mode id on any map. */
+export type AnyModeId = string;
 
 export interface Mode {
   label: string;
@@ -39,22 +45,41 @@ export const MODE_IDS = Object.keys(MODES) as ModeId[];
 export const MAX_WALK = 1300;
 
 /** Real-time animation length per world pixel (ms), and the cap. */
-export const ANIM_MS_PER_PX: Record<ModeId, number> = { walk: 2.4, keke: 1.1, okada: 0.85, bus: 1.2, horse: 2 };
-export const tripAnimMs = (mode: ModeId, d: number) => Math.min(9000, 900 + d * ANIM_MS_PER_PX[mode]);
+export const ANIM_MS_PER_PX: Record<string, number> = { walk: 2.4, keke: 1.1, okada: 0.85, bus: 1.2, horse: 2, danfo: 1.2, ride: 0.9, suv: 0.9 };
+export const tripAnimMs = (mode: AnyModeId, d: number) => Math.min(9000, 900 + d * (ANIM_MS_PER_PX[mode] ?? 1.1));
+
+/**
+ * The map a trip happens on: how to route between its places, which modes it offers, and place names.
+ * Ilorin's hand-built map is the default; other maps pass their own (see tripWorldFor in the store).
+ */
+export interface TripWorld {
+  route: (from: string, to: string) => Route;
+  modes: Record<string, Mode>;
+  modeIds: AnyModeId[];
+  placeName: (id: string) => string;
+}
+
+export const ILORIN_TRIPS: TripWorld = {
+  route,
+  modes: MODES,
+  modeIds: MODE_IDS,
+  placeName: (id) => PLACE[id]?.name ?? id,
+};
 
 export interface TripQuote {
   route: Route;
-  modes: Record<ModeId, { minutes: number; fare: number }>;
+  modes: Record<AnyModeId, { minutes: number; fare: number }>;
 }
 
-export function quoteTrip(from: string, to: string): TripQuote {
-  const r = route(from, to);
-  const modes = {} as TripQuote["modes"];
-  for (const k of MODE_IDS) modes[k] = { minutes: MODES[k].minutes(r.length), fare: MODES[k].fare(r.length) };
+export function quoteTrip(from: string, to: string, w: TripWorld = ILORIN_TRIPS): TripQuote {
+  const r = w.route(from, to);
+  const modes: TripQuote["modes"] = {};
+  for (const k of w.modeIds) modes[k] = { minutes: w.modes[k].minutes(r.length), fare: w.modes[k].fare(r.length) };
   return { route: r, modes };
 }
 
-export function modeBlockReason(s: GameState, mode: ModeId, q: TripQuote): string | null {
+export function modeBlockReason(s: GameState, mode: AnyModeId, q: TripQuote): string | null {
+  if (!q.modes[mode]) return "You can't travel that way";
   if (mode === "walk" && q.route.length > MAX_WALK) return "Too far to walk";
   if (mode === "horse" && !horseToday(s)) return "Hire a horse at the Emir's Palace";
   if (mode === "okada" && q.route.highway) return "Okadas don't do the Malete road";
@@ -64,7 +89,9 @@ export function modeBlockReason(s: GameState, mode: ModeId, q: TripQuote): strin
 
 export interface Trip {
   dest: string;
-  mode: ModeId;
+  destName: string;
+  mode: AnyModeId;
+  modeLabel: string;
   route: Route;
   minutes: number;
   fare: number;
@@ -74,14 +101,25 @@ export interface Trip {
  * Start a trip. The caller animates it and runs the clock for trip.minutes
  * (advance), then calls finishTrip.
  */
-export function startTrip(state: GameState, dest: string, mode: ModeId): { state: GameState; trip: Trip } | { blocked: string } {
+export function startTrip(
+  state: GameState,
+  dest: string,
+  mode: AnyModeId,
+  now = 0,
+  w: TripWorld = ILORIN_TRIPS,
+): { state: GameState; trip: Trip } | { blocked: string } {
   if (dest === state.loc) return { blocked: "You are already here" };
-  const q = quoteTrip(state.loc, dest);
+  if (now && seasonClosed(PRESIDENTIAL_2027, now)) return { blocked: "The season is over. Thank you for voting" };
+  // Election day: you may only move between home and your polling unit.
+  if (now && pollsAreOpen(PRESIDENTIAL_2027, now) && !["pu", "home"].includes(dest)) return { blocked: "Movement is restricted on election day. Go and vote" };
+  const q = quoteTrip(state.loc, dest, w);
   const why = modeBlockReason(state, mode, q);
   if (why) return { blocked: why };
   const s = clone(state);
   s.inside = false;
-  return { state: s, trip: { dest, mode, route: q.route, minutes: q.modes[mode].minutes, fare: q.modes[mode].fare } };
+  const fare = fuelScarcity(s) ? Math.round((q.modes[mode].fare * FUEL_FARE_FACTOR) / 50) * 50 : q.modes[mode].fare;
+  if (fare > s.money) return { blocked: "Not enough money" };
+  return { state: s, trip: { dest, destName: w.placeName(dest), mode, modeLabel: w.modes[mode].label, route: q.route, minutes: q.modes[mode].minutes, fare } };
 }
 
 /** Arrive: pay, tire, roll for something happening on the way. */
@@ -100,7 +138,7 @@ export function finishTrip(state: GameState, trip: Trip, rng: Rng): GameState {
   s.loc = trip.dest;
   if (trip.dest === "kwasu") s.flags.kwasu = true;
 
-  let msg = `You went to ${PLACE[trip.dest].name} by ${MODES[trip.mode].label.toLowerCase()}.`;
+  let msg = `You went to ${trip.destName} by ${trip.modeLabel.toLowerCase()}.`;
   const r = rng();
   const h = hourOf(s.t);
   if (trip.mode === "okada" && r < 0.08) {
@@ -125,14 +163,19 @@ export function finishTrip(state: GameState, trip: Trip, rng: Rng): GameState {
     applyFx(s, { hygiene: -15 });
     msg += " Rain caught you on the way.";
   }
+  if (flooded(s)) {
+    advance(s, FLOOD_DELAY, rng);
+    msg += " Flooded roads added 30 minutes.";
+  }
   log(s, msg);
+  if (trip.mode !== "walk" && trip.mode !== "horse") maybePoliceStop(s, false, rng);
   checkCritical(s, rng);
   return s;
 }
 
 /** Start, run the clock, and arrive in one go. */
-export function performTrip(state: GameState, dest: string, mode: ModeId, rng: Rng): GameState | { blocked: string } {
-  const started = startTrip(state, dest, mode);
+export function performTrip(state: GameState, dest: string, mode: AnyModeId, rng: Rng, w: TripWorld = ILORIN_TRIPS): GameState | { blocked: string } {
+  const started = startTrip(state, dest, mode, 0, w);
   if ("blocked" in started) return started;
   const s = clone(started.state);
   advance(s, started.trip.minutes, rng);

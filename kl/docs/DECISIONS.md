@@ -76,9 +76,8 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - Real-money commercial ads on in-game TVs, billboards, the news ticker and radio, sold per number of showings
   (impressions) and targeted by nation, zone, state or LGA. Images and short videos; videos are scaled down and
   compressed to the slot the advertiser buys. Every ad is reviewed before it runs.
-- Real-money "campaign for your favourite" promotion is NOT enabled yet. CLAUDE.md says promotion is in-game money
-  only and DESIGN.md says real-money political promotion needs legal advice first. Build it behind a switch that
-  stays off until a lawyer has cleared it (see the open questions in chat).
+- No real-money political promotion. Campaign promotion stays in-game money only (CLAUDE.md), so no party or
+  supporter can buy visibility with real money.
 
 ### Servers and travel between them
 - Six zone servers (Supabase projects: NC, NE, NW, SE, SS, SW, each about 5 to 7 states) plus one national server,
@@ -87,3 +86,14 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - A journey into another zone hands the citizen over to that zone's server and back. Players see a "long journey"
   loading screen: none inside a zone, 14 seconds to a neighbouring zone, up to 30 seconds across the country
   (sim/journey.ts handoverSeconds). The vote always stays on the home server, because you can only vote at home.
+
+### Voting, the end of the season and ad prices
+- No SMS or WhatsApp OTP. Voting happens in the game: walk to your polling unit, queue, BVAS, ballot. One citizen
+  per account, with free Google sign-in plus device and rate limits against multiple accounts and bots.
+- While polls are open players see a live turnout counter only (votes cast), never party standings.
+- At polls close (4pm Saturday 14 November) the game freezes for every player: no more actions or travel. Live
+  collation runs, the winning party is announced over a generic celebration video (no party marks; the party name
+  and colour are overlaid), then a closing screen thanks everyone, urges them to vote in real elections and choose
+  wisely, and shows the disclaimer.
+- Commercial ad prices: N5,000 per showing, or N4.5m per 1,000 showings. Prices live on the server so they can
+  change without a release.

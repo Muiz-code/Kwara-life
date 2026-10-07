@@ -1,5 +1,5 @@
-import Game from "@/components/Game";
+import ClientGame from "@/components/ClientGame";
 
 export default function Home() {
-  return <Game />;
+  return <ClientGame />;
 }

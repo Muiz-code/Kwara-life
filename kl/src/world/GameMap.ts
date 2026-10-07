@@ -109,6 +109,13 @@ export class GameMap {
   /** Bouncing marker above the player's head so you can always find yourself. */
   private marker = new Graphics();
   private cars: Car[] = [];
+  private traffic: Traffic | null = null;
+  private loaded = new Set<string>();
+  private route: ReturnType<typeof router> | null = null;
+  /** The path the current trip is drawn along, worked out once per trip. */
+  private tripPath: { key: number; pts: Point[] } | null = null;
+  /** District names: shown when zoomed out, like neighbourhood names on a map. */
+  private districtLabels = new Container();
   private following = false;
   private lastNight = -1;
   private destroyed = false;
@@ -272,7 +279,12 @@ export class GameMap {
     }
 
     // Traffic is depth-sorted with the buildings so tiles hide cars passing behind them.
-    this.initTraffic(things);
+    if (map.grid) {
+      const lightsLayer = new Container();
+      this.traffic = new Traffic(map, this.graph, things, lightsLayer, (src) => this.loaded.has(src));
+      things.addChild(lightsLayer);
+      lightsLayer.zIndex = 1e9;
+    } else this.initTraffic(things);
 
     // Place name signs stay readable above buildings.
     const signs = new Container();
@@ -289,6 +301,18 @@ export class GameMap {
       c.cullable = true;
       signs.addChild(c);
     }
+
+    for (const d of map.districts ?? []) {
+      const t = new Text({
+        text: d.name.toUpperCase(),
+        style: { fontFamily: sign, fontSize: 64, fill: 0x26355e, letterSpacing: 6, stroke: { color: 0xf7e7c1, width: 10 } },
+      });
+      t.anchor.set(0.5);
+      t.position.set(d.x, d.y);
+      this.districtLabels.addChild(t);
+    }
+    this.districtLabels.alpha = 0;
+    vp.addChild(this.districtLabels);
 
     // The player.
     this.walker = new Sprite(Texture.from(AVATAR_ART.m));
@@ -322,6 +346,13 @@ export class GameMap {
     const start = standAt(map, this.store.getState().game.loc);
     vp.setZoom(Math.min(1.2, Math.max(0.35, host.clientWidth / Math.min(1100, Math.max(620, host.clientWidth * 1.6)))));
     vp.moveCenter(start.x, start.y - 30);
+    // While developing, a screenshot can ask for the whole town in view.
+    const look = devView();
+    if (look) {
+      vp.clampZoom({ minWidth: 200, maxWidth: W * 4 });
+      vp.setZoom(look.zoom);
+      vp.moveCenter(look.x ?? W / 2, look.y ?? H / 2);
+    }
 
     this.unsub.push(
       this.store.subscribe((s, prev) => {
@@ -330,6 +361,37 @@ export class GameMap {
       }),
     );
     this.app.ticker.add(this.frame);
+  }
+
+  /** The tile for a place: its own art, else the town's art for its kind and look, else none. */
+  private artFor(p: MapPlace): string | null {
+    if (p.art) return p.art;
+    if (this.map.grid) {
+      const cls = p.variant === "rich" || p.variant === "middle" || p.variant === "poor" ? p.variant : undefined;
+      return tileFor({ kind: p.kind, look: this.map.biome, state: this.map.state ?? "", ...(cls ? { cls } : {}) });
+    }
+    return KIND_ART[p.kind] ?? null;
+  }
+
+  private buildingArt(kind: string): string | null {
+    const look: LookTile[] = ["duplex", "flats", "compound", "house", "market", "buka"];
+    if (look.includes(kind as LookTile)) return lookTile(kind as LookTile, this.map.biome);
+    if (kind === "office" || kind === "school") return sharedTile(kind);
+    return null;
+  }
+
+  /** The trip's path along this map's own streets, from where the player stands to where they are going. */
+  private pathFor(from: string, to: string, key: number, fallback: Point[]): Point[] {
+    if (this.tripPath?.key === key) return this.tripPath.pts;
+    let pts = fallback;
+    try {
+      const r: MapRoute | undefined = this.route?.route(from, to);
+      if (r) pts = [standAt(this.map, from), ...r.pts.slice(1, -1), standAt(this.map, to)];
+    } catch {
+      // A place this map does not have: fall back to the sim's own line.
+    }
+    this.tripPath = { key, pts };
+    return pts;
   }
 
   private setLook(s: GameStore) {
@@ -394,10 +456,11 @@ export class GameMap {
     let dx = 1;
     if (a?.kind === "trip") {
       const p = Math.min(1, Math.max(0, (now - a.startedAt) / a.ms));
-      const at = pointAlong(a.trip.route.pts, easeInOut(p));
+      const path = this.pathFor(st.game.loc, a.trip.dest, a.startedAt, a.trip.route.pts);
+      const at = pointAlong(path, easeInOut(p));
       pos = at;
       dx = at.dx;
-      mode = a.trip.mode;
+      mode = SPRITE_FOR_MODE[a.trip.mode] ?? "keke";
     }
     this.player.position.set(pos.x, pos.y);
     this.player.visible = !(a?.kind === "action" && a.plan.action.goal === "fly");
@@ -435,6 +498,10 @@ export class GameMap {
     } else if (!a) {
       this.following = false;
     }
+
+    // District names fade in as you zoom out, and out as you zoom in to the streets.
+    const z = this.viewport.scale.x;
+    this.districtLabels.alpha = Math.max(0, Math.min(0.9, (0.45 - z) / 0.2));
 
     // Selection ring.
     const sel = this.tilePos(st.selected);

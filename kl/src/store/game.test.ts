@@ -104,3 +104,44 @@ describe("game store", () => {
     expect(store.getState().game.loc).toBe("home");
   });
 });
+
+describe("citizens across Nigeria", () => {
+  const NOW = Date.parse("2026-10-15T10:00:00+01:00");
+  function made(lgaCode = "kano/fagge", stateCode = "kano") {
+    const store = createGameStore({ rng: sequence(0.4), storage: memoryStorage(), realNow: () => NOW });
+    expect(store.getState().createCitizen({ name: "Hauwa", look: { g: "h", skin: "#6B3E26", cloth: "#2F7D7A" }, stateCode, lgaCode })).toBeNull();
+    return store;
+  }
+
+  it("rolls a citizen and starts them at home", () => {
+    const g = made().getState().game;
+    expect(g.citizen?.lgaCode).toBe("kano/fagge");
+    expect(g.loc).toBe("home");
+    expect(g.money).toBeGreaterThan(0);
+    expect(g.log[0].msg).toBe("Hauwa started life in Fagge, Kano.");
+  });
+
+  it("uses the LGA's own places and actions, not Ilorin's", () => {
+    const store = made();
+    store.getState().doAction("sleep", 0);
+    expect(store.getState().activity?.kind).toBe("action");
+  });
+
+  it("travels to another state behind a loading screen sized by server distance", () => {
+    const store = made();
+    store.setState({ game: { ...store.getState().game, loc: "park", money: 500000 } });
+    expect(store.getState().journeyTo("lagos/ikeja", "bus")).toBeNull();
+    const st = store.getState();
+    expect(st.game.at).toBe("lagos/ikeja");
+    expect(st.journey?.seconds).toBeGreaterThan(0);
+    expect(st.journey!.seconds).toBeLessThanOrEqual(30);
+    expect(st.world).toBeNull();
+  });
+
+  it("refuses a made-up LGA", () => {
+    const store = createGameStore({ storage: memoryStorage(), realNow: () => NOW });
+    expect(store.getState().createCitizen({ name: "A", look: { g: "m", skin: "#8D5524", cloth: "#F4F1EA" }, stateCode: "kano", lgaCode: "lagos/ikeja" })).toBe(
+      "Pick a real state and one of its LGAs",
+    );
+  });
+});

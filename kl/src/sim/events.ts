@@ -4,6 +4,10 @@ import type { Rng } from "./rng";
 import { dayNum, dayOfWeek, hourOf } from "./time";
 import { advance, applyFx, clamp } from "./needs";
 import { resolveOffer, type OfferKind } from "./vote-buying";
+import { resolvePolice } from "./police";
+import { efccDaily, resolveEfcc } from "./efcc";
+import { dailyLife, resolveFamily } from "./naija-life";
+import { decideApplications } from "./jobs";
 
 export const NEPA_CUT_CHANCE = 0.07;
 export const NEPA_RESTORE_CHANCE = 0.22;
@@ -50,6 +54,12 @@ export function hourly(s: GameState, rng: Rng) {
     ]);
   }
 
+  if (h === 7 && s.citizen) {
+    dailyLife(s, rng);
+    efccDaily(s, rng);
+  }
+  if (h === 9 && s.citizen) decideApplications(s, rng);
+
   if (d === 4 && h === 11) log(s, "It's Friday. Jummah at the Central Mosque runs 12pm to 3pm.");
   if (d === 5 && h === 14) log(s, "Kwara United play at the stadium from 3pm.");
 
@@ -77,6 +87,20 @@ export function resolveChoice(s: GameState, id: ChoiceId, rng: Rng) {
       return;
     case "ok":
       return;
+    case "police-pay":
+    case "police-argue":
+    case "police-call":
+    case "police-report":
+      return resolvePolice(s, id.slice(7) as "pay" | "argue" | "call" | "report", rng);
+    case "efcc-honour":
+    case "efcc-ignore":
+    case "efcc-run":
+    case "efcc-hide":
+    case "efcc-surrender":
+      return resolveEfcc(s, id.slice(5) as "honour" | "ignore" | "run" | "hide" | "surrender", rng);
+    case "family-give":
+    case "family-decline":
+      return resolveFamily(s, id === "family-give");
     default: {
       const [kind, answer] = id.split("-") as [OfferKind, "report" | "refuse" | "take"];
       resolveOffer(s, kind, answer, rng);

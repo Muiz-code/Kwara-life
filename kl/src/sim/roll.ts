@@ -4,8 +4,9 @@ import type { Look } from "../data/character";
 import { CLASS_ODDS, MEDIA_ODDS, PVC_ODDS, UNDER_FLYOVER, UNDER_FLYOVER_RADIO } from "../data/citizen";
 import { PRESIDENTIAL_2027, type ElectionCalendar } from "../data/calendar";
 import { LGA, POLLING_UNITS_PER_LGA } from "../data/geography";
-import { HOMES, JOBS, START_MONEY, type ClassId } from "../data/jobs";
+import { HOMES, START_MONEY, type ClassId } from "../data/jobs";
 import { STATE } from "../data/states";
+import { CAREERS, CAREER_ODDS, EDUCATION_ODDS, careerFits, type CareerId, type Education } from "../data/careers";
 import { pick, type Rng } from "./rng";
 
 export type PvcStatus = "none" | "registered" | "have" | "seized";
@@ -17,7 +18,14 @@ export interface Citizen {
   lgaCode: string;
   puCode: string;
   cls: ClassId;
+  /** Job title, e.g. "Tailor" or "Corps member". */
   job: string;
+  career: CareerId;
+  education: Education;
+  /** Has a job or enrolment. Self-employed careers always do. */
+  employed: boolean;
+  /** Monthly pay for salaried careers (0 otherwise). */
+  monthlyPay: number;
   home: string;
   underFlyover: boolean;
   /** Moved from under the flyover into the shelter. */
@@ -39,6 +47,27 @@ export interface RollInput {
 }
 
 export const UNDER_FLYOVER_HOME = "Under a flyover near the motor park";
+
+/** Careers you need someone to hire you for. Everyone else works for themselves. */
+export const EMPLOYER_CAREERS: CareerId[] = ["worker", "developer", "executive", "politician"];
+/** Share of citizens in employer careers who start out still looking for work. */
+export const START_UNEMPLOYED = 0.2;
+
+function rollFrom<T>(rng: Rng, odds: [T, number][]): T {
+  let r = rng();
+  for (const [v, p] of odds) {
+    if (r < p) return v;
+    r -= p;
+  }
+  return odds[odds.length - 1][0];
+}
+
+/** Roll a monthly salary inside the career's range, leaning towards the low end like real pay. */
+export const rollSalary = (career: CareerId, rng: Rng) => {
+  const c = CAREERS[career];
+  if (c.pay !== "salary") return 0;
+  return Math.round((c.min + Math.pow(rng(), 2) * (c.max - c.min)) / 1000) * 1000;
+};
 
 function rollClass(rng: Rng): ClassId {
   let r = rng();
@@ -67,6 +96,12 @@ export function rollCitizen(input: RollInput, now: number, rng: Rng, cal: Electi
   const pvc = p < PVC_ODDS.have ? "have" : p < PVC_ODDS.have + PVC_ODDS.registered ? "registered" : "none";
   const media = MEDIA_ODDS[cls];
 
+  const education = rollFrom(rng, EDUCATION_ODDS[cls]);
+  let career = rollFrom(rng, CAREER_ODDS[cls]);
+  if (!careerFits(career, education)) career = cls === "rich" ? "executive" : cls === "middle" ? "worker" : "artisan";
+  if (!careerFits(career, education)) career = "trader";
+  const employed = !EMPLOYER_CAREERS.includes(career) || rng() >= START_UNEMPLOYED;
+
   return {
     name,
     look: input.look,
@@ -74,7 +109,11 @@ export function rollCitizen(input: RollInput, now: number, rng: Rng, cal: Electi
     lgaCode: lga.code,
     puCode: `${lga.code}/${1 + Math.floor(rng() * POLLING_UNITS_PER_LGA)}`,
     cls,
-    job: pick(rng, JOBS[cls]),
+    job: pick(rng, CAREERS[career].titles),
+    career,
+    education,
+    employed,
+    monthlyPay: employed ? rollSalary(career, rng) : 0,
     home: underFlyover ? UNDER_FLYOVER_HOME : pick(rng, HOMES[cls]),
     underFlyover,
     wasUnder: false,

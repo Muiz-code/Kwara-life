@@ -13,7 +13,11 @@ from PIL import Image, ImageFilter
 def cutout(path, out_dir, width=440, holes=None):
     if holes is None:
         holes = not pathlib.Path(path).stem.startswith("avatar-")
-    im = Image.open(path).convert("RGB")
+    src = Image.open(path)
+    if src.mode == "RGBA" and src.getextrema()[3][0] < 128:
+        # Already cut out (Higgsfield background remover): keep its alpha.
+        return save(src, path, out_dir, width)
+    im = src.convert("RGB")
     a = np.asarray(im).astype(int)
     h, w, _ = a.shape
     # Background colour = median of the border pixels
@@ -66,7 +70,10 @@ def cutout(path, out_dir, width=440, holes=None):
     alpha = Image.fromarray(np.where(mask, 0, 255).astype("uint8"))
     alpha = alpha.filter(ImageFilter.MinFilter(5)).filter(ImageFilter.GaussianBlur(1.0))
     rgba = im.copy(); rgba.putalpha(alpha)
-    rgba = rgba.crop(rgba.getbbox())
+    save(rgba, path, out_dir, width)
+
+def save(rgba, path, out_dir, width):
+    rgba = rgba.crop(rgba.getchannel("A").getbbox())
     rgba = rgba.resize((width, round(rgba.height * width / rgba.width)), Image.LANCZOS)
     out = pathlib.Path(out_dir) / (pathlib.Path(path).stem + ".webp")
     rgba.save(out, "WEBP", quality=82, method=6)

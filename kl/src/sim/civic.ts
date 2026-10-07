@@ -1,6 +1,6 @@
 // Civic rules that depend on the real election calendar: registration, PVC collection, campaigning, voting.
 import type { Action } from "../data/action";
-import { PRESIDENTIAL_2027, campaigningAllowed, canCollectPvc, canRegister, pollsAreOpen, type ElectionCalendar } from "../data/calendar";
+import { PRESIDENTIAL_2027, campaigningAllowed, canCollectPvc, canRegister, pollsAreOpen, seasonClosed, type ElectionCalendar } from "../data/calendar";
 import type { GameState } from "./state";
 import { awayReason } from "./journey";
 
@@ -25,11 +25,32 @@ const clockTime = (iso: string) => {
 
 export const MIN_BRIBE_CASH = 5000;
 
+export const SEASON_OVER = "The season is over. Thank you for voting";
+
+/** Actions still allowed while polls are open (movement is restricted on election day). */
+const ELECTION_DAY_ALLOWED = new Set(["vote", "check", "sleep", "nap", "bath", "cook", "radio", "tv", "phone", "lodge"]);
+
+/**
+ * Election day and the end of the season apply to every action: during polls only voting and staying home are
+ * allowed; after polls close nothing is.
+ */
+export function seasonBlockReason(a: Action, ctx: CivicContext): string | null {
+  const cal = ctx.cal ?? PRESIDENTIAL_2027;
+  if (!ctx.now) return null;
+  if (seasonClosed(cal, ctx.now)) return SEASON_OVER;
+  if (pollsAreOpen(cal, ctx.now) && !ELECTION_DAY_ALLOWED.has(a.id)) return "Election day: markets and offices are closed. Go and vote";
+  return null;
+}
+
 /** Why a civic action is blocked, or null. Non-civic actions always pass. */
 export function civicBlockReason(s: GameState, a: Action, ctx: CivicContext): string | null {
   const cal = ctx.cal ?? PRESIDENTIAL_2027;
   const now = ctx.now;
   const c = s.citizen;
+  if (c) {
+    const season = seasonBlockReason(a, ctx);
+    if (season) return season;
+  }
   if (a.home && c) {
     const away = awayReason(s, "home");
     if (away) return away;
