@@ -114,10 +114,16 @@ export interface WorldMap {
   lots?: TownLot[];
   /** Junctions with traffic lights. */
   lights?: Point[];
+  /** Each big block's outline (top, right, bottom, left corners) and kind. */
+  blocks?: { zone: ZoneKind; corners: Point[] }[];
+  /** Roundabouts where main roads cross: the island's centre. */
+  roundabouts?: Point[];
+  /** Bus stops on the main roads, and which side the kerb is on. */
+  stops?: (Point & { face: Facing })[];
   /** What grows round the town. */
   scenery?: { farmland: boolean; hills: boolean };
-  /** District names and where to write them on the ground. */
-  districts?: { id: DistrictId; name: string; x: number; y: number }[];
+  /** Each block's name and where to write it. */
+  districts?: { id: DistrictId; zone?: ZoneKind; name: string; x: number; y: number }[];
   /**
    * Trip distance per world pixel. A town is drawn big enough for its tiles, and
    * this keeps fares and times at the prototype's scale. Defaults to 1.
@@ -127,6 +133,10 @@ export interface WorldMap {
 
 /** The three parts of a town. */
 export type DistrictId = "rich" | "mixed" | "poor";
+
+/** What a big block of town is for. */
+export type ZoneKind =
+  | "estate" | "lowcost" | "slum" | "schools" | "mixed" | "commercial" | "ads" | "civic" | "campus" | "airport" | "park";
 
 /**
  * The isometric grid a town is laid out on. Cell (u, v) has its centre at
@@ -145,9 +155,10 @@ export interface TownGrid {
   cols: number;
   rows: number;
   /**
-   * One character per cell, row by row (v, then u): "r" road, "b" bridge,
-   * "w" water, "R" "M" "P" a lot in the rich, mixed or poor district,
-   * "o" a lot out of town, "." open ground.
+   * One character per cell, row by row (v, then u): "a" main road, "r" lane,
+   * "t" dirt track, "b" bridge, "i" roundabout island, "w" water, a capital
+   * letter for a plot in that kind of block (see ZONE_CODE in town.ts), "o" a
+   * plot out of town, "." open ground.
    */
   cells: string;
 }
@@ -164,12 +175,17 @@ export interface TownLot {
   x: number;
   y: number;
   district: DistrictId | "out";
+  /** The kind of block it is in. */
+  zone?: ZoneKind | "out";
   /** The side the main street is on, where the building faces. */
   face: Facing;
   /** Every side with a street: a corner plot has a gate on each. */
   gates: Facing[];
-  /** What stands on it. A garden is an empty plot with trees. */
-  use: "place" | "building" | "garden";
+  /**
+   * What stands on it. A garden is an empty plot with trees; a field is a school's
+   * playing field; an apron is the airport's tarmac.
+   */
+  use: "place" | "building" | "garden" | "field" | "apron";
 }
 
 /** A building that is just part of the town, not a place you can visit. */

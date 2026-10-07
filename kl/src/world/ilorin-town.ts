@@ -1,92 +1,65 @@
-// Ilorin as a grid town, in the same system as every other LGA.
-//
-// It keeps its 27 real places, their names, art and actions. Each place sits on
-// the lot nearest its spot on the hand-built map, and the districts grow round
-// their real areas: the GRA, Adewole and Irewolede side, the old centre round the
-// Post Office and the Emir's Palace, and Tanke and Oke-Odo by the university. So
-// north is still up and trips keep roughly the length they had. KWASU, Shao and
-// the farms lie out along the Malete road, the Poly up the Sango road and the
-// airport down the Airport road.
+// Ilorin as a grid town, in the same system as every other LGA, laid out after
+// the user's sketch: big blocks with one use each and roundabouts where the main
+// roads cross. It keeps its 27 real places, their names, art and actions, each in
+// the block that suits it: the airport and Unilorin at the top, Taiwo Oke and
+// Sawmill trading, the old city round the Post Office and Oja Oba, offices along
+// Ahmadu Bello Way, the Poly with the schools, Adewole and the GRA estates, Metro
+// Square and the stadium, KWASU, the Fate Road strip with its adverts, and Tanke
+// and Oke-Odo. Shao and the farms lie out along the Malete road.
 import { PLACES } from "../data/ilorin/places";
-import { placePos, route as oldRoute } from "../sim/world";
+import { route as oldRoute } from "../sim/world";
 import { TILE_ART } from "./art";
 import { router } from "./routing";
-import { buildTown, CELL_HH, CELL_HW, type Outskirts, type TownPlace, type TownSpec } from "./town";
-import type { DistrictId, WorldMap } from "./types";
+import { buildTown, type TownPlace, type TownSpec, type Zone } from "./town";
+import type { WorldMap } from "./types";
 
 export const ILORIN_TOWN_ID = "kwara/ilorin";
 
-/** Which area each place is in. "out" places sit on a road out of town. */
-const AREA: Record<string, DistrictId | "out"> = {
-  // GRA, Adewole and Irewolede: the rich side
-  govhouse: "rich", flower: "rich", hotel: "rich", hub: "rich", secretariat: "rich",
-  adewole: "rich", evergreen: "rich", irewolede: "rich", mall: "rich", froyo: "rich", amala: "rich",
-  // Post Office, Emir's Palace and the old town: the centre
-  po: "mixed", palace: "mixed", adabata: "mixed", taiwo: "mixed", stadium: "mixed", sawmill: "mixed", metro: "mixed",
-  // Tanke and Oke-Odo, by the university
-  home: "poor", item7: "poor", okeodo: "poor", unilorin: "poor",
-  // Out of town
-  shao: "out", farm: "out", kwasu: "out", poly: "out", airport: "out",
-};
-
-/** Roads out of town, where they really leave from, and the places along them. */
-const OUTSKIRTS: (Omit<Outskirts, "atU"> & { near: string })[] = [
-  // Out of the old city by the Emir's Palace, past Shao and the farms to KWASU.
-  // The old map squashed this road to fit KWASU on screen; 7 cells balances trips
-  // from the Post Office (which it made short) and from Tanke (which it made long).
-  { name: "Malete Rd", from: "mixed", side: "start", length: 7, highway: true, near: "palace" },
-  // North from the Tanke side to the Poly.
-  { name: "Sango Rd", from: "poor", side: "top", length: 3, near: "item7" },
-  // South-west from Geri Alimi, by Sawmill, to the airport.
-  { name: "Airport Rd", from: "rich", side: "bottom", length: 2, near: "geri" },
-];
-const OUT_AT: Record<string, { road: number; along: number }> = {
-  shao: { road: 0, along: 0.25 },
-  farm: { road: 0, along: 0.6 },
-  kwasu: { road: 0, along: 1 },
-  poly: { road: 1, along: 1 },
-  airport: { road: 2, along: 1 },
-};
-
 /**
- * How much bigger than the hand-built layout the town is drawn, so every tile has
- * its own plot. 2 gave the closest trip times to the old map (scanned 1.1 to 2.4).
+ * The blocks, row by row, after the sketch. Tanke and Oke-Odo sit beside
+ * Unilorin, as they really do: the university's main gate is on their side.
  */
-export const STRETCH_DEFAULT = 2;
+const ZONES: Zone[] = [
+  { kind: "airport", col: 0, row: 0, name: "Ilorin Airport" },
+  { kind: "campus", col: 1, row: 0, name: "Unilorin" },
+  { kind: "lowcost", col: 2, row: 0, name: "Tanke and Oke-Odo" },
+  { kind: "civic", col: 0, row: 1, name: "Post Office and Oja Oba" },
+  { kind: "mixed", col: 1, row: 1, name: "Ahmadu Bello Way" },
+  { kind: "commercial", col: 2, row: 1, name: "Taiwo Oke" },
+  { kind: "estate", col: 0, row: 2, name: "Adewole" },
+  { kind: "park", col: 1, row: 2, name: "Metro Square" },
+  { kind: "estate", col: 2, row: 2, name: "GRA and Fate" },
+  { kind: "campus", col: 0, row: 3, name: "KWASU" },
+  { kind: "ads", col: 1, row: 3, name: "Fate Road" },
+  { kind: "schools", col: 2, row: 3, name: "Schools" },
+  { kind: "slum", col: 0, row: 4, name: "Railway Line" },
+  { kind: "lowcost", col: 1, row: 4, name: "Baboko" },
+  { kind: "mixed", col: 2, row: 4, name: "Oke-Oyi" },
+];
 
-/** A spot on the hand-built map as a grid cell, so north is still up on screen. */
-function rawCell(id: string, stretch = STRETCH_DEFAULT): { u: number; v: number } {
-  const p = placePos(id);
-  const X = p.x * stretch;
-  const Y = p.y * stretch;
-  return { u: (X / CELL_HW + Y / CELL_HH) / 2, v: (Y / CELL_HH - X / CELL_HW) / 2 };
-}
+/** Which block each place is in (index into ZONES), or "out" on the Malete road. */
+const BLOCK: Record<string, number | "out"> = {
+  airport: 0,
+  unilorin: 1,
+  home: 2, item7: 2, okeodo: 2,
+  po: 3, palace: 3, adabata: 3,
+  secretariat: 4, hub: 4, govhouse: 4, hotel: 4,
+  taiwo: 5, sawmill: 5,
+  adewole: 6,
+  metro: 7, stadium: 7, flower: 7,
+  evergreen: 8, irewolede: 8,
+  kwasu: 9,
+  amala: 10, froyo: 10, mall: 10,
+  poly: 11,
+  shao: "out", farm: "out",
+};
 
-export function ilorinSpec(stretch = STRETCH_DEFAULT): TownSpec {
-  const inTown = PLACES.filter((p) => AREA[p.id] !== "out").map((p) => p.id);
-  const raw = Object.fromEntries(inTown.map((id) => [id, rawCell(id, stretch)]));
-  // Start the town two cells in from its edge streets.
-  const minU = Math.min(...inTown.map((id) => raw[id].u));
-  const minV = Math.min(...inTown.map((id) => raw[id].v));
-  const shift = (c: { u: number; v: number }) => ({ u: c.u - minU + 2, v: c.v - minV + 2 });
-  const cells = Object.fromEntries(inTown.map((id) => {
-    const c = shift(raw[id]);
-    return [id, { u: Math.round(c.u), v: Math.round(c.v) }];
-  }));
-  const size = {
-    u: 3 * Math.ceil((Math.max(...inTown.map((id) => cells[id].u)) + 3) / 3),
-    v: 3 * Math.ceil((Math.max(...inTown.map((id) => cells[id].v)) + 3) / 3) + 1,
-  };
-  // A road out leaves from the cross street nearest where it really starts.
-  const outskirts: Outskirts[] = OUTSKIRTS.map(({ near, ...o }) => {
-    const c = shift(rawCell(near, stretch));
-    return {
-      ...o,
-      atU: Math.min(size.u, Math.max(0, 3 * Math.round(c.u / 3))),
-      atV: Math.min(size.v - 1, Math.max(0, 3 * Math.round(c.v / 3))),
-    };
-  });
+const OUT_AT: Record<string, { road: number; along: number }> = {
+  shao: { road: 0, along: 0.4 },
+  farm: { road: 0, along: 0.85 },
+};
 
+export function ilorinSpec(): TownSpec {
   const places: TownPlace[] = PLACES.map((p) => ({
     id: p.id,
     name: p.name,
@@ -97,8 +70,8 @@ export function ilorinSpec(stretch = STRETCH_DEFAULT): TownSpec {
     gen: p.gen,
     art: TILE_ART[p.id],
     ...(p.variant ? { variant: p.variant } : {}),
-    district: AREA[p.id],
-    ...(AREA[p.id] === "out" ? OUT_AT[p.id] : { cell: cells[p.id] }),
+    zone: BLOCK[p.id],
+    ...(BLOCK[p.id] === "out" ? OUT_AT[p.id] : {}),
   }));
   return {
     id: ILORIN_TOWN_ID,
@@ -106,31 +79,27 @@ export function ilorinSpec(stretch = STRETCH_DEFAULT): TownSpec {
     biome: "savanna",
     state: "kwara",
     seed: 0x11071,
-    order: ["rich", "mixed", "poor"],
-    lengths: { rich: 0, mixed: 0, poor: 0 },
-    width: size.v,
-    names: { rich: "GRA and Adewole", mixed: "Post Office and Oja Oba", poor: "Tanke and Oke-Odo" },
-    river: false,
+    colSizes: [11, 11, 11],
+    rowSizes: [8, 8, 11, 8, 8],
+    zones: ZONES,
     hills: false,
     farmland: true,
-    outskirts,
+    // Out past KWASU to Shao and the farms; buses come into town the same way.
+    outskirts: [{ name: "Malete Rd", side: "start", at: 3, length: 7, highway: true }],
     places,
     meanTrip: 1600,
     streetNames: ["Ahmadu Bello Way", "Ibrahim Taiwo Rd", "Unity Rd", "Murtala Mohammed Way", "Fate Rd", "Tanke Rd", "Taiwo Rd", "Asa Dam Rd", "Sawmill Rd", "Unilorin Rd", "Taoheed Rd", "Reservation Rd", "Adewole Rd", "Adabata Rd"],
-    // Real neighbours (the Post Office and the Secretariat) stay side by side.
     placeGap: 1,
-    regions: { size, anchors: inTown.map((id) => ({ id: AREA[id] as DistrictId, ...cells[id] })) },
   };
 }
 
 /**
  * The Ilorin town, with trip lengths scaled so the typical trip (the median, over
- * every pair of places) is as long as it was on the hand-built map. The old map's
- * sparse roads made some trips detour a long way round; the grid goes direct, so
- * those few get shorter, and the scale is not dragged about by them.
+ * every pair of places) is as long as it was on the hand-built map, so fares and
+ * times feel the same to players used to the old map.
  */
-export function ilorinTown(stretch = STRETCH_DEFAULT): WorldMap {
-  const { map } = buildTown(ilorinSpec(stretch));
+export function ilorinTown(): WorldMap {
+  const { map } = buildTown(ilorinSpec());
   const r = router({ ...map, lengthScale: 1 });
   const ratios: number[] = [];
   const ids = PLACES.map((p) => p.id);

@@ -1,28 +1,41 @@
 // Builds a town on the isometric grid from a TownSpec.
 //
-// The town is a strip of three districts side by side (rich, mixed centre, poor,
-// in an order the seed picks), crossed by long streets. Streets run along the two
-// grid directions only, so every corner is square and every junction is a real
-// junction. Every other cell is a lot: one plot of land with one building on it,
-// facing the street that runs past its front or its back. A road never passes
-// under a building and two buildings never share a plot.
+// A town is a grid of big blocks, each with one use: an estate, schools, mixed
+// buildings and offices, commercial, a street of adverts, low-cost housing, a
+// slum, a campus, a park. Wide main roads run between the blocks, with a
+// roundabout wherever two of them cross. Inside a block, narrow lanes (or, in the
+// slum, dirt tracks) give every plot a street. Every building stands on its own
+// plot and faces the street that runs past its front or its back; a road never
+// passes under a building and two buildings never share a plot.
 import { BIOMES, ROAD_NAMES, type BiomeId } from "../data/biomes";
 import { lcg } from "./generate";
 import { router } from "./routing";
-import type { DistrictId, Facing, MapPlace, MapRoad, Point, RoadClass, TownBuilding, TownGrid, TownLot, WorldMap } from "./types";
+import type {
+  DistrictId, Facing, MapPlace, MapRoad, Point, RoadClass, TownBuilding, TownGrid, TownLot, WorldMap, ZoneKind,
+} from "./types";
 
 /** Half a cell's width and height on screen. A 210 px tile's base fits inside the 240 x 120 diamond. */
 export const CELL_HW = 120;
 export const CELL_HH = 60;
 
+/** One big block of the town and what it is for. */
+export interface Zone {
+  kind: ZoneKind;
+  /** Block column (along u) and row (along v), and how many it spans. */
+  col: number;
+  row: number;
+  cols?: number;
+  rows?: number;
+  /** What people call it, written on the map when zoomed out. */
+  name: string;
+}
+
 /** A place to put in town, without its position yet. */
 export interface TownPlace extends Omit<MapPlace, "x" | "y"> {
-  /** District it belongs in, or "out" for a place on an outskirts road. */
-  district: DistrictId | "out";
-  /** Preferred spot inside the district: a along the town (0 to 1), c across it (0 to 1). */
+  /** Index of the zone it belongs in, or "out" for a place on a road out of town. */
+  zone: number | "out";
+  /** Preferred spot inside the block: a along u (0 to 1), c along v (0 to 1). */
   prefer?: { a: number; c: number };
-  /** An exact cell to aim for, in a town laid out by regions. */
-  cell?: { u: number; v: number };
   /** For "out" places: which outskirts road (index) and how far along it (0 to 1). */
   road?: number;
   along?: number;
@@ -33,20 +46,16 @@ export interface TownPlace extends Omit<MapPlace, "x" | "y"> {
 /** A road leaving town: the entrance, or a highway out to villages. */
 export interface Outskirts {
   name: string;
-  /** District whose middle cross street the road continues. */
-  from: DistrictId;
   /**
    * Which edge it leaves by: top (-v, up and right on screen), bottom (+v),
    * start (-u, up and left) or end (+u, down and right).
    */
   side: "top" | "bottom" | "start" | "end";
+  /** Which main road it continues: the index of the boundary between blocks (0 is the town's edge). */
+  at: number;
   /** Length in cells. */
   length: number;
   highway?: boolean;
-  /** Cross street to continue (top or bottom), in a town laid out by regions. */
-  atU?: number;
-  /** Long street to continue (start or end). */
-  atV?: number;
 }
 
 export interface TownSpec {
@@ -59,15 +68,12 @@ export interface TownSpec {
   seed: number;
   /** Seed for the citizen's own places. */
   personalSeed?: number;
-  /** Districts along the town, first to last. */
-  order: [DistrictId, DistrictId, DistrictId];
-  /** Length of each district along the town, in cells. */
-  lengths: Record<DistrictId, number>;
-  /** Width across the town in cells: 3k + 1 so blocks come out even. */
-  width: number;
-  names: Record<DistrictId, string>;
-  /** A river crossing town between the centre and the next district. */
-  river: boolean;
+  /** Width of each column of blocks (cells along u) and height of each row (cells along v). */
+  colSizes: number[];
+  rowSizes: number[];
+  zones: Zone[];
+  /** A river crossing town after this column of blocks. */
+  riverAfterCol?: number;
   hills: boolean;
   farmland: boolean;
   /** outskirts[0] is the town entrance, where buses arrive at the motor park. */
@@ -77,35 +83,66 @@ export interface TownSpec {
   meanTrip: number;
   /** Street names to use, in order. Defaults to the shared list. */
   streetNames?: string[];
-  /**
-   * A town whose areas are where they really are, instead of three strips. Each
-   * anchor claims the cells nearest it, so districts grow round real places.
-   * When set, order and lengths only name the districts; size sets the grid.
-   */
-  regions?: { size: { u: number; v: number }; anchors: { id: DistrictId; u: number; v: number }[] };
-  /**
-   * Plots to leave between two places (Chebyshev distance). 2 keeps their signs
-   * apart; a town that must keep real neighbours side by side can use 1.
-   */
+  /** Plots to leave between two places (Chebyshev distance). 1 lets places stand side by side. */
   placeGap?: number;
 }
 
-/** Cross streets every this many cells, by district. Bigger plots on the rich side. */
-const CROSS_EVERY: Record<DistrictId, number> = { rich: 4, mixed: 3, poor: 3 };
+/** Which of the three districts each kind of block counts as, for homes and names. */
+export const ZONE_DISTRICT: Record<ZoneKind, DistrictId> = {
+  estate: "rich", lowcost: "poor", slum: "poor", schools: "mixed", mixed: "mixed", commercial: "mixed",
+  ads: "mixed", civic: "mixed", campus: "mixed", airport: "mixed", park: "mixed",
+};
 
-/** How full each district's lots are, and with what. */
-const FILL: Record<DistrictId | "out", { build: number; kinds: [string, number][] }> = {
-  rich: { build: 0.6, kinds: [["duplex", 1]] },
-  mixed: { build: 0.85, kinds: [["flats", 0.55], ["house", 0.45]] },
-  poor: { build: 0.97, kinds: [["compound", 0.7], ["house", 0.3]] },
+/** One letter per kind of plot in the grid string. */
+export const ZONE_CODE: Record<ZoneKind | "out", string> = {
+  estate: "E", lowcost: "L", slum: "Z", schools: "S", mixed: "M", commercial: "C", ads: "D", civic: "V",
+  campus: "U", airport: "A", park: "G", out: "o",
+};
+const CODE_ZONE = Object.fromEntries(Object.entries(ZONE_CODE).map(([k, v]) => [v, k])) as Record<string, ZoneKind | "out">;
+export const zoneOfCode = (c: string): ZoneKind | "out" | undefined => CODE_ZONE[c];
+
+/**
+ * How a block is cut up inside: lanes every so many cells (0 for one big compound
+ * with no lanes), and the lane kind.
+ */
+const INSIDE: Record<ZoneKind, { every: number; lane: "lane" | "track" | null }> = {
+  estate: { every: 4, lane: "lane" },
+  lowcost: { every: 3, lane: "lane" },
+  slum: { every: 3, lane: "track" },
+  schools: { every: 0, lane: null },
+  mixed: { every: 3, lane: "lane" },
+  commercial: { every: 3, lane: "lane" },
+  ads: { every: 3, lane: "lane" },
+  civic: { every: 3, lane: "lane" },
+  campus: { every: 0, lane: null },
+  airport: { every: 0, lane: null },
+  park: { every: 0, lane: null },
+};
+
+/** How full each kind of block's plots are, and with what. */
+const FILL: Record<ZoneKind | "out", { build: number; kinds: [string, number][] }> = {
+  estate: { build: 0.62, kinds: [["duplex", 1]] },
+  lowcost: { build: 0.95, kinds: [["compound", 0.65], ["house", 0.35]] },
+  slum: { build: 1, kinds: [["shacks", 1]] },
+  schools: { build: 0.45, kinds: [["school", 1]] },
+  mixed: { build: 0.88, kinds: [["flats", 0.5], ["office", 0.25], ["house", 0.25]] },
+  commercial: { build: 0.95, kinds: [["flats", 0.45], ["market", 0.25], ["buka", 0.15], ["house", 0.15]] },
+  ads: { build: 0.7, kinds: [["flats", 0.5], ["office", 0.3], ["buka", 0.2]] },
+  civic: { build: 0.85, kinds: [["office", 0.45], ["flats", 0.35], ["house", 0.2]] },
+  campus: { build: 0.35, kinds: [["flats", 1]] },
+  airport: { build: 0, kinds: [["house", 1]] },
+  park: { build: 0, kinds: [["house", 1]] },
   out: { build: 0.25, kinds: [["house", 1]] },
 };
 
 const DIRS: [number, number][] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 
+type CellKind = "main" | "lane" | "track" | "bridge" | "island" | "water" | "lot" | "ground";
+
 interface Cell {
-  kind: "road" | "bridge" | "water" | "lot" | "ground";
-  district?: DistrictId | "out";
+  kind: CellKind;
+  zone?: ZoneKind | "out";
+  zoneIndex?: number;
   /** Street the road cell belongs to, for naming. */
   street?: string;
   cls?: RoadClass;
@@ -118,104 +155,61 @@ export interface BuiltTown {
   placeCells: Record<string, { u: number; v: number }>;
 }
 
+const ROADLIKE = new Set<CellKind>(["main", "lane", "track", "bridge"]);
+
 export function buildTown(spec: TownSpec): BuiltTown {
   const R = lcg(spec.seed);
   const names = spec.streetNames ?? ROAD_NAMES;
   let nameAt = Math.floor(R() * names.length);
   const nextName = () => names[nameAt++ % names.length];
 
-  // District bands along u, with the river between the centre and the district after it.
-  const band: { id: DistrictId; u0: number; u1: number }[] = [];
-  let river: { u0: number; u1: number } | null = null;
-  let L: number;
-  let W = spec.width;
-  if (spec.regions) {
-    L = spec.regions.size.u;
-    W = spec.regions.size.v;
-  } else {
-    let u = 0;
-    spec.order.forEach((id, i) => {
-      band.push({ id, u0: u, u1: u + spec.lengths[id] });
-      u += spec.lengths[id];
-      if (spec.river && id === "mixed" && i < 2) {
-        river = { u0: u + 1, u1: u + 3 };
-        u += 3;
-      }
+  // Main roads sit on the boundaries between blocks: one cell wide, at bu[i]
+  // along u and bv[j] along v. A river after a column adds two cells of water and
+  // a road on the far bank.
+  const bu: number[] = [0];
+  const water: [number, number][] = [];
+  spec.colSizes.forEach((s, i) => {
+    let next = bu[bu.length - 1] + s + 1;
+    if (spec.riverAfterCol === i && i < spec.colSizes.length - 1) {
+      water.push([next + 1, next + 3]);
+      bu.push(next);
+      next += 3;
+    }
+    bu.push(next);
+  });
+  const bv: number[] = [0];
+  for (const s of spec.rowSizes) bv.push(bv[bv.length - 1] + s + 1);
+  const L = bu[bu.length - 1];
+  const H = bv[bv.length - 1];
+  // A block's first interior cell along u, per column (skipping the river's bank road).
+  const colStart: number[] = [];
+  {
+    let k = 0;
+    spec.colSizes.forEach((_, i) => {
+      colStart.push(bu[k] + 1);
+      k += spec.riverAfterCol === i && i < spec.colSizes.length - 1 ? 2 : 1;
     });
-    if (spec.river && !river) {
-      // The centre came last: put the river before it instead.
-      const m = band.find((b) => b.id === "mixed")!;
-      for (const b of band) if (b.u0 >= m.u0) { b.u0 += 3; b.u1 += 3; }
-      river = { u0: m.u0 - 2, u1: m.u0 };
-      u += 3;
-    }
-    L = u; // the last cross street sits at u = L
   }
-  const anchors = spec.regions?.anchors ?? [];
-  const districtAt = (uu: number, vv = 0): DistrictId | null => {
-    if (!anchors.length) return band.find((b) => uu >= b.u0 && uu < b.u1)?.id ?? null;
-    let best: DistrictId = "mixed";
-    let bestD = Infinity;
-    for (const a of anchors) {
-      const d = Math.hypot(a.u - uu, a.v - vv);
-      if (d < bestD) {
-        bestD = d;
-        best = a.id;
-      }
-    }
-    return best;
-  };
+  const rowStart = spec.rowSizes.map((_, j) => bv[j] + 1);
+  const inWater = (u: number) => water.some(([a, b]) => u >= a && u < b);
 
-  // Long streets run the length of town at fixed v. The rich side keeps only every
-  // other one, so its plots are bigger and its streets quieter.
-  const mainV = 3 * Math.floor((W - 1) / 6);
-  const longStreet = (vv: number, uu: number): boolean => {
-    if (vv === 0 || vv === W - 1 || vv === mainV) return true;
-    if (vv % 3 !== 0) return false;
-    return anchors.length > 0 || districtAt(uu, vv) !== "rich" || vv % 6 === 0;
-  };
-  // Cross streets at the start of every district, every few cells inside it, and at the far end.
-  const crossU = new Set<number>([L]);
-  if (anchors.length) for (let x = 0; x < L; x += 3) crossU.add(x);
-  for (const b of band) {
-    for (let x = b.u0; x < b.u1 - 1; x += CROSS_EVERY[b.id]) crossU.add(x);
-  }
-  if (river) {
-    // The river banks are streets on both sides.
-    const r = river as { u0: number; u1: number };
-    crossU.add(r.u0 - 1);
-    crossU.add(r.u1);
-  }
-
-  // Outskirts roads continue the middle cross street of a district off the town's edge.
-  const middleCross = (d: DistrictId) => {
-    const b = band.find((x) => x.id === d) ?? { u0: 0, u1: L };
-    const inside = [...crossU].filter((x) => x > b.u0 && x < b.u1).sort((a, c) => a - c);
-    return inside.length ? inside[Math.floor(inside.length / 2)] : b.u0;
-  };
-  const outs = spec.outskirts.map((o) => ({ ...o, u: o.atU ?? middleCross(o.from), v: o.atV ?? mainV }));
+  const outs = spec.outskirts.map((o) => ({
+    ...o,
+    line: o.side === "top" || o.side === "bottom" ? bu[Math.min(o.at, bu.length - 1)] : bv[Math.min(o.at, bv.length - 1)],
+  }));
   const reach = (side: Outskirts["side"]) => Math.max(0, ...outs.filter((o) => o.side === side).map((o) => o.length));
-  const vMin = -reach("top") - 1;
-  const vMax = W + reach("bottom");
-  /** The k-th cell of a road out, counting from the town's edge. */
   const outCell = (o: (typeof outs)[number], k: number) =>
-    o.side === "top" ? { u: o.u, v: -k }
-    : o.side === "bottom" ? { u: o.u, v: W - 1 + k }
-    : o.side === "start" ? { u: -k, v: o.v }
-    : { u: L + k, v: o.v };
+    o.side === "top" ? { u: o.line, v: -k }
+    : o.side === "bottom" ? { u: o.line, v: H + k }
+    : o.side === "start" ? { u: -k, v: o.line }
+    : { u: L + k, v: o.line };
 
-  // Lay out every cell.
-  const u0 = -reach("start") - 2;
-  const v0 = vMin - 1;
-  const cols = L - u0 + reach("end") + 3;
-  const rows = vMax - v0 + 2;
-  const cells: Cell[][] = [];
-  const at = (uu: number, vv: number): Cell | undefined => cells[vv - v0]?.[uu - u0];
-  for (let r = 0; r < rows; r++) {
-    const row: Cell[] = [];
-    for (let c = 0; c < cols; c++) row.push({ kind: "ground" });
-    cells.push(row);
-  }
+  const u0 = -reach("start") - 3;
+  const v0 = -reach("top") - 3;
+  const cols = L - u0 + reach("end") + 4;
+  const rows = H - v0 + reach("bottom") + 4;
+  const cells: Cell[][] = Array.from({ length: rows }, () => Array.from({ length: cols }, () => ({ kind: "ground" as CellKind })));
+  const at = (u: number, v: number): Cell | undefined => cells[v - v0]?.[u - u0];
 
   const streetName = new Map<string, string>();
   const nameFor = (key: string) => {
@@ -223,123 +217,129 @@ export function buildTown(spec: TownSpec): BuiltTown {
     return streetName.get(key)!;
   };
 
-  for (let vv = 0; vv < W; vv++) {
-    for (let uu = 0; uu <= L; uu++) {
-      const cell = at(uu, vv)!;
-      const inRiver = river && uu >= (river as { u0: number }).u0 && uu < (river as { u1: number }).u1;
-      const isLong = longStreet(vv, Math.min(uu, L - 1)) && uu <= L;
-      const isCross = crossU.has(uu);
-      if (inRiver) {
-        if (isLong) Object.assign(cell, { kind: "bridge", street: nameFor(`v${vv}`), cls: vv === mainV ? "primary" : "secondary" });
-        else cell.kind = "water";
-        continue;
-      }
-      if (isLong || isCross) {
-        const main = vv === mainV;
-        const d = districtAt(Math.min(uu, L - 1), vv);
-        Object.assign(cell, {
-          kind: "road",
-          street: isLong ? nameFor(`v${vv}`) : nameFor(`u${uu}`),
-          cls: main ? "primary" : d === "mixed" ? "secondary" : d === "rich" ? "tertiary" : "residential",
-        });
-        continue;
-      }
-      if (uu < L) Object.assign(cell, { kind: "lot", district: districtAt(uu, vv) ?? "mixed" });
-    }
-  }
-  // The river runs on past the town at both ends.
-  if (river) {
-    const r = river as { u0: number; u1: number };
-    for (let vv = v0; vv < v0 + rows; vv++) {
-      if (vv >= 0 && vv < W) continue;
-      for (let uu = r.u0; uu < r.u1; uu++) {
-        const c = at(uu, vv);
-        if (c) c.kind = "water";
+  // The blocks, and what each cell inside them is.
+  spec.zones.forEach((z, zi) => {
+    const cu0 = colStart[z.col];
+    const cv0 = rowStart[z.row];
+    const lastCol = z.col + (z.cols ?? 1) - 1;
+    const lastRow = z.row + (z.rows ?? 1) - 1;
+    const cu1 = colStart[lastCol] + spec.colSizes[lastCol];
+    const cv1 = rowStart[lastRow] + spec.rowSizes[lastRow];
+    const inside = INSIDE[z.kind];
+    // Lanes run every few cells, but never right beside a main road.
+    const laneAt = (i: number, size: number) => inside.every > 0 && i % inside.every === inside.every - 1 && i < size - 2;
+    for (let v = cv0; v < cv1; v++) {
+      for (let u = cu0; u < cu1; u++) {
+        const c = at(u, v)!;
+        // A spanning block swallows the main road between its parts.
+        const lane = laneAt(u - cu0, cu1 - cu0) || laneAt(v - cv0, cv1 - cv0);
+        if (lane && inside.lane) {
+          Object.assign(c, {
+            kind: inside.lane,
+            zone: z.kind,
+            zoneIndex: zi,
+            street: nameFor(laneAt(u - cu0, cu1 - cu0) ? `lane-u${u}-${zi}` : `lane-v${v}-${zi}`),
+            cls: inside.lane === "track" ? "residential" : "tertiary",
+          });
+        } else Object.assign(c, { kind: "lot", zone: z.kind, zoneIndex: zi });
       }
     }
+  });
+
+  // Main roads round every block.
+  for (let v = 0; v <= H; v++) {
+    for (let u = 0; u <= L; u++) {
+      const onU = bu.includes(u);
+      const onV = bv.includes(v);
+      if (!onU && !onV) continue;
+      const c = at(u, v)!;
+      if (c.kind === "lot" && c.zone && !onU !== !onV) {
+        // Inside a spanning block, the boundary is part of the block, not a road.
+        const z = spec.zones[c.zoneIndex!];
+        if ((z.cols ?? 1) > 1 || (z.rows ?? 1) > 1) continue;
+      }
+      if (inWater(u)) {
+        if (onV) Object.assign(c, { kind: "bridge", street: nameFor(`v${v}`), cls: "primary" });
+        else c.kind = "water";
+        continue;
+      }
+      Object.assign(c, {
+        kind: "main",
+        street: onV ? nameFor(`v${v}`) : nameFor(`u${u}`),
+        cls: "primary",
+      });
+    }
   }
-  // Outskirts roads, with a row of lots along each side for roadside villages.
+  // Water fills the river band from edge to edge.
+  for (const [a, b] of water) {
+    for (let v = v0; v < v0 + rows; v++) {
+      for (let u = a; u < b; u++) {
+        const c = at(u, v)!;
+        if (c.kind !== "bridge") c.kind = "water";
+      }
+    }
+  }
+
+  // Roundabouts where main roads cross inside town: the crossing becomes an
+  // island and the eight cells round it the ring.
+  const roundabouts: Point[] = [];
+  for (const u of bu.slice(1, -1)) {
+    for (const v of bv.slice(1, -1)) {
+      if (inWater(u)) continue;
+      const ring = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+      if (!DIRS.every(([du, dv]) => at(u + du * 2, v + dv * 2)?.kind === "main")) continue;
+      for (const [du, dv] of ring) Object.assign(at(u + du, v + dv)!, { kind: "main", cls: "primary", street: "Roundabout" });
+      Object.assign(at(u, v)!, { kind: "island", street: undefined });
+      roundabouts.push({ x: u, y: v });
+    }
+  }
+
+  // Roads out of town, with a row of plots along each side for roadside villages.
   for (const o of outs) {
-    const name = o.name;
     const acrossU = o.side === "top" || o.side === "bottom";
     for (let k = 1; k <= o.length; k++) {
       const p = outCell(o, k);
       const c = at(p.u, p.v);
       if (!c) continue;
       const wet = c.kind === "water";
-      Object.assign(c, { kind: wet ? "bridge" : "road", street: name, cls: "trunk", highway: !!o.highway });
+      Object.assign(c, { kind: wet ? "bridge" : "main", street: o.name, cls: "trunk", highway: !!o.highway });
       for (const d of [-1, 1]) {
         const side = acrossU ? at(p.u + d, p.v) : at(p.u, p.v + d);
-        if (side && side.kind === "ground") Object.assign(side, { kind: "lot", district: "out" });
+        if (side && side.kind === "ground") Object.assign(side, { kind: "lot", zone: "out" });
       }
     }
   }
 
-  const isRoad = (uu: number, vv: number) => {
-    const c = at(uu, vv);
-    return !!c && (c.kind === "road" || c.kind === "bridge");
-  };
-  /** The street side of a lot, front sides first so buildings face the viewer where they can. */
-  const faceOf = (uu: number, vv: number): Facing | null => {
-    for (const f of [0, 1, 2, 3] as Facing[]) if (isRoad(uu + DIRS[f][0], vv + DIRS[f][1])) return f;
+  const isRoad = (u: number, v: number) => ROADLIKE.has(at(u, v)?.kind ?? "ground");
+  const faceOf = (u: number, v: number): Facing | null => {
+    for (const f of [0, 1, 2, 3] as Facing[]) if (isRoad(u + DIRS[f][0], v + DIRS[f][1])) return f;
     return null;
   };
+  const streetSides = (u: number, v: number): Facing[] => ([0, 1, 2, 3] as Facing[]).filter((f) => isRoad(u + DIRS[f][0], v + DIRS[f][1]));
+  const toXY = (u: number, v: number): Point => ({ x: (u - v) * CELL_HW, y: (u + v) * CELL_HH });
 
-  const toXY = (uu: number, vv: number): Point => ({ x: (uu - vv) * CELL_HW, y: (uu + vv) * CELL_HH });
-  /** Every side of a lot that has a street. */
-  const streetSides = (uu: number, vv: number): Facing[] =>
-    ([0, 1, 2, 3] as Facing[]).filter((f) => isRoad(uu + DIRS[f][0], vv + DIRS[f][1]));
-
-  // Lots that touch a street can take a building that people visit.
-  const frontage: { u: number; v: number; d: DistrictId | "out"; face: Facing }[] = [];
-  for (let vv = v0; vv < v0 + rows; vv++) {
-    for (let uu = u0; uu < u0 + cols; uu++) {
-      const c = at(uu, vv)!;
+  // Plots that touch a street can take a place.
+  const frontage: { u: number; v: number; z: number | "out"; face: Facing }[] = [];
+  for (let v = v0; v < v0 + rows; v++) {
+    for (let u = u0; u < u0 + cols; u++) {
+      const c = at(u, v)!;
       if (c.kind !== "lot") continue;
-      const face = faceOf(uu, vv);
-      if (face !== null) frontage.push({ u: uu, v: vv, d: c.district!, face });
+      const face = faceOf(u, v);
+      if (face !== null) frontage.push({ u, v, z: c.zone === "out" ? "out" : c.zoneIndex!, face });
     }
   }
 
-  // Place the places: shared ones from the LGA seed, the citizen's own from theirs.
   const taken = new Map<string, string>();
-  const key = (uu: number, vv: number) => `${uu},${vv}`;
+  const key = (u: number, v: number) => `${u},${v}`;
   const placeCells: BuiltTown["placeCells"] = {};
-  const shared = spec.places.filter((p) => !p.personal);
-  const personal = spec.places.filter((p) => p.personal);
-  const PR = lcg(spec.personalSeed ?? spec.seed ^ 0x9e3779b9);
+  const gap = spec.placeGap ?? 1;
 
-  const spotFor = (p: TownPlace, rng: () => number) => {
-    let pool = frontage.filter((f) => !taken.has(key(f.u, f.v)));
-    if (p.district === "out") {
-      const o = outs[p.road ?? 0];
-      if (o) {
-        const k = Math.max(1, Math.round((p.along ?? 0.5) * o.length));
-        const want = outCell(o, k);
-        pool = pool.filter((f) => f.d === "out");
-        return nearest(pool, want, 0);
-      }
-    }
-    if (p.cell) {
-      // A real spot: the nearest free lot anywhere in town, whatever district it falls in.
-      const town = pool.filter((f) => f.d !== "out");
-      return nearest(town, p.cell, spec.placeGap ?? 2) ?? nearest(town, p.cell, 1);
-    }
-    const b = band.find((x) => x.id === p.district) ?? { u0: 0, u1: L };
-    const want = {
-      u: b.u0 + (p.prefer?.a ?? rng()) * (b.u1 - b.u0 - 1),
-      v: (p.prefer?.c ?? rng()) * (W - 1),
-    };
-    const inDistrict = pool.filter((f) => f.d === p.district);
-    // Leave a plot between places where we can, so signs and taps do not crowd.
-    return nearest(inDistrict, want, 2) ?? nearest(inDistrict, want, 1) ?? nearest(pool.filter((f) => f.d !== "out"), want, 1);
-  };
-
-  const nearest = (pool: typeof frontage, want: { u: number; v: number }, gap: number) => {
+  const nearest = (pool: typeof frontage, want: { u: number; v: number }, minGap: number) => {
     let best: (typeof frontage)[number] | null = null;
     let bestD = Infinity;
+    const spots = Object.values(placeCells);
     for (const f of pool) {
-      if (gap > 1 && [...placeSpots()].some((s) => Math.max(Math.abs(s.u - f.u), Math.abs(s.v - f.v)) < gap)) continue;
+      if (minGap > 1 && spots.some((s) => Math.max(Math.abs(s.u - f.u), Math.abs(s.v - f.v)) < minGap)) continue;
       const d = Math.hypot(f.u - want.u, f.v - want.v);
       if (d < bestD) {
         bestD = d;
@@ -348,7 +348,29 @@ export function buildTown(spec: TownSpec): BuiltTown {
     }
     return best;
   };
-  const placeSpots = () => Object.values(placeCells);
+
+  const spotFor = (p: TownPlace, rng: () => number) => {
+    const free = frontage.filter((f) => !taken.has(key(f.u, f.v)));
+    if (p.zone === "out") {
+      const o = outs[p.road ?? 0];
+      if (!o) return null;
+      const k = Math.max(1, Math.round((p.along ?? 0.5) * o.length));
+      return nearest(free.filter((f) => f.z === "out"), outCell(o, k), 1);
+    }
+    const z = spec.zones[p.zone];
+    const cu0 = colStart[z.col];
+    const cv0 = rowStart[z.row];
+    const lastCol = z.col + (z.cols ?? 1) - 1;
+    const lastRow = z.row + (z.rows ?? 1) - 1;
+    const cu1 = colStart[lastCol] + spec.colSizes[lastCol];
+    const cv1 = rowStart[lastRow] + spec.rowSizes[lastRow];
+    const want = {
+      u: cu0 + (p.prefer?.a ?? rng()) * (cu1 - cu0 - 1),
+      v: cv0 + (p.prefer?.c ?? rng()) * (cv1 - cv0 - 1),
+    };
+    const inZone = free.filter((f) => f.z === p.zone);
+    return nearest(inZone, want, gap) ?? nearest(inZone, want, 1) ?? nearest(free.filter((f) => f.z !== "out"), want, 1);
+  };
 
   const places: MapPlace[] = [];
   const lots: TownLot[] = [];
@@ -358,32 +380,37 @@ export function buildTown(spec: TownSpec): BuiltTown {
     taken.set(key(spot.u, spot.v), p.id);
     placeCells[p.id] = { u: spot.u, v: spot.v };
     const xy = toXY(spot.u, spot.v);
-    const { district, prefer, road, along, cell, personal: _personal, ...rest } = p;
-    void district; void prefer; void road; void along; void cell; void _personal;
+    const { zone, prefer, road, along, personal: _personal, ...rest } = p;
+    void zone; void prefer; void road; void along; void _personal;
     const sides = streetSides(spot.u, spot.v);
     const gates = sides.map((f) => toXY(spot.u + DIRS[f][0], spot.v + DIRS[f][1]));
     // You stand on the pavement just outside the main gate.
     const g0 = toXY(spot.u + DIRS[spot.face][0], spot.v + DIRS[spot.face][1]);
     const stand = { x: xy.x + (g0.x - xy.x) * 0.62, y: xy.y + (g0.y - xy.y) * 0.62 };
     places.push({ ...rest, ...xy, gates, stand, ...(flipFor(spot.face) ? { flip: true } : {}) });
-    lots.push({ ...xy, district: spot.d, face: spot.face, gates: sides, use: "place" });
+    const zk = at(spot.u, spot.v)!.zone!;
+    lots.push({ ...xy, district: zk === "out" ? "out" : ZONE_DISTRICT[zk], zone: zk, face: spot.face, gates: sides, use: "place" });
   };
-  for (const p of shared) put(p, R);
-  for (const p of personal) put(p, PR);
+  const PR = lcg(spec.personalSeed ?? spec.seed ^ 0x9e3779b9);
+  for (const p of spec.places.filter((x) => !x.personal)) put(p, R);
+  for (const p of spec.places.filter((x) => x.personal)) put(p, PR);
 
-  // Ordinary buildings on the remaining lots. Lots with no street get a garden,
-  // so no building is ever cut off from the road.
+  // Ordinary buildings on the remaining plots. A plot with no street becomes a
+  // garden (or, in a school, the playing field), so no building is ever cut off.
   const buildings: TownBuilding[] = [];
   const FR = lcg(spec.seed ^ 0x51ed27);
-  for (let vv = v0; vv < v0 + rows; vv++) {
-    for (let uu = u0; uu < u0 + cols; uu++) {
-      const c = at(uu, vv)!;
-      if (c.kind !== "lot" || taken.has(key(uu, vv))) continue;
-      const xy = toXY(uu, vv);
-      const face = faceOf(uu, vv);
-      const fill = FILL[c.district!];
+  for (let v = v0; v < v0 + rows; v++) {
+    for (let u = u0; u < u0 + cols; u++) {
+      const c = at(u, v)!;
+      if (c.kind !== "lot" || taken.has(key(u, v))) continue;
+      const xy = toXY(u, v);
+      const face = faceOf(u, v);
+      const zk = c.zone!;
+      const district = zk === "out" ? "out" : ZONE_DISTRICT[zk];
+      const fill = FILL[zk];
       if (face === null || FR() > fill.build) {
-        lots.push({ ...xy, district: c.district!, face: face ?? 0, gates: streetSides(uu, vv), use: "garden" });
+        const use = zk === "schools" || zk === "campus" ? "field" : zk === "airport" ? "apron" : "garden";
+        lots.push({ ...xy, district, zone: zk, face: face ?? 0, gates: streetSides(u, v), use });
         continue;
       }
       let roll = FR();
@@ -396,7 +423,7 @@ export function buildTown(spec: TownSpec): BuiltTown {
         roll -= w;
       }
       buildings.push({ ...xy, kind, ...(flipFor(face) ? { flip: true } : {}) });
-      lots.push({ ...xy, district: c.district!, face, gates: streetSides(uu, vv), use: "building" });
+      lots.push({ ...xy, district, zone: zk, face, gates: streetSides(u, v), use: "building" });
     }
   }
 
@@ -405,30 +432,30 @@ export function buildTown(spec: TownSpec): BuiltTown {
   const roads: MapRoad[] = [];
   const pushRun = (run: { u: number; v: number }[]) => {
     if (run.length < 2) return;
-    const first = at(run[0].u, run[0].v)!;
-    const mid = at(run[run.length - 1].u, run[run.length - 1].v)!.highway
-      ? at(run[run.length - 1].u, run[run.length - 1].v)!
-      : at(run[Math.floor(run.length / 2)].u, run[Math.floor(run.length / 2)].v)!;
+    const last = at(run[run.length - 1].u, run[run.length - 1].v)!;
+    const mid = last.highway ? last : at(run[Math.floor(run.length / 2)].u, run[Math.floor(run.length / 2)].v)!;
     roads.push({
-      name: mid.street ?? first.street ?? "",
+      name: mid.street ?? "",
       cls: mid.cls ?? "secondary",
       ...(mid.highway ? { highway: true } : {}),
       pts: run.map((c) => toXY(c.u, c.v)),
     });
   };
-  // A run of road cells becomes one street. Where a town street turns into a
-  // highway out of town, the run splits there (sharing the junction point), so
-  // the highway keeps its own name and its rules.
-  const highwayAt = (uu: number, vv: number) => !!at(uu, vv)?.highway;
-  const scan = (cellsInLine: { u: number; v: number }[], next: (c: { u: number; v: number }) => boolean) => {
+  // Runs split where a town street becomes a highway, or a main road meets a lane,
+  // sharing the joint so the router still joins them.
+  const sortOf = (u: number, v: number) => {
+    const c = at(u, v);
+    return `${c?.highway ? "h" : ""}${c?.kind === "lane" || c?.kind === "track" ? "l" : "m"}`;
+  };
+  const scan = (line: { u: number; v: number }[], next: (c: { u: number; v: number }) => boolean) => {
     let run: { u: number; v: number }[] = [];
-    for (const c of cellsInLine) {
+    for (const c of line) {
       if (!next(c)) {
         pushRun(run);
         run = [];
         continue;
       }
-      if (run.length && highwayAt(run[run.length - 1].u, run[run.length - 1].v) !== highwayAt(c.u, c.v)) {
+      if (run.length && sortOf(run[run.length - 1].u, run[run.length - 1].v) !== sortOf(c.u, c.v)) {
         const joint = run[run.length - 1];
         pushRun(run);
         run = [joint];
@@ -437,27 +464,40 @@ export function buildTown(spec: TownSpec): BuiltTown {
     }
     pushRun(run);
   };
-  // Along u (fixed v): long streets.
-  for (let vv = v0; vv < v0 + rows; vv++) {
-    const line = Array.from({ length: cols + 1 }, (_, i) => ({ u: u0 + i, v: vv }));
-    scan(line, (c) => isRoad(c.u, c.v) && (isRoad(c.u - 1, c.v) || isRoad(c.u + 1, c.v)));
+  for (let v = v0; v < v0 + rows; v++) {
+    scan(Array.from({ length: cols + 1 }, (_, i) => ({ u: u0 + i, v })), (c) => isRoad(c.u, c.v) && (isRoad(c.u - 1, c.v) || isRoad(c.u + 1, c.v)));
   }
-  // Along v (fixed u): cross streets and the outskirts roads.
-  for (let uu = u0; uu < u0 + cols; uu++) {
-    const line = Array.from({ length: rows + 1 }, (_, i) => ({ u: uu, v: v0 + i }));
-    scan(line, (c) => isRoad(c.u, c.v) && (isRoad(c.u, c.v - 1) || isRoad(c.u, c.v + 1)));
+  for (let u = u0; u < u0 + cols; u++) {
+    scan(Array.from({ length: rows + 1 }, (_, i) => ({ u, v: v0 + i })), (c) => isRoad(c.u, c.v) && (isRoad(c.u, c.v - 1) || isRoad(c.u, c.v + 1)));
   }
 
-  // Traffic lights at the crossroads that carry the most traffic: every one on the
-  // main road, and the town centre's.
+  // Traffic lights where a lane crosses a main road in the busy blocks.
+  const BUSY = new Set<ZoneKind | "out" | undefined>(["commercial", "ads", "mixed", "civic"]);
   const lights: Point[] = [];
-  for (let vv = 0; vv < W; vv++) {
-    for (let uu = 0; uu <= L; uu++) {
-      const c = at(uu, vv);
-      if (!c || c.kind !== "road") continue;
-      const ways = DIRS.filter(([du, dv]) => isRoad(uu + du, vv + dv)).length;
-      if (ways < 4) continue;
-      if (vv === mainV || districtAt(Math.min(uu, L - 1), vv) === "mixed") lights.push(toXY(uu, vv));
+  for (let v = 0; v <= H; v++) {
+    for (let u = 0; u <= L; u++) {
+      const c = at(u, v);
+      if (!c || c.kind !== "main") continue;
+      if (DIRS.filter(([du, dv]) => isRoad(u + du, v + dv)).length < 4) continue;
+      const lanes = DIRS.map(([du, dv]) => at(u + du, v + dv)).filter((n) => n?.kind === "lane");
+      if (lanes.length && lanes.some((n) => BUSY.has(n!.zone))) lights.push(toXY(u, v));
+    }
+  }
+
+  // Bus stops along the main roads: every few cells, on the kerb beside a plot.
+  const stops: { x: number; y: number; face: Facing }[] = [];
+  let since = 3;
+  for (let v = 0; v <= H; v++) {
+    for (let u = 0; u <= L; u++) {
+      const c = at(u, v);
+      if (!c || c.kind !== "main" || c.street === "Roundabout") continue;
+      since++;
+      if (since < 6) continue;
+      const side = ([0, 1, 2, 3] as Facing[]).find((f) => at(u + DIRS[f][0], v + DIRS[f][1])?.kind === "lot");
+      const straight = (isRoad(u - 1, v) && isRoad(u + 1, v)) !== (isRoad(u, v - 1) && isRoad(u, v + 1));
+      if (side === undefined || !straight) continue;
+      stops.push({ ...toXY(u, v), face: side });
+      since = 0;
     }
   }
 
@@ -469,40 +509,52 @@ export function buildTown(spec: TownSpec): BuiltTown {
   const maxY = Math.max(...corners.map((p) => p.y)) + CELL_HH * 4;
   const mv = <T extends Point>(p: T): T => ({ ...p, x: p.x - minX, y: p.y - minY });
 
+  const code = (c: Cell): string => {
+    switch (c.kind) {
+      case "main": return "a";
+      case "lane": return "r";
+      case "track": return "t";
+      case "bridge": return "b";
+      case "island": return "i";
+      case "water": return "w";
+      case "lot": return ZONE_CODE[c.zone ?? "mixed"];
+      default: return ".";
+    }
+  };
   const grid: TownGrid = {
-    hw: CELL_HW,
-    hh: CELL_HH,
-    ox: -minX,
-    oy: -minY,
-    u0,
-    v0,
-    cols,
-    rows,
-    cells: cells
-      .map((row) =>
-        row
-          .map((c) => {
-            if (c.kind === "road") return "r";
-            if (c.kind === "bridge") return "b";
-            if (c.kind === "water") return "w";
-            if (c.kind === "lot") return c.district === "rich" ? "R" : c.district === "poor" ? "P" : c.district === "out" ? "o" : "M";
-            return ".";
-          })
-          .join(""),
-      )
-      .join(""),
+    hw: CELL_HW, hh: CELL_HH, ox: -minX, oy: -minY, u0, v0, cols, rows,
+    cells: cells.map((row) => row.map(code).join("")).join(""),
   };
 
-  // Name each district on the ground: under its strip, or at the middle of its region.
-  const districts = band.length
-    ? band.map((b) => ({ id: b.id, name: spec.names[b.id], ...mv(toXY((b.u0 + b.u1) / 2, W + 0.6)) }))
-    : (["rich", "mixed", "poor"] as DistrictId[]).flatMap((id) => {
-        const mine = anchors.filter((a) => a.id === id);
-        if (!mine.length) return [];
-        const cu = mine.reduce((t, a) => t + a.u, 0) / mine.length;
-        const cv = mine.reduce((t, a) => t + a.v, 0) / mine.length;
-        return [{ id, name: spec.names[id], ...mv(toXY(cu, cv)) }];
-      });
+  // Each block's outline, for drawing a campus, park or airfield as one piece of ground.
+  const blocks = spec.zones.map((z) => {
+    const lastCol = z.col + (z.cols ?? 1) - 1;
+    const lastRow = z.row + (z.rows ?? 1) - 1;
+    const a = colStart[z.col];
+    const b = colStart[lastCol] + spec.colSizes[lastCol] - 1;
+    const c = rowStart[z.row];
+    const d = rowStart[lastRow] + spec.rowSizes[lastRow] - 1;
+    const t = toXY(a, c);
+    const r = toXY(b, c);
+    const bo = toXY(b, d);
+    const l = toXY(a, d);
+    return {
+      zone: z.kind,
+      corners: [
+        mv({ x: t.x, y: t.y - CELL_HH }), mv({ x: r.x + CELL_HW, y: r.y }),
+        mv({ x: bo.x, y: bo.y + CELL_HH }), mv({ x: l.x - CELL_HW, y: l.y }),
+      ],
+    };
+  });
+
+  // Each block's name, at its middle.
+  const districts = spec.zones.map((z) => {
+    const lastCol = z.col + (z.cols ?? 1) - 1;
+    const lastRow = z.row + (z.rows ?? 1) - 1;
+    const cu = (colStart[z.col] + colStart[lastCol] + spec.colSizes[lastCol]) / 2;
+    const cv = (rowStart[z.row] + rowStart[lastRow] + spec.rowSizes[lastRow]) / 2;
+    return { id: ZONE_DISTRICT[z.kind], zone: z.kind, name: z.name, ...mv(toXY(cu - 0.5, cv - 0.5)) };
+  });
 
   let map: WorldMap = {
     id: spec.id,
@@ -513,6 +565,9 @@ export function buildTown(spec: TownSpec): BuiltTown {
     height: Math.round(maxY - minY),
     places: places.map((p) => ({ ...mv(p), ...(p.gates ? { gates: p.gates.map(mv) } : {}), ...(p.stand ? { stand: mv(p.stand) } : {}) })),
     lights: lights.map(mv),
+    roundabouts: roundabouts.map((r) => mv(toXY(r.x, r.y))),
+    blocks,
+    stops: stops.map(mv),
     scenery: { farmland: spec.farmland, hills: spec.hills },
     roads: roads.map((r) => ({ ...r, pts: r.pts.map(mv) })),
     buildings: buildings.map(mv),
@@ -546,13 +601,23 @@ function meanTrip(map: WorldMap): number {
   return n ? t / n : 0;
 }
 
-/** The ground colour for a district's yards, from the zone's look. */
-export function yardColour(biome: BiomeId, d: DistrictId | "out"): string {
+/** The ground colour of a plot, by what kind of block it is in and the zone's look. */
+export function yardColour(biome: BiomeId, zone: ZoneKind | "out" | undefined): string {
   const b = BIOMES[biome];
-  if (d === "rich") return "#8DB866";
-  if (d === "mixed") return "#D9CDB4";
-  if (d === "poor") return b.flat ? "#C9A46A" : "#B98E5E";
-  return b.patch;
+  switch (zone) {
+    case "estate": return "#8DB866";
+    case "park": return "#7FAF5A";
+    case "schools":
+    case "campus": return "#A3C47A";
+    case "airport": return "#B8B5AC";
+    case "commercial":
+    case "ads": return "#D6CCBC";
+    case "mixed":
+    case "civic": return "#DDD3C0";
+    case "lowcost": return b.flat ? "#C9A46A" : "#B98E5E";
+    case "slum": return b.flat ? "#B58D57" : "#9C6E48";
+    default: return b.patch;
+  }
 }
 
 /** The centre of a grid cell, in map pixels. */
@@ -568,3 +633,8 @@ export function cellAt(g: TownGrid, u: number, v: number): string {
   if (c < 0 || r < 0 || c >= g.cols || r >= g.rows) return ".";
   return g.cells[r * g.cols + c];
 }
+
+/** Road cells in the grid string: main roads, lanes, dirt tracks and bridges. */
+export const ROAD_CODES = new Set(["a", "r", "t", "b"]);
+/** Plot cells: one capital letter per kind of block, and "o" out of town. */
+export const isLotCode = (c: string) => c === "o" || (c >= "A" && c <= "Z");

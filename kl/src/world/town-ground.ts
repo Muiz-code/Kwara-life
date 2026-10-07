@@ -5,7 +5,7 @@ import { Container, Graphics, Text } from "pixi.js";
 import { BIOMES } from "../data/biomes";
 import { seeded } from "../sim/rng";
 import { hash } from "./generate";
-import { cellAt, cellCentre, yardColour } from "./town";
+import { cellAt, cellCentre, isLotCode, ROAD_CODES, yardColour, zoneOfCode } from "./town";
 import type { Facing, Point, TownGrid, WorldMap } from "./types";
 
 const hex = (c: string) => parseInt(c.replace("#", ""), 16);
@@ -34,14 +34,24 @@ const inset = (c: Point, p: Point, k: number): Point => lerp(c, p, k);
 
 const DIRS: [number, number][] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 
-const WALL: Record<string, { color: number; top: number; h: number; every: number } | null> = {
-  // The rich side: tall cream compound walls round every plot.
-  R: { color: 0xeee3cc, top: 0xd8cbb0, h: 9, every: 1 },
-  // The centre: low block walls.
-  M: { color: 0xb9b1a3, top: 0xa39b8d, h: 5, every: 1 },
-  // The poor side: a rusty zinc fence here and there, mostly open.
-  P: { color: 0x9c6b3e, top: 0x7e5432, h: 6, every: 3 },
-  o: null,
+/** The wall round a plot, by kind of block. Null: no wall. every: only one plot in so many has one. */
+const WALL: Record<string, { color: number; top: number; h: number; every: number; posts: boolean } | null> = {
+  // Estates: tall cream compound walls round every plot, gates with posts.
+  E: { color: 0xeee3cc, top: 0xd8cbb0, h: 10, every: 1, posts: true },
+  // Offices, civic buildings, flats: low block walls.
+  M: { color: 0xb9b1a3, top: 0xa39b8d, h: 5, every: 1, posts: true },
+  V: { color: 0xc8c0b0, top: 0xa39b8d, h: 6, every: 1, posts: true },
+  // Schools and campuses: a painted fence round the grounds.
+  S: { color: 0x3f7f5a, top: 0x2f6b48, h: 6, every: 1, posts: true },
+  U: { color: 0x3f7f5a, top: 0x2f6b48, h: 6, every: 1, posts: true },
+  // The airport: a high wire fence.
+  A: { color: 0x9aa3ad, top: 0x7e8792, h: 9, every: 1, posts: false },
+  // Low-cost housing: rusty zinc here and there.
+  L: { color: 0x9c6b3e, top: 0x7e5432, h: 6, every: 3, posts: false },
+  // Parks: a low hedge.
+  G: { color: 0x4f7f3a, top: 0x3f6b2f, h: 5, every: 1, posts: false },
+  // Shops and markets open straight onto the street; the slum has no walls at all.
+  C: null, D: null, Z: null, o: null,
 };
 
 function tree(g: Graphics, x: number, y: number, s: number, kind: string) {
@@ -75,8 +85,9 @@ export function buildTownGround(map: WorldMap, fonts: { ui: string; sign: string
   const W = map.width;
   const H = map.height;
   const cell = (u: number, v: number) => cellAt(g0, u, v);
-  const isRoad = (c: string) => c === "r" || c === "b";
-  const isLot = (c: string) => c === "R" || c === "M" || c === "P" || c === "o";
+  const isRoad = (c: string) => ROAD_CODES.has(c);
+  const isMain = (c: string) => c === "a" || c === "b";
+  const isLot = isLotCode;
 
   g.rect(-3000, -3000, W + 6000, H + 6000).fill(hex(B.ground));
   for (let i = 0; i < 1600; i++) {
@@ -160,6 +171,61 @@ export function buildTownGround(map: WorldMap, fonts: { ui: string; sign: string
     }
   }
 
+  // Campuses, parks, school grounds and the airfield are one piece of ground each,
+  // not a grid of plots: lawn or tarmac, paths, trees, playing fields, a runway.
+  const OPEN = new Set(["schools", "campus", "park", "airport"]);
+  for (const b of map.blocks ?? []) {
+    if (!OPEN.has(b.zone)) continue;
+    const [t, r, bo, l] = b.corners;
+    const mid = lerp(t, bo, 0.5);
+    g.poly(b.corners.flatMap((p) => [p.x, p.y])).fill(hex(yardColour(map.biome, b.zone)));
+    if (b.zone === "airport") {
+      // The runway down the long side, with its centre line and threshold marks.
+      const a0 = lerp(t, l, 0.42);
+      const a1 = lerp(t, l, 0.58);
+      const b0 = lerp(r, bo, 0.42);
+      const b1 = lerp(r, bo, 0.58);
+      g.poly([a0.x, a0.y, b0.x, b0.y, b1.x, b1.y, a1.x, a1.y]).fill(0x4a4f55);
+      const c0 = lerp(a0, a1, 0.5);
+      const c1 = lerp(b0, b1, 0.5);
+      for (let k = 0.08; k < 0.92; k += 0.06) {
+        const p = lerp(c0, c1, k);
+        const q = lerp(c0, c1, k + 0.03);
+        g.moveTo(p.x, p.y).lineTo(q.x, q.y);
+      }
+      g.stroke({ width: 4, color: 0xf4f1ea });
+      continue;
+    }
+    // Paths crossing the grounds from side to side.
+    for (const [p, q] of [[lerp(t, r, 0.5), lerp(l, bo, 0.5)], [lerp(t, l, 0.5), lerp(r, bo, 0.5)]] as [Point, Point][]) {
+      g.moveTo(p.x, p.y).lineTo(q.x, q.y).stroke({ width: 14, color: 0xe2d8c3 });
+    }
+    if (b.zone === "schools") {
+      // Two full-size football pitches.
+      for (const k of [0.3, 0.7]) {
+        const c = lerp(lerp(t, r, k), lerp(l, bo, k), 0.5);
+        const s2 = 0.22;
+        const pts = [
+          { x: c.x + (t.x - mid.x) * s2, y: c.y + (t.y - mid.y) * s2 },
+          { x: c.x + (r.x - mid.x) * s2, y: c.y + (r.y - mid.y) * s2 },
+          { x: c.x + (bo.x - mid.x) * s2, y: c.y + (bo.y - mid.y) * s2 },
+          { x: c.x + (l.x - mid.x) * s2, y: c.y + (l.y - mid.y) * s2 },
+        ];
+        g.poly(pts.flatMap((p) => [p.x, p.y])).fill(0x6fa64a).stroke({ width: 3, color: 0xf4f1ea });
+        const h0 = lerp(pts[0], pts[1], 0.5);
+        const h1 = lerp(pts[3], pts[2], 0.5);
+        g.moveTo(h0.x, h0.y).lineTo(h1.x, h1.y).stroke({ width: 3, color: 0xf4f1ea });
+        g.ellipse(c.x, c.y, 34, 17).stroke({ width: 3, color: 0xf4f1ea });
+      }
+    }
+    // Trees round the grounds, thicker in a park.
+    const n = b.zone === "park" ? 60 : 26;
+    for (let i = 0; i < n; i++) {
+      const p = lerp(lerp(t, r, R()), lerp(l, bo, R()), R());
+      tree(g, p.x, p.y, 0.8 + R() * 0.5, B.trees[i % B.trees.length] || "");
+    }
+  }
+
   // Plots: yard, path to the gate, wall with a gap at the gate.
   for (const lot of map.lots ?? []) {
     // Out of town, an unbuilt plot is just the bush.
@@ -171,9 +237,35 @@ export function buildTownGround(map: WorldMap, fonts: { ui: string; sign: string
     const code = cell(u, v);
     const cs = corners(g0, u, v);
     const c = { x: lot.x, y: lot.y };
+    // Open ground inside a campus, park or airfield: only a fence along the road.
+    if (OPEN.has(lot.zone ?? "") && lot.use !== "place" && lot.use !== "building") {
+      const wall = WALL[code];
+      if (!wall) continue;
+      for (const f of lot.gates) {
+        const [a0, b0] = edge(g0, u, v, f);
+        const a = inset(c, a0, 0.97);
+        const b = inset(c, b0, 0.97);
+        g.poly([a.x, a.y, b.x, b.y, b.x, b.y - wall.h, a.x, a.y - wall.h]).fill(wall.color);
+        g.moveTo(a.x, a.y - wall.h).lineTo(b.x, b.y - wall.h).stroke({ width: 1.5, color: wall.top });
+      }
+      continue;
+    }
     const yard = cs.map((p) => inset(c, p, 0.94));
-    g.poly(yard.flatMap((p) => [p.x, p.y])).fill(hex(yardColour(map.biome, lot.district)));
-    if (lot.use === "garden") {
+    g.poly(yard.flatMap((p) => [p.x, p.y])).fill(hex(yardColour(map.biome, lot.zone ?? zoneOfCode(code))));
+    if (lot.use === "field") {
+      // A school's playing field: touchlines, a centre circle, two goals.
+      const pitch = cs.map((p) => inset(c, p, 0.78));
+      g.poly(pitch.flatMap((p) => [p.x, p.y])).fill(0x7fae55).stroke({ width: 2, color: 0xf4f1ea });
+      g.moveTo(lerp(pitch[0], pitch[1], 0.5).x, lerp(pitch[0], pitch[1], 0.5).y)
+        .lineTo(lerp(pitch[3], pitch[2], 0.5).x, lerp(pitch[3], pitch[2], 0.5).y).stroke({ width: 2, color: 0xf4f1ea });
+      g.ellipse(c.x, c.y, g0.hw * 0.16, g0.hh * 0.16).stroke({ width: 2, color: 0xf4f1ea });
+      for (const e of [lerp(pitch[0], pitch[3], 0.5), lerp(pitch[1], pitch[2], 0.5)]) g.rect(e.x - 5, e.y - 9, 10, 9).stroke({ width: 2, color: 0xffffff });
+    } else if (lot.use === "apron") {
+      // The airport's tarmac, with its painted lines.
+      g.poly(cs.map((p) => inset(c, p, 0.98)).flatMap((p) => [p.x, p.y])).fill(0x8f949a);
+      g.moveTo(cs[3].x * 0.5 + c.x * 0.5, cs[3].y * 0.5 + c.y * 0.5).lineTo(cs[1].x * 0.5 + c.x * 0.5, cs[1].y * 0.5 + c.y * 0.5)
+        .stroke({ width: 3, color: 0xf2b705 });
+    } else if (lot.use === "garden") {
       // An empty plot: grass and a tree or two.
       for (let k = 0; k < 2; k++) {
         const t = inset(c, cs[Math.floor(R() * 4)], R() * 0.5);
@@ -188,6 +280,7 @@ export function buildTownGround(map: WorldMap, fonts: { ui: string; sign: string
       g.poly([c.x - half.x, c.y - half.y, c.x + half.x, c.y + half.y, mid.x + half.x, mid.y + half.y, mid.x - half.x, mid.y - half.y])
         .fill(lot.district === "poor" ? 0xa98a62 : 0xcfc6b6);
     }
+    if (lot.use === "apron") continue;
     const wall = WALL[code];
     if (!wall) continue;
     if (wall.every > 1 && Math.floor(R() * wall.every) !== 0) continue;
@@ -202,7 +295,7 @@ export function buildTownGround(map: WorldMap, fonts: { ui: string; sign: string
         g.poly([p.x, p.y, q.x, q.y, q.x, q.y - wall.h, p.x, p.y - wall.h]).fill(wall.color);
         g.moveTo(p.x, p.y - wall.h).lineTo(q.x, q.y - wall.h).stroke({ width: 1.5, color: wall.top });
       }
-      if (gate && code !== "P") {
+      if (gate && wall.posts) {
         for (const k of [0.38, 0.62]) {
           const p = lerp(a, b, k);
           g.rect(p.x - 2, p.y - wall.h - 5, 4, wall.h + 5).fill(wall.top);
@@ -211,31 +304,56 @@ export function buildTownGround(map: WorldMap, fonts: { ui: string; sign: string
     }
   }
 
-  // Streets: tarmac, kerbs where the road meets a plot, lane lines down the middle.
+  // Main roads: full-width tarmac with kerbs. Lanes inside a block: a narrower
+  // strip of tarmac with pavement either side. Slum tracks: bare earth.
   const roadColour = hex(B.road);
+  const U = { x: g0.hw / 2, y: g0.hh / 2 };
+  const V = { x: -g0.hw / 2, y: g0.hh / 2 };
+  /** A strip through a cell along one axis, w wide (0 to 1) across it. */
+  const strip = (c: Point, along: Point, across: Point, w: number) => [
+    c.x - along.x - across.x * w, c.y - along.y - across.y * w,
+    c.x + along.x - across.x * w, c.y + along.y - across.y * w,
+    c.x + along.x + across.x * w, c.y + along.y + across.y * w,
+    c.x - along.x + across.x * w, c.y - along.y + across.y * w,
+  ];
   for (let v = g0.v0; v < g0.v0 + g0.rows; v++) {
     for (let u = g0.u0; u < g0.u0 + g0.cols; u++) {
       const c = cell(u, v);
       if (!isRoad(c)) continue;
       const cs = corners(g0, u, v);
-      g.poly(cs.flatMap((p) => [p.x, p.y])).fill(c === "b" ? 0x9aa3ad : roadColour);
-      for (let f = 0; f < 4; f++) {
-        const n = cell(u + DIRS[f][0], v + DIRS[f][1]);
-        if (isRoad(n)) continue;
-        const [a, b] = edge(g0, u, v, f as Facing);
-        // A kerb on land, railings on a bridge.
-        g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: c === "b" ? 4 : 5, color: c === "b" ? 0xc4cbd2 : isLot(n) ? 0xd9d2c3 : 0x8a8170 });
+      const mid = cellCentre(g0, u, v);
+      if (isMain(c)) {
+        g.poly(cs.flatMap((p) => [p.x, p.y])).fill(c === "b" ? 0x9aa3ad : roadColour);
+        for (let f = 0; f < 4; f++) {
+          const n = cell(u + DIRS[f][0], v + DIRS[f][1]);
+          if (isRoad(n)) continue;
+          const [a, b] = edge(g0, u, v, f as Facing);
+          // A kerb on land, railings on a bridge.
+          g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: c === "b" ? 4 : 5, color: c === "b" ? 0xc4cbd2 : isLot(n) ? 0xd9d2c3 : 0x8a8170 });
+        }
+        continue;
       }
+      const alongU = isRoad(cell(u - 1, v)) || isRoad(cell(u + 1, v));
+      const alongV = isRoad(cell(u, v - 1)) || isRoad(cell(u, v + 1));
+      if (c === "t") {
+        // A dirt track between shacks.
+        if (alongU) g.poly(strip(mid, U, V, 0.5)).fill(0xa47a4c);
+        if (alongV) g.poly(strip(mid, V, U, 0.5)).fill(0xa47a4c);
+        continue;
+      }
+      // Pavement first, then the lane's tarmac down the middle.
+      g.poly(cs.flatMap((p) => [p.x, p.y])).fill(0xcfc8b8);
+      if (alongU) g.poly(strip(mid, U, V, 0.58)).fill(roadColour);
+      if (alongV) g.poly(strip(mid, V, U, 0.58)).fill(roadColour);
     }
   }
-  // Lane lines: a dash through each straight piece of street, along it.
+  // Lane lines down the middle of the main roads only.
   for (let v = g0.v0; v < g0.v0 + g0.rows; v++) {
     for (let u = g0.u0; u < g0.u0 + g0.cols; u++) {
-      if (!isRoad(cell(u, v))) continue;
+      if (!isMain(cell(u, v))) continue;
       const c = cellCentre(g0, u, v);
-      const alongU = isRoad(cell(u - 1, v)) && isRoad(cell(u + 1, v));
-      const alongV = isRoad(cell(u, v - 1)) && isRoad(cell(u, v + 1));
-      // Crossroads get zebra crossings instead of a lane line.
+      const alongU = isMain(cell(u - 1, v)) && isMain(cell(u + 1, v));
+      const alongV = isMain(cell(u, v - 1)) && isMain(cell(u, v + 1));
       if (alongU && alongV) continue;
       if (alongU) dash(g, c, { x: g0.hw, y: g0.hh });
       if (alongV) dash(g, c, { x: -g0.hw, y: g0.hh });
@@ -256,6 +374,32 @@ export function buildTownGround(map: WorldMap, fonts: { ui: string; sign: string
     }
   }
   g.stroke({ width: 5, color: 0xf4f1ea, alpha: 0.9 });
+
+  // Roundabouts: a planted island with a monument in the middle of the ring.
+  for (const p of map.roundabouts ?? []) {
+    g.ellipse(p.x, p.y + 4, g0.hw * 0.78, g0.hh * 0.78).fill({ color: 0x000000, alpha: 0.18 });
+    g.ellipse(p.x, p.y, g0.hw * 0.78, g0.hh * 0.78).fill(0xe8e0cc);
+    g.ellipse(p.x, p.y, g0.hw * 0.7, g0.hh * 0.7).fill(0x5f9a4a);
+    for (let k = 0; k < 10; k++) {
+      const a = (k / 10) * Math.PI * 2;
+      g.circle(p.x + Math.cos(a) * g0.hw * 0.55, p.y + Math.sin(a) * g0.hh * 0.55, 5).fill(k % 2 ? 0xe9c46a : 0xc0392b);
+    }
+    g.poly([p.x - 9, p.y, p.x + 9, p.y, p.x + 4, p.y - 48, p.x - 4, p.y - 48]).fill(0xd8cbb0).stroke({ width: 1, color: 0xa39b8d });
+    g.poly([p.x - 6, p.y - 48, p.x + 6, p.y - 48, p.x, p.y - 58]).fill(0xc9a04a);
+  }
+
+  // Bus stops: a shelter on the kerb with a bench and a yellow sign.
+  for (const st of map.stops ?? []) {
+    const k = 0.62;
+    const o = { x: st.x + (DIRS[st.face][0] - DIRS[st.face][1]) * g0.hw * 0.5 * k, y: st.y + (DIRS[st.face][0] + DIRS[st.face][1]) * g0.hh * 0.5 * k };
+    g.ellipse(o.x, o.y + 2, 20, 6).fill({ color: 0x000000, alpha: 0.2 });
+    g.rect(o.x - 16, o.y - 22, 3, 22).fill(0x555555);
+    g.rect(o.x + 13, o.y - 22, 3, 22).fill(0x555555);
+    g.poly([o.x - 20, o.y - 22, o.x + 20, o.y - 22, o.x + 16, o.y - 28, o.x - 16, o.y - 28]).fill(0x2f7d5b);
+    g.rect(o.x - 12, o.y - 8, 24, 4).fill(0x8b5a3a);
+    g.rect(o.x + 22, o.y - 30, 2, 30).fill(0x555555);
+    g.rect(o.x + 17, o.y - 36, 12, 9).fill(0xf2b705).stroke({ width: 1, color: 0x26355e });
+  }
 
   // Trees and cattle out on the open ground.
   for (let i = 0; i < 140; i++) {

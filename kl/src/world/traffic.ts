@@ -3,7 +3,7 @@
 import { Container, Graphics, Sprite, Texture, type Container as PixiContainer } from "pixi.js";
 import type { RoadGraph } from "./routing";
 import type { Point, WorldMap } from "./types";
-import { drawVehicle, headingOf, showsFront, vehicleArt, type Heading, type VehicleKind } from "./vehicles";
+import { drawVehicle, headingOf, LAMPS, TRAFFIC_LIGHT_ART, vehicleArt, type Heading, type VehicleKind } from "./vehicles";
 
 /** Length of a full light cycle, and how it splits: green one way, amber, green the other way, amber. */
 const CYCLE = 12000;
@@ -35,16 +35,23 @@ interface Car {
   drawn: Partial<Record<Heading, Graphics>>;
   sprite?: Sprite;
   heading?: Heading;
+  /** Time left standing at a bus stop, in ms. */
+  dwell?: number;
+  /** The stop it last pulled in at, so it does not stop there twice in a row. */
+  lastStop?: number;
 }
 
 export class Traffic {
   private cars: Car[] = [];
   private lightAt = new Set<number>();
   private lightGfx = new Graphics();
+  /** One pole per direction at each light junction, with its lamps painted live. */
+  private poles: { axis: "u" | "v"; lamps: Graphics; w: number; h: number }[] = [];
   private lastPhase = "";
   private hw: number;
   private hh: number;
   private noEntry = new Set<number>();
+  private stopAt = new Set<number>();
 
   constructor(
     private map: WorldMap,
@@ -57,11 +64,45 @@ export class Traffic {
     this.hh = map.grid?.hh ?? 60;
     // Cars stay on the road: the vertex inside each plot is for people, not traffic.
     for (const g of Object.values(graph.gate)) if (g.own) this.noEntry.add(g.v);
+    for (const p of map.stops ?? []) {
+      const v = graph.verts.find((x) => Math.hypot(x.x - p.x, x.y - p.y) < 4);
+      if (v) this.stopAt.add(v.id);
+    }
     for (const p of map.lights ?? []) {
       const v = graph.verts.find((x) => Math.hypot(x.x - p.x, x.y - p.y) < 4);
       if (v) this.lightAt.add(v.id);
     }
     lightsLayer.addChild(this.lightGfx);
+    if (hasArt(TRAFFIC_LIGHT_ART)) {
+      // A pole on the left corner of the junction for traffic along u, and one
+      // on the right corner, mirrored, for traffic along v.
+      for (const p of map.stops ?? []) {
+      const v = graph.verts.find((x) => Math.hypot(x.x - p.x, x.y - p.y) < 4);
+      if (v) this.stopAt.add(v.id);
+    }
+    for (const p of map.lights ?? []) {
+        for (const axis of ["u", "v"] as const) {
+          const pole = new Container();
+          const sp = new Sprite(Texture.from(TRAFFIC_LIGHT_ART));
+          sp.anchor.set(0.5, 0.92);
+          const k = 40 / sp.texture.width;
+          const flip = axis === "v";
+          sp.scale.set(flip ? -k : k, k);
+          const lamps = new Graphics();
+          pole.addChild(sp, lamps);
+          const x = p.x + (flip ? 1 : -1) * this.hw * 0.72;
+          const y = p.y + 6;
+          pole.position.set(x, y);
+          pole.zIndex = y;
+          pole.cullable = true;
+          layer.addChild(pole);
+          const w = sp.texture.width * k;
+          const h = sp.texture.height * k;
+          lamps.scale.x = flip ? -1 : 1;
+          this.poles.push({ axis, lamps, w, h });
+        }
+      }
+    }
 
     const road = graph.verts.filter((v) => !this.noEntry.has(v.id) && v.edges.some((e) => !this.noEntry.has(e.to)));
     if (!road.length) return;
@@ -111,10 +152,21 @@ export class Traffic {
     this.drawLights(lights);
     if (!running) return;
     for (const c of this.cars) {
+      // A danfo standing at a bus stop while passengers get on and off.
+      if (c.dwell && c.dwell > 0) {
+        c.dwell -= dt;
+        continue;
+      }
       const P = this.graph.verts[c.a];
       const Q = this.graph.verts[c.b];
       const len = Math.hypot(Q.x - P.x, Q.y - P.y) || 1;
       let step = (c.speed * dt * 300) / len;
+      if (c.kind === "danfo" && this.stopAt.has(c.b) && c.lastStop !== c.b && c.t < 0.5 && c.t + step >= 0.5) {
+        c.t = 0.5;
+        c.dwell = 2500;
+        c.lastStop = c.b;
+        continue;
+      }
       // Stop at the line on red or amber, unless already in the junction.
       if (this.lightAt.has(c.b) && lights[this.axisOf(c)] !== "green" && c.t < 0.5) {
         step = Math.min(step, Math.max(0, 0.42 - c.t));
@@ -172,7 +224,6 @@ export class Traffic {
       c.view.addChild(g);
     }
     g.visible = true;
-    void showsFront;
   }
 
   /** A pole on the corner of each light junction, with a head for each direction. */
@@ -180,6 +231,24 @@ export class Traffic {
     const key = `${s.u}${s.v}`;
     if (key === this.lastPhase) return;
     this.lastPhase = key;
+    if (this.poles.length) {
+      // Paint each lamp over the picture: lit or dark, by the phase for that pole's direction.
+      const lit = { red: 0xff3b30, amber: 0xffb300, green: 0x3ddc84 };
+      const dark = { red: 0x4a1c1a, amber: 0x4a3a10, green: 0x163a24 };
+      for (const pole of this.poles) {
+        const g = pole.lamps;
+        g.clear();
+        const st = s[pole.axis];
+        // Positions are from the anchor (bottom, 92% down the picture).
+        const x0 = (LAMPS.x - 0.5) * pole.w;
+        for (const lamp of ["red", "amber", "green"] as const) {
+          const y = (LAMPS[lamp] - 0.92) * pole.h;
+          g.circle(x0, y, LAMPS.r * pole.w).fill(st === lamp ? lit[lamp] : dark[lamp]);
+          if (st === lamp) g.circle(x0, y, LAMPS.r * pole.w * 1.9).fill({ color: lit[lamp], alpha: 0.25 });
+        }
+      }
+      return;
+    }
     const g = this.lightGfx;
     g.clear();
     const colour = { green: 0x3ddc84, amber: 0xffb300, red: 0xff3b30 };
