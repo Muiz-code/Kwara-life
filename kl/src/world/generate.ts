@@ -4,9 +4,11 @@
 // generator, same numbers as the prototype: places scattered from the LGA's seed
 // and pushed apart, a river when the area has water, and roads as a minimum
 // spanning tree plus a few loops.
-import { LOCAL_FOOD, MARKET_NAME, ROAD_NAMES, ZONE_BIOME, type BiomeId } from "../data/biomes";
+import { ROAD_NAMES, ZONE_BIOME, type BiomeId } from "../data/biomes";
+import { lgaPlaces, type LgaContext } from "../data/lga";
+import type { ClassId } from "../data/jobs";
 import type { State } from "../data/states";
-import type { MapPlace, MapRoad, Point, PlaceKind, WorldMap } from "./types";
+import { isPlaceKind, type MapPlace, type MapRoad, type Point, type PlaceKind, type WorldMap } from "./types";
 
 /** FNV-1a, the prototype's string hash. */
 export function hash(s: string): number {
@@ -30,7 +32,7 @@ export function lcg(seed: number): () => number {
 export const GEN_W = 2000;
 export const GEN_H = 1400;
 
-export type CitizenClass = "poor" | "middle" | "rich";
+export type CitizenClass = ClassId;
 
 export interface GenOptions {
   state: State;
@@ -50,48 +52,22 @@ export interface GenOptions {
   biome?: BiomeId;
 }
 
-const WORK: Record<CitizenClass, [string, PlaceKind]> = {
-  poor: ["Workshop", "workshop"],
-  middle: ["Office", "office"],
-  rich: ["Company HQ", "tower"],
-};
+const context = (o: GenOptions): LgaContext => ({
+  state: o.state,
+  lgaName: o.lga,
+  cls: o.cls,
+  job: o.job,
+  home: o.home ?? "",
+  underFlyover: !!o.under,
+  ...(o.wasUnder ? { wasUnder: true } : {}),
+});
 
-interface Row {
-  id: string;
-  name: string;
-  kind: PlaceKind;
-  open: [number, number];
-  gen: boolean;
-  blurb: string;
-}
-
-/** The 14 places every LGA has, plus the shelter when the citizen needs one. */
-export function genPlaceRows(o: GenOptions): Row[] {
-  const zone = o.state.zone;
-  const lgaShort = o.lga.split(/[ /-]/)[0];
-  const food = LOCAL_FOOD[zone];
-  const work = WORK[o.cls];
-  const lm = o.state.landmark;
-  const rows: Row[] = [
-    { id: "home", name: o.under ? "Flyover" : "Home", kind: o.under ? "flyover" : "house", open: [0, 24], gen: o.cls === "rich", blurb: `Where you live: ${o.under ? "under a flyover near the motor park" : (o.home ?? "")}.` },
-    { id: "work", name: work[0], kind: work[1], open: [7, 20], gen: o.cls !== "poor", blurb: `Where you work as a ${o.job.toLowerCase()}.` },
-    { id: "inec", name: "INEC Office", kind: "inec", open: [8, 17], gen: true, blurb: "INEC LGA office. Register, collect your PVC and ask questions." },
-    { id: "pu", name: "Polling Unit", kind: "school", open: [0, 24], gen: false, blurb: "Your polling unit, in a primary school. This is where you vote." },
-    { id: "market", name: MARKET_NAME[zone](lgaShort), kind: "market", open: [6, 20], gen: false, blurb: "Foodstuff, radios, TVs and everything in between." },
-    { id: "buka", name: food.place, kind: "buka", open: [7, 22], gen: false, blurb: `Local food: ${food.dish.toLowerCase()}.` },
-    { id: "viewing", name: "Viewing Centre", kind: "viewing", open: [10, 23], gen: true, blurb: "Big TV, plastic chairs, small fee. News and football for people without TV at home." },
-    { id: "kiosk", name: "News Stand", kind: "kiosk", open: [6, 19], gen: false, blurb: "Newspapers on display. Plenty people read the front pages for free." },
-    { id: "mosque", name: "Central Mosque", kind: "mosque", open: [0, 24], gen: false, blurb: "The central mosque." },
-    { id: "church", name: "Church", kind: "church", open: [0, 24], gen: false, blurb: "A busy church with big Sunday services." },
-    { id: "park", name: "Motor Park", kind: "garage", open: [5, 22], gen: false, blurb: "Buses, drivers and all the political gist you can handle." },
-    { id: "hall", name: "Town Hall", kind: "townhall", open: [8, 20], gen: false, blurb: "Voter education sessions and community debates." },
-    { id: "board", name: "Notice Board", kind: "board", open: [0, 24], gen: false, blurb: "Flyers and announcements. Campaign flyers posted in this LGA show here." },
-    { id: "landmark", name: lm.name, kind: `lm-${lm.kind}` as PlaceKind, open: [7, 19], gen: false, blurb: `${o.state.name}: ${o.state.slogan}.` },
-  ];
-  if (o.under || o.wasUnder) {
-    rows.push({ id: "shelter", name: "Shelter", kind: "shelter", open: [0, 24], gen: false, blurb: "A church-run shelter that sometimes has beds." });
-  }
-  return rows;
+/** The places every LGA has, named and described in src/data/lga.ts. */
+export function genPlaceRows(o: GenOptions) {
+  return lgaPlaces(context(o)).map((p) => ({
+    ...p,
+    kind: (isPlaceKind(p.kind) ? p.kind : "house") as PlaceKind,
+  }));
 }
 
 const segDist = (px: number, py: number, a: Point, b: Point) => {

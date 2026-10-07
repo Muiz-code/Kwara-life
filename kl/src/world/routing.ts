@@ -34,6 +34,8 @@ export const segmentDistance = (p: Point, a: Point, b: Point) => projectOnSegmen
 
 /** How close two road ends must be before we treat them as the same junction. */
 const WELD = 8;
+/** How close a road's end must come to another road before it joins it. */
+const JUNCTION_SNAP = 30;
 
 interface Vertex {
   id: number;
@@ -51,7 +53,10 @@ export interface RoadGraph {
 /** Grid index so welding and snapping stay fast on big maps. */
 class Grid {
   private cell = new Map<string, number[]>();
-  constructor(private size: number) {}
+  private size: number;
+  constructor(size: number) {
+    this.size = size;
+  }
   private key = (x: number, y: number) => `${Math.floor(x / this.size)},${Math.floor(y / this.size)}`;
   add(x: number, y: number, id: number) {
     const k = this.key(x, y);
@@ -99,12 +104,37 @@ export function buildGraph(map: WorldMap): RoadGraph {
     if (!verts[b].edges.some((e) => e.to === a)) verts[b].edges.push({ to: a, w, road });
   };
 
-  map.roads.forEach((r, ri) => {
-    let prev = vertexAt(r.pts[0]);
+  const roadVerts: number[][] = map.roads.map((r, ri) => {
+    const ids = [vertexAt(r.pts[0])];
     for (let i = 1; i < r.pts.length; i++) {
       const v = vertexAt(r.pts[i]);
-      link(prev, v, ri);
-      prev = v;
+      link(ids[ids.length - 1], v, ri);
+      ids.push(v);
+    }
+    return ids;
+  });
+
+  // A road that ends on another road joins it there, even when the point it meets
+  // was dropped by simplifying. Without this a side street is an island.
+  map.roads.forEach((r, ri) => {
+    for (const end of [r.pts[0], r.pts[r.pts.length - 1]]) {
+      const v = vertexAt(end);
+      let best: { d: number; p: Point; a: number; b: number; road: number } | null = null;
+      map.roads.forEach((o, oi) => {
+        if (oi === ri) return;
+        for (let i = 1; i < o.pts.length; i++) {
+          const pr = projectOnSegment(end, o.pts[i - 1], o.pts[i]);
+          if (pr.d <= JUNCTION_SNAP && (!best || pr.d < best.d)) {
+            best = { d: pr.d, p: pr.p, a: roadVerts[oi][i - 1], b: roadVerts[oi][i], road: oi };
+          }
+        }
+      });
+      if (!best) continue;
+      const hit = best as { d: number; p: Point; a: number; b: number; road: number };
+      const j = vertexAt(hit.p);
+      link(hit.a, j, hit.road);
+      link(j, hit.b, hit.road);
+      link(v, j, ri);
     }
   });
 
