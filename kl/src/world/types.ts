@@ -41,6 +41,8 @@ export interface MapPlace {
   gen: boolean;
   x: number;
   y: number;
+  /** Where the player stands outside, when the map sets it. Otherwise beside the tile. */
+  stand?: Point;
   /** Drawn art for this exact place, when there is one. Otherwise the kind's tile. */
   art?: string;
   /** Art variant: a building colour for shops, or the estate class. */

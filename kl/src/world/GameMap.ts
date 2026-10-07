@@ -1,28 +1,33 @@
 // The Pixi world map: building tiles, billboards, traffic, the player and the camera.
+// Draws any WorldMap, so the hand-built Ilorin map, maps built from OpenStreetMap
+// and generated maps all go through the same renderer.
 // Reads the game store; never writes game state except selecting a place.
 import { Application, Assets, Container, Graphics, PerspectiveMesh, Sprite, Text, Texture, type Ticker } from "pixi.js";
 import { Viewport } from "pixi-viewport";
-import { AD_SLOTS } from "../data/ilorin/billboards";
-import { PLACE, PLACES } from "../data/ilorin/places";
-import { ROADS } from "../data/ilorin/roads";
+import { BIOMES } from "../data/biomes";
 import type { GameStore, GameStoreApi } from "../store/game";
-import { ADJ, WORLD_H, WORLD_W, easeInOut, nodePos, placePos, pointAlong, standPos } from "../sim/world";
+import { easeInOut } from "../sim/world";
 import { nightLevel } from "../sim/time";
 import type { ModeId } from "../sim/travel";
 import {
-  ALL_ART, AVATAR_ART, AVATAR_H, BILLBOARD_ART, BILLBOARD_FACE, BILLBOARD_W, TILE_ART, TILE_BASE, TILE_W,
+  AVATAR_ART, AVATAR_H, BILLBOARD_ART, BILLBOARD_FACE, BILLBOARD_W, TILE_BASE, TILE_W,
   TRAFFIC_W, VEHICLE_ART, VEHICLE_W,
 } from "./art";
 import { buildGround } from "./ground";
-import { billboardPositions, hitTest } from "./layout";
+import { ilorinMap } from "./ilorin-map";
+import { billboardPositions, hitTest, standAt } from "./layout";
+import { pointAlong, router, type RoadGraph } from "./routing";
+import { drawTile, KIND_ART } from "./tiles";
+import type { MapPlace, Point, WorldMap } from "./types";
 
 export interface MapCallbacks {
   onBillboard?: (slotId: string) => void;
 }
 
 interface Car {
-  a: string;
-  b: string;
+  /** Vertex the car came from and the one it is heading to. */
+  a: number;
+  b: number;
   t: number;
   speed: number;
   sprite: Sprite;
@@ -51,7 +56,7 @@ function glowTexture(): Texture {
 }
 
 /** What an unbooked billboard shows. */
-function placeholderAd(font: string): Texture {
+function placeholderAd(font: string, where: string): Texture {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 256;
@@ -66,8 +71,17 @@ function placeholderAd(font: string): Texture {
   ctx.fillText("Your ad here", 256, 120);
   ctx.fillStyle = "#F7E7C1";
   ctx.font = `30px ${font}`;
-  ctx.fillText("Reach every Ilorin player", 256, 238);
+  ctx.fillText(`Reach every ${where} player`, 256, 238);
   return Texture.from(c);
+}
+
+/**
+ * While developing, a map can be dropped on the window before the canvas starts,
+ * so any LGA map can be opened without wiring it through the UI. Never in production.
+ */
+function devMap(): WorldMap | undefined {
+  if (process.env.NODE_ENV === "production") return undefined;
+  return (window as unknown as { __naijaMap?: WorldMap }).__naijaMap;
 }
 
 export class GameMap {
@@ -75,14 +89,17 @@ export class GameMap {
   private viewport!: Viewport;
   private store: GameStoreApi;
   private cb: MapCallbacks;
+  private map: WorldMap;
+  private graph!: RoadGraph;
   private unsub: (() => void)[] = [];
 
   private tileHeights: Record<string, number> = {};
-  private boards = billboardPositions();
+  private boards: Record<string, Point> = {};
   private boardH = 0;
   private ring = new Graphics();
   private night = new Graphics();
   private glows: Record<string, Sprite> = {};
+  private lit: Record<string, Graphics> = {};
   private player = new Container();
   private walker!: Sprite;
   private vehicle = new Sprite();
@@ -96,25 +113,39 @@ export class GameMap {
   private lastNight = -1;
   private destroyed = false;
 
-  private constructor(store: GameStoreApi, cb: MapCallbacks) {
+  private constructor(store: GameStoreApi, cb: MapCallbacks, map: WorldMap) {
     this.store = store;
     this.cb = cb;
+    this.map = map;
   }
 
-  static async create(host: HTMLElement, store: GameStoreApi, cb: MapCallbacks = {}): Promise<GameMap> {
-    const m = new GameMap(store, cb);
+  /** The map defaults to the hand-built Ilorin one, as before. */
+  static async create(host: HTMLElement, store: GameStoreApi, cb: MapCallbacks = {}, map?: WorldMap): Promise<GameMap> {
+    const m = new GameMap(store, cb, map ?? devMap() ?? ilorinMap());
     await m.init(host);
     return m;
   }
 
+  private place(id: string): MapPlace | undefined {
+    return this.map.places.find((p) => p.id === id);
+  }
+
+  private tilePos(id: string): Point {
+    const p = this.place(id);
+    return p ? { x: p.x, y: p.y } : { x: 0, y: 0 };
+  }
+
   private async init(host: HTMLElement) {
+    const map = this.map;
+    const W = map.width;
+    const H = map.height;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     await this.app.init({
       resizeTo: host,
       resolution: dpr,
       autoDensity: true,
       antialias: dpr < 2,
-      background: 0xd3b67f,
+      background: parseInt(BIOMES[map.biome].ground.replace("#", ""), 16),
       preference: "webgl",
       powerPreference: "low-power",
     });
@@ -127,14 +158,19 @@ export class GameMap {
     const ui = cssFont("--font-figtree", "Figtree, system-ui, sans-serif");
     const sign = cssFont("--font-lilita", "'Lilita One', 'Arial Black', sans-serif");
     await Promise.all([document.fonts?.load(`16px ${sign}`), document.fonts?.load(`800 13px ${ui}`)]).catch(() => {});
-    await Assets.load(ALL_ART);
+    // Only the art this map actually uses, so a phone on mobile data loads less.
+    const art = [...new Set(map.places.map((p) => p.art ?? KIND_ART[p.kind]).filter(Boolean) as string[])];
+    await Assets.load([...new Set([...art, ...Object.values(AVATAR_ART), ...Object.values(VEHICLE_ART), BILLBOARD_ART])]);
     if (this.destroyed) return;
+
+    this.graph = router(map).graph;
+    this.boards = billboardPositions(map);
 
     const vp = new Viewport({
       screenWidth: host.clientWidth,
       screenHeight: host.clientHeight,
-      worldWidth: WORLD_W,
-      worldHeight: WORLD_H,
+      worldWidth: W,
+      worldHeight: H,
       events: this.app.renderer.events,
       passiveWheel: false,
     });
@@ -144,34 +180,55 @@ export class GameMap {
       .pinch()
       .wheel({ smooth: 4 })
       .decelerate({ friction: 0.93 })
-      .clampZoom({ minWidth: 420, maxWidth: Math.max(WORLD_W, WORLD_H / 0.7) * 1.02 })
-      .clamp({ left: -200, right: WORLD_W + 200, top: -200, bottom: WORLD_H + 200, underflow: "center" });
+      .clampZoom({ minWidth: 420, maxWidth: Math.max(W, H / 0.7) * 1.02 })
+      .clamp({ left: -200, right: W + 200, top: -200, bottom: H + 200, underflow: "center" });
     vp.on("drag-start", () => (this.following = false));
     vp.on("pinch-start", () => (this.following = false));
     vp.on("clicked", (e) => this.onTap(e.world.x, e.world.y));
-    this.app.renderer.on("resize", (w: number, h: number) => vp.resize(w, h, WORLD_W, WORLD_H));
+    this.app.renderer.on("resize", (w: number, h: number) => vp.resize(w, h, W, H));
 
-    vp.addChild(buildGround({ ui }));
+    vp.addChild(buildGround(map, { ui }));
     vp.addChild(this.ring);
 
     // Buildings and billboards share one layer, drawn back to front.
     const things = new Container();
     things.sortableChildren = true;
     vp.addChild(things);
-    for (const p of PLACES) {
-      const pos = placePos(p.id);
-      const s = new Sprite(Texture.from(TILE_ART[p.id]));
-      s.anchor.set(0.5, 1);
-      s.scale.set(TILE_W / s.texture.width);
-      s.position.set(pos.x, pos.y + TILE_BASE);
-      s.zIndex = pos.y + TILE_BASE;
-      s.cullable = true;
-      things.addChild(s);
-      this.tileHeights[p.id] = s.height;
+    const biome = BIOMES[map.biome];
+    for (const p of map.places) {
+      const src = p.art ?? KIND_ART[p.kind];
+      const c = new Container();
+      let height = TILE_W;
+      if (src && Assets.cache.has(src)) {
+        const s = new Sprite(Texture.from(src));
+        s.anchor.set(0.5, 1);
+        s.scale.set(TILE_W / s.texture.width);
+        s.position.set(0, TILE_BASE);
+        c.addChild(s);
+        height = s.height;
+      } else {
+        // No art for this kind yet, so draw a clean tile in code.
+        const g = new Graphics();
+        const drawn = drawTile(g, p.kind, biome, p.variant ? { variant: p.variant } : {});
+        c.addChild(g);
+        height = -drawn.top;
+        if (drawn.glow.length) {
+          const lit = new Graphics();
+          for (const w of drawn.glow) lit.rect(w.x, w.y, w.w, w.h).fill(0xffd66b);
+          lit.alpha = 0;
+          c.addChild(lit);
+          this.lit[p.id] = lit;
+        }
+      }
+      c.position.set(p.x, p.y);
+      c.zIndex = p.y + TILE_BASE;
+      c.cullable = true;
+      things.addChild(c);
+      this.tileHeights[p.id] = height;
     }
-    const adFace = placeholderAd(sign);
-    for (const slot of AD_SLOTS) {
-      const b = this.boards[slot.id];
+
+    const adFace = placeholderAd(sign, map.name);
+    for (const b of Object.values(this.boards)) {
       const board = new Container();
       const s = new Sprite(Texture.from(BILLBOARD_ART));
       const k = BILLBOARD_W / s.texture.width;
@@ -196,20 +253,19 @@ export class GameMap {
     }
 
     // Night shade, then window glow on top of it.
-    this.night.rect(-3000, -3000, WORLD_W + 6000, WORLD_H + 6000).fill(0x0d1838);
+    this.night.rect(-3000, -3000, W + 6000, H + 6000).fill(0x0d1838);
     this.night.alpha = 0;
     vp.addChild(this.night);
     const glowTex = glowTexture();
     const glowLayer = new Container();
     vp.addChild(glowLayer);
-    for (const p of PLACES) {
-      const pos = placePos(p.id);
+    for (const p of map.places) {
       const gs = new Sprite(glowTex);
       gs.anchor.set(0.5);
       gs.blendMode = "add";
       gs.width = 280;
       gs.height = 190;
-      gs.position.set(pos.x, pos.y - 30);
+      gs.position.set(p.x, p.y - 30);
       gs.alpha = 0;
       glowLayer.addChild(gs);
       this.glows[p.id] = gs;
@@ -221,16 +277,16 @@ export class GameMap {
     // Place name signs stay readable above buildings.
     const signs = new Container();
     vp.addChild(signs);
-    for (const p of PLACES) {
-      const pos = placePos(p.id);
-      const top = pos.y + TILE_BASE - this.tileHeights[p.id];
+    for (const p of map.places) {
+      const top = p.y + TILE_BASE - this.tileHeights[p.id];
       const t = new Text({ text: p.name, style: { fontFamily: sign, fontSize: 15, fill: SIGN_TEXT } });
       t.anchor.set(0.5);
       const w = Math.max(92, t.width + 26);
       const bg = new Graphics().roundRect(-w / 2, -13, w, 26, 5).fill(SIGN_BG).stroke({ width: 1.5, color: SIGN_TEXT });
       const c = new Container();
       c.addChild(bg, t);
-      c.position.set(pos.x, Math.max(top + 4, pos.y - 150));
+      c.position.set(p.x, Math.max(top + 4, p.y - 150));
+      c.cullable = true;
       signs.addChild(c);
     }
 
@@ -249,8 +305,21 @@ export class GameMap {
     vp.addChild(this.player);
     this.setLook(this.store.getState());
 
+    // The ODbL credit for OpenStreetMap data, fixed in the corner of the screen.
+    if (map.attribution) {
+      const credit = new Text({
+        text: map.attribution,
+        style: { fontFamily: ui, fontSize: 11, fill: 0x3f2a16, stroke: { color: 0xf3e6c8, width: 3 } },
+      });
+      credit.anchor.set(0, 1);
+      const place = () => credit.position.set(8, this.app.renderer.height / this.app.renderer.resolution - 6);
+      place();
+      this.app.renderer.on("resize", place);
+      this.app.stage.addChild(credit);
+    }
+
     // Start the camera on the player.
-    const start = standPos(this.store.getState().game.loc);
+    const start = standAt(map, this.store.getState().game.loc);
     vp.setZoom(Math.min(1.2, Math.max(0.35, host.clientWidth / Math.min(1100, Math.max(620, host.clientWidth * 1.6)))));
     vp.moveCenter(start.x, start.y - 30);
 
@@ -269,17 +338,20 @@ export class GameMap {
     this.walker.scale.set(AVATAR_H / tex.height);
   }
 
+  /** Traffic drives the real road lines, turning at junctions. */
   private initTraffic(layer: Container) {
     const kinds: ("keke" | "okada" | "bus")[] = ["keke", "keke", "keke", "okada", "okada", "bus", "keke", "okada", "bus", "keke", "keke", "okada", "keke", "bus"];
+    const busy = this.graph.verts.filter((v) => v.edges.length);
+    if (!busy.length) return;
     kinds.forEach((k, i) => {
-      const e = ROADS[(i * 5) % ROADS.length];
+      const v = busy[(i * 5) % busy.length];
       const s = new Sprite(Texture.from(VEHICLE_ART[k]));
       s.anchor.set(0.5, 0.85);
       s.scale.set(TRAFFIC_W[k] / s.texture.width);
       s.cullable = true;
       layer.addChild(s);
       const base = k === "okada" ? 0.00016 : k === "bus" ? 0.0001 : 0.00013;
-      this.cars.push({ a: e.a, b: e.b, t: ((i * 37) % 100) / 100, speed: base * (0.8 + ((i * 13) % 10) / 25), sprite: s });
+      this.cars.push({ a: v.id, b: v.edges[0].to, t: ((i * 37) % 100) / 100, speed: base * (0.8 + ((i * 13) % 10) / 25), sprite: s });
     });
   }
 
@@ -290,22 +362,23 @@ export class GameMap {
 
     // Traffic keeps moving unless the game is paused or a note is open.
     const running = !st.paused && st.game.notes.length === 0 && !st.reducedMotion;
-    if (running) {
+    if (running && this.cars.length) {
       for (const c of this.cars) {
-        const p = nodePos(c.a);
-        const q = nodePos(c.b);
+        const p = this.graph.verts[c.a];
+        const q = this.graph.verts[c.b];
         const len = Math.hypot(q.x - p.x, q.y - p.y) || 1;
         c.t += c.speed * dt * (300 / len) * 3;
         if (c.t >= 1) {
           c.t = 0;
           const prev = c.a;
           c.a = c.b;
-          const opts = ADJ[c.a].filter((n) => n !== prev);
-          const list = opts.length ? opts : ADJ[c.a];
-          c.b = list[Math.floor(Math.random() * list.length)];
+          const opts = this.graph.verts[c.a].edges.filter((e) => e.to !== prev);
+          const list = opts.length ? opts : this.graph.verts[c.a].edges;
+          if (!list.length) continue;
+          c.b = list[Math.floor(Math.random() * list.length)].to;
         }
-        const P = nodePos(c.a);
-        const Q = nodePos(c.b);
+        const P = this.graph.verts[c.a];
+        const Q = this.graph.verts[c.b];
         const ang = Math.atan2(Q.y - P.y, Q.x - P.x);
         // Keep right: offset to one side of the centre line.
         c.sprite.position.set(P.x + (Q.x - P.x) * c.t - Math.sin(ang) * 7, P.y + (Q.y - P.y) * c.t + Math.cos(ang) * 7);
@@ -316,7 +389,7 @@ export class GameMap {
 
     // The player: on a trip, doing something, or standing outside a place.
     const a = st.activity;
-    let pos = standPos(st.game.loc);
+    let pos = standAt(this.map, st.game.loc);
     let mode: ModeId | null = null;
     let dx = 1;
     if (a?.kind === "trip") {
@@ -364,7 +437,7 @@ export class GameMap {
     }
 
     // Selection ring.
-    const sel = placePos(st.selected);
+    const sel = this.tilePos(st.selected);
     this.ring.clear().ellipse(sel.x, sel.y + 34, 118, 30).stroke({ width: 4, color: 0xf2b705, alpha: 0.6 + 0.4 * Math.sin(now / 250) });
 
     // Day and night, and which buildings have light.
@@ -373,13 +446,17 @@ export class GameMap {
     if (key !== this.lastNight) {
       this.lastNight = key;
       this.night.alpha = nl;
-      const lit = nl > 0.15;
-      for (const p of PLACES) this.glows[p.id].alpha = lit && (st.game.light || PLACE[p.id].gen) ? 0.75 : 0;
+      const on = nl > 0.15;
+      for (const p of this.map.places) {
+        const bright = on && (st.game.light || p.gen);
+        this.glows[p.id].alpha = bright ? 0.75 : 0;
+        if (this.lit[p.id]) this.lit[p.id].alpha = bright ? 1 : 0;
+      }
     }
   };
 
   private onTap(x: number, y: number) {
-    const hit = hitTest({ x, y }, this.tileHeights, this.boards, this.boardH);
+    const hit = hitTest(this.map, { x, y }, this.tileHeights, this.boards, this.boardH);
     if (!hit) return;
     if (hit.kind === "place") this.store.getState().select(hit.id);
     else this.cb.onBillboard?.(hit.id);
@@ -391,7 +468,7 @@ export class GameMap {
 
   centerOnMe() {
     const st = this.store.getState();
-    const p = standPos(st.game.loc);
+    const p = standAt(this.map, st.game.loc);
     this.viewport.animate({ position: { x: p.x, y: p.y - 30 }, time: st.reducedMotion ? 0 : 450, ease: "easeOutCubic" });
   }
 

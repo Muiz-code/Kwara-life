@@ -8,7 +8,7 @@
 import { AD_SLOTS } from "../data/ilorin/billboards";
 import { PLACES, WAYPOINTS } from "../data/ilorin/places";
 import { ROADS } from "../data/ilorin/roads";
-import { WORLD_H, WORLD_W, nodePos, placePos } from "../sim/world";
+import { WORLD_H, WORLD_W, nodePos, placePos, standPos } from "../sim/world";
 import { fitShape, type RoadShapes } from "./shape";
 import { OSM_ATTRIBUTION, type MapPlace, type MapRoad, type WorldMap } from "./types";
 import { TILE_ART } from "./art";
@@ -38,6 +38,7 @@ export function ilorinMap(shapes?: RoadShapes): WorldMap {
       gen: p.gen,
       x: at.x,
       y: at.y,
+      stand: standPos(p.id),
       art: TILE_ART[p.id],
       ...(p.variant ? { variant: p.variant } : {}),
     };

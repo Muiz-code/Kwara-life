@@ -1,17 +1,20 @@
-// Static ground layer: terrain, scattered houses and trees, roads and their names.
-// Drawn once. Ported from drawMap() in reference/kwara-life.html.
+// Static ground layer for any LGA map: biome terrain, scattered houses and trees,
+// the river, the real road lines and their names. Drawn once.
+// Ported from drawMap() in reference/naija-votes-2027.html and kwara-life.html.
 import { Container, Graphics, Text } from "pixi.js";
-import { PLACES, WAYPOINTS } from "../data/ilorin/places";
-import { ROADS } from "../data/ilorin/roads";
+import { BIOMES, type Biome } from "../data/biomes";
 import { seeded, type Rng } from "../sim/rng";
-import { WORLD_H, WORLD_W, nodePos, placePos, type Point } from "../sim/world";
-import { segmentDistance } from "./layout";
+import { hash } from "./generate";
+import { segmentDistance } from "./routing";
+import type { MapRoad, Point, WorldMap } from "./types";
 
-const OUT_OF_TOWN = new Set(["shao", "farm", "kwasu", "poly"]);
-const HOUSE_WALLS = [0xead7b5, 0xe6c9a0, 0xd9c3a0, 0xf0e2c4];
-const HOUSE_ROOFS = [0x9aa3ad, 0x8b5a3a, 0xa9b0b8, 0x7e6a55];
+const hex = (c: string) => parseInt(c.replace("#", ""), 16);
 
-function tree(g: Graphics, x: number, y: number, s: number, kind: "" | "palm" | "baobab") {
+/** Road width on screen by class. Trunk roads are the widest. */
+const ROAD_W: Record<string, number> = { trunk: 30, primary: 28, secondary: 26, tertiary: 22, residential: 17 };
+const widthOf = (r: MapRoad) => ROAD_W[r.cls ?? "secondary"] ?? 26;
+
+function tree(g: Graphics, x: number, y: number, s: number, kind: string) {
   if (kind === "palm") {
     g.ellipse(x, y + 2, 12 * s, 4 * s).fill({ color: 0x000000, alpha: 0.12 });
     g.moveTo(x, y).quadraticCurveTo(x + 3 * s, y - 18 * s, x - s, y - 34 * s).stroke({ width: 3.5 * s, color: 0x7a5634 });
@@ -23,7 +26,19 @@ function tree(g: Graphics, x: number, y: number, s: number, kind: "" | "palm" | 
   if (kind === "baobab") {
     g.ellipse(x, y + 2, 20 * s, 5 * s).fill({ color: 0x000000, alpha: 0.13 });
     g.poly([x - 7 * s, y, x - 5 * s, y - 30 * s, x + 7 * s, y - 30 * s, x + 6 * s, y]).fill(0x8a6a4a);
-    g.ellipse(x, y - 36 * s, 24 * s, 11 * s).fill(0x6b8a3a);
+    g.ellipse(x, y - 36 * s, 24 * s, 11 * s).fill(0x6e8a3f);
+    return;
+  }
+  if (kind === "neem") {
+    g.ellipse(x, y + 2, 16 * s, 5 * s).fill({ color: 0x000000, alpha: 0.13 });
+    g.rect(x - 2.5 * s, y - 14 * s, 5 * s, 16 * s).fill(0x6b4a2b);
+    g.ellipse(x, y - 22 * s, 19 * s, 13 * s).fill(0x7a9a4a);
+    g.ellipse(x - 5 * s, y - 26 * s, 9 * s, 6 * s).fill(0x93b25c);
+    return;
+  }
+  if (kind === "mangrove") {
+    g.moveTo(x - 10 * s, y).quadraticCurveTo(x - 6 * s, y - 12 * s, x, y - 14 * s).quadraticCurveTo(x + 6 * s, y - 12 * s, x + 10 * s, y).stroke({ width: 2 * s, color: 0x5a4030 });
+    g.ellipse(x, y - 22 * s, 18 * s, 11 * s).fill(0x3f6b3a);
     return;
   }
   g.ellipse(x, y + 2, 16 * s, 5 * s).fill({ color: 0x000000, alpha: 0.13 });
@@ -32,108 +47,252 @@ function tree(g: Graphics, x: number, y: number, s: number, kind: "" | "palm" | 
   g.circle(x - 6 * s, y - 25 * s, 9 * s).fill(0x56854a);
 }
 
-function dashedLine(g: Graphics, p: Point, q: Point, dash: number, gap: number) {
-  const len = Math.hypot(q.x - p.x, q.y - p.y);
-  const ux = (q.x - p.x) / len;
-  const uy = (q.y - p.y) / len;
-  for (let d = 0; d < len; d += dash + gap) {
-    const e = Math.min(len, d + dash);
-    g.moveTo(p.x + ux * d, p.y + uy * d).lineTo(p.x + ux * e, p.y + uy * e);
+function cow(g: Graphics, x: number, y: number) {
+  g.ellipse(x, y - 8, 11, 6).fill(0xf4f1ea).stroke({ width: 1, color: 0x999999 });
+  g.circle(x + 11, y - 11, 4).fill(0xf4f1ea).stroke({ width: 1, color: 0x999999 });
+  for (const d of [-7, -2, 4, 8]) g.rect(x + d, y - 4, 2, 6).fill(0x999999);
+  g.circle(x - 3, y - 9, 3).fill(0x8a6a45);
+}
+
+/** Small background house, flat roof in the Sahel and pitched elsewhere. */
+function smallHouse(g: Graphics, x: number, y: number, b: Biome, wall: number, roof: number) {
+  const w = 30;
+  const d = 12;
+  const h = 18;
+  const L = x - w / 2;
+  const R = x + w / 2;
+  const T = y - h;
+  g.poly([R, y, R + d, y - d * 0.5, R + d, T - d * 0.5, R, T]).fill(b.flat ? 0xb9834b : 0xcdb58f);
+  g.poly([L, T, R, T, R + d, T - d * 0.5, L + d, T - d * 0.5]).fill(b.flat ? 0xc99257 : 0xe2cba1);
+  g.rect(L, T, w, h).fill(wall);
+  if (b.flat) g.rect(L, y - 21, w, 4).fill(roof);
+  else g.poly([L - 2, y - 17, R, y - 17, R + 13, y - 24, L + 11, y - 24]).fill(roof);
+}
+
+function dashedLine(g: Graphics, pts: Point[], dash: number, gap: number) {
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i - 1];
+    const q = pts[i];
+    const len = Math.hypot(q.x - p.x, q.y - p.y);
+    if (!len) continue;
+    const ux = (q.x - p.x) / len;
+    const uy = (q.y - p.y) / len;
+    for (let d = 0; d < len; d += dash + gap) {
+      const e = Math.min(len, d + dash);
+      g.moveTo(p.x + ux * d, p.y + uy * d).lineTo(p.x + ux * e, p.y + uy * e);
+    }
   }
 }
 
-export function buildGround(fonts: { ui: string }): Container {
-  const R: Rng = seeded(7);
+const strokePolyline = (g: Graphics, pts: Point[]) => {
+  g.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+};
+
+/** Distance from a point to the nearest road on the map. */
+export function roadDistance(map: WorldMap, p: Point): number {
+  let best = Infinity;
+  for (const r of map.roads) {
+    for (let i = 1; i < r.pts.length; i++) best = Math.min(best, segmentDistance(p, r.pts[i - 1], r.pts[i]));
+  }
+  return best;
+}
+
+/** The middle of the longest straight piece of a road, for its name label. */
+function labelSpot(r: MapRoad): { p: Point; angle: number; len: number } {
+  let best = { p: r.pts[0], angle: 0, len: 0 };
+  for (let i = 1; i < r.pts.length; i++) {
+    const a = r.pts[i - 1];
+    const b = r.pts[i];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len > best.len) {
+      let angle = Math.atan2(b.y - a.y, b.x - a.x);
+      if (angle > Math.PI / 2) angle -= Math.PI;
+      if (angle < -Math.PI / 2) angle += Math.PI;
+      best = { p: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, angle, len };
+    }
+  }
+  return best;
+}
+
+/** Where two segments cross, if they do. Used to put a bridge over the water. */
+function crossing(a: Point, b: Point, c: Point, d: Point): Point | null {
+  const r = { x: b.x - a.x, y: b.y - a.y };
+  const s2 = { x: d.x - c.x, y: d.y - c.y };
+  const denom = r.x * s2.y - r.y * s2.x;
+  if (!denom) return null;
+  const t = ((c.x - a.x) * s2.y - (c.y - a.y) * s2.x) / denom;
+  const u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / denom;
+  if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+  return { x: a.x + t * r.x, y: a.y + t * r.y };
+}
+
+export function buildGround(map: WorldMap, fonts: { ui: string }): Container {
+  const B = BIOMES[map.biome];
+  const R: Rng = seeded(hash(`${map.id}deco`) % 2147483646 || 7);
+  const W = map.width;
+  const H = map.height;
   const root = new Container();
   const g = new Graphics();
   root.addChild(g);
 
-  g.rect(-3000, -3000, WORLD_W + 6000, WORLD_H + 6000).fill(0xd3b67f);
-  // Dry grass tufts
+  g.rect(-3000, -3000, W + 6000, H + 6000).fill(hex(B.ground));
+
+  // Dry grass tufts, thinner on green biomes.
   for (let i = 0; i < 1400; i++) {
-    const x = R() * (WORLD_W + 800) - 400;
-    const y = R() * (WORLD_H + 800) - 400;
+    const x = R() * (W + 800) - 400;
+    const y = R() * (H + 800) - 400;
     g.moveTo(x, y + 6).lineTo(x + 3, y).lineTo(x + 6, y + 6);
   }
-  g.stroke({ width: 1.5, color: 0xa98f52, alpha: 0.5 });
+  g.stroke({ width: 1.5, color: hex(B.patch), alpha: 0.5 });
 
-  const city = PLACES.filter((p) => !OUT_OF_TOWN.has(p.id)).map((p) => placePos(p.id));
-  for (const c of city) g.ellipse(c.x, c.y, 260, 200).fill({ color: 0xe2cfa6, alpha: 0.55 });
-
-  for (let i = 0; i < 40; i++) {
-    const x = R() * WORLD_W;
-    const y = R() * WORLD_H * 0.55;
-    g.poly([x, y, x + 140, y - 20, x + 160, y + 40, x + 20, y + 60]).fill({ color: R() < 0.5 ? 0xb9a35f : 0xa8b86a, alpha: 0.45 });
+  // Fields and bare patches.
+  for (let i = 0; i < 26; i++) {
+    const x = R() * W;
+    const y = R() * H;
+    g.poly([x, y, x + 160, y - 24, x + 184, y + 46, x + 24, y + 70]).fill({ color: hex(B.patch), alpha: 0.55 });
+  }
+  if (B.extra === "hills" || B.extra === "rocks") {
+    for (let i = 0; i < 7; i++) {
+      const x = R() * W;
+      const y = R() * H;
+      if (B.extra === "hills") g.ellipse(x, y, 120 + R() * 80, 50 + R() * 30).fill({ color: 0x7fa350, alpha: 0.7 });
+      else {
+        g.moveTo(x - 40, y).quadraticCurveTo(x - 20, y - 50, x + 10, y - 46).quadraticCurveTo(x + 44, y - 42, x + 50, y)
+          .closePath().fill(0x9a9184).stroke({ width: 1, color: 0x6e665c });
+      }
+    }
+  }
+  if (B.extra === "red") {
+    for (let i = 0; i < 10; i++) g.ellipse(R() * W, R() * H, 90, 40).fill({ color: 0xb5643a, alpha: 0.25 });
   }
 
-  const segs = ROADS.map((r) => [nodePos(r.a), nodePos(r.b)] as const);
-  const nearRoad = (x: number, y: number, d: number) => segs.some(([a, b]) => segmentDistance({ x, y }, a, b) < d);
-  const allPlaces = PLACES.map((p) => placePos(p.id));
+  // The river, when the area has water.
+  if (map.river && map.river.length > 1) {
+    strokePolyline(g, map.river);
+    g.stroke({ width: 96, color: 0x3f7580, cap: "round", join: "round" });
+    strokePolyline(g, map.river);
+    g.stroke({ width: 80, color: 0x6fa7b0, join: "round" });
+    for (let i = 1; i < map.river.length - 1; i += 2) {
+      const p = map.river[i];
+      g.poly([p.x - 22, p.y, p.x + 22, p.y, p.x + 16, p.y + 7, p.x - 16, p.y + 7]).fill(0x8b5a3a);
+      g.circle(p.x + 4, p.y - 6, 4).fill(0x4a2a18);
+    }
+    if (B.extra === "water") {
+      for (let i = 0; i < 30; i++) {
+        const p = map.river[Math.floor(R() * map.river.length)];
+        tree(g, p.x + (R() - 0.5) * 260, p.y + (R() < 0.5 ? -70 : 70) + (R() - 0.5) * 30, 0.8, "mangrove");
+      }
+    }
+  }
 
+  const riverDist = (x: number, y: number) => (map.river ? roadDistance({ ...map, roads: [{ name: "", pts: map.river }] }, { x, y }) : 1e9);
+  const near = (x: number, y: number, d: number) => roadDistance(map, { x, y }) < d;
+  const tiles = map.places.map((p) => ({ x: p.x, y: p.y }));
+
+  // Neighbourhood houses, packed near the places, never on a road or in the river.
   const houses: Point[] = [];
-  for (let i = 0; i < 2600 && houses.length < 900; i++) {
-    const c = city[Math.floor(R() * city.length)];
+  const spots = tiles.length ? tiles : [{ x: W / 2, y: H / 2 }];
+  for (let i = 0; i < 3000 && houses.length < 700; i++) {
+    const c = spots[Math.floor(R() * spots.length)];
     const a = R() * 6.28;
-    const r = 40 + R() * 300;
+    const r = 60 + R() * 340;
     const x = c.x + Math.cos(a) * r;
-    const y = c.y + Math.sin(a) * r * 0.75;
-    if (allPlaces.some((l) => Math.hypot(l.x - x, (l.y - y) * 1.2) < 150)) continue;
-    if (nearRoad(x, y, 26)) continue;
-    if (houses.some((h) => Math.abs(h.x - x) < 34 && Math.abs(h.y - y) < 26)) continue;
+    const y = c.y + Math.sin(a) * r * 0.78;
+    if (x < -200 || y < -200 || x > W + 200 || y > H + 200) continue;
+    if (tiles.some((l) => Math.hypot(l.x - x, (l.y - y) * 1.2) < 155)) continue;
+    if (near(x, y, 28)) continue;
+    if (riverDist(x, y) < 70) continue;
+    if (houses.some((h) => Math.abs(h.x - x) < 36 && Math.abs(h.y - y) < 28)) continue;
     houses.push({ x, y });
   }
   houses.sort((a, b) => a.y - b.y).forEach((h, i) => {
-    g.rect(h.x - 13, h.y - 10, 26, 14).fill({ color: HOUSE_WALLS[i % 4], alpha: 0.9 });
-    g.poly([h.x - 16, h.y - 9, h.x + 16, h.y - 9, h.x + 10, h.y - 20, h.x - 10, h.y - 20]).fill({ color: HOUSE_ROOFS[(i * 7) % 4], alpha: 0.9 });
+    smallHouse(g, h.x, h.y, B, hex(B.wall[i % B.wall.length]), hex(B.roof[(i * 7) % B.roof.length]));
   });
 
-  for (let i = 0; i < 160; i++) {
-    const x = R() * WORLD_W;
-    const y = R() * WORLD_H;
-    if (nearRoad(x, y, 30)) continue;
-    if (allPlaces.some((l) => Math.hypot(l.x - x, l.y - y) < 140)) continue;
-    const s = 0.7 + R() * 0.5;
-    const north = y < WORLD_H * 0.5;
-    tree(g, x, y, s, north ? (R() < 0.3 ? "baobab" : "") : R() < 0.25 ? "palm" : "");
+  for (let i = 0; i < 170; i++) {
+    const x = R() * W;
+    const y = R() * H;
+    if (near(x, y, 30) || tiles.some((l) => Math.hypot(l.x - x, l.y - y) < 150) || riverDist(x, y) < 60) continue;
+    tree(g, x, y, 0.8 + R() * 0.5, B.trees[i % B.trees.length]);
+  }
+  if (B.extra === "cattle") {
+    for (let i = 0; i < 8; i++) {
+      const x = R() * W;
+      const y = R() * H;
+      if (tiles.some((l) => Math.hypot(l.x - x, l.y - y) < 150)) continue;
+      cow(g, x, y);
+      cow(g, x + 24, y + 8);
+    }
   }
 
-  // Roads: dark edge, tarmac, dashed centre line.
-  for (const r of ROADS) {
-    const [p, q] = [nodePos(r.a), nodePos(r.b)];
-    g.moveTo(p.x, p.y).lineTo(q.x, q.y).stroke({ width: r.highway ? 26 : 32, color: 0x3f3b37, cap: "round" });
+  // Roads: dark edge, tarmac, dashed centre line. Widest class first so junctions read well.
+  const byWidth = [...map.roads].sort((a, b) => widthOf(b) - widthOf(a));
+  for (const r of byWidth) {
+    strokePolyline(g, r.pts);
+    g.stroke({ width: widthOf(r) + 6, color: 0x3f3b37, cap: "round", join: "round" });
   }
-  for (const r of ROADS) {
-    const [p, q] = [nodePos(r.a), nodePos(r.b)];
-    g.moveTo(p.x, p.y).lineTo(q.x, q.y).stroke({ width: r.highway ? 20 : 26, color: 0x66615b, cap: "round" });
+  for (const r of byWidth) {
+    strokePolyline(g, r.pts);
+    g.stroke({ width: widthOf(r), color: hex(B.road), cap: "round", join: "round" });
   }
-  for (const r of ROADS) dashedLine(g, nodePos(r.a), nodePos(r.b), 12, 12);
+  for (const r of byWidth) {
+    if (widthOf(r) < 20) continue;
+    dashedLine(g, r.pts, 12, 12);
+  }
   g.stroke({ width: 2, color: 0xe8e2d0 });
 
-  for (const w of WAYPOINTS) {
-    const p = placePos(w.id);
-    g.circle(p.x, p.y, 22).fill(0x66615b).stroke({ width: 3, color: 0x3f3b37 });
-    g.circle(p.x, p.y, 11).fill(0x5f8a4a);
+  // A bridge wherever a road crosses the water.
+  if (map.river && map.river.length > 1) {
+    for (const r of map.roads) {
+      for (let i = 1; i < r.pts.length; i++) {
+        for (let k = 1; k < map.river.length; k++) {
+          const hit = crossing(r.pts[i - 1], r.pts[i], map.river[k - 1], map.river[k]);
+          if (!hit) continue;
+          const ang = Math.atan2(r.pts[i].y - r.pts[i - 1].y, r.pts[i].x - r.pts[i - 1].x);
+          const w = widthOf(r) + 14;
+          const len = 118;
+          const ux = Math.cos(ang) * len * 0.5;
+          const uy = Math.sin(ang) * len * 0.5;
+          const nx = -Math.sin(ang) * w * 0.5;
+          const ny = Math.cos(ang) * w * 0.5;
+          g.poly([
+            hit.x - ux + nx, hit.y - uy + ny, hit.x + ux + nx, hit.y + uy + ny,
+            hit.x + ux - nx, hit.y + uy - ny, hit.x - ux - nx, hit.y - uy - ny,
+          ]).fill(0x9aa3ad).stroke({ width: 2, color: 0x5e6570 });
+          g.moveTo(hit.x - ux - nx, hit.y - uy - ny).lineTo(hit.x + ux - nx, hit.y + uy - ny);
+          g.moveTo(hit.x - ux + nx, hit.y - uy + ny).lineTo(hit.x + ux + nx, hit.y + uy + ny);
+          g.stroke({ width: 3, color: 0xc4cbd2 });
+        }
+      }
+    }
+  }
+
+  // Named roundabouts.
+  for (const j of map.junctions ?? []) {
+    g.circle(j.x, j.y, 22).fill(hex(B.road)).stroke({ width: 3, color: 0x3f3b37 });
+    g.circle(j.x, j.y, 11).fill(0x5f8a4a);
   }
 
   const labelStyle = { fontFamily: fonts.ui, fontWeight: "800" as const, fill: 0xf7f2e4, stroke: { color: 0x3f3b37, width: 3 } };
-  for (const r of ROADS) {
+  const labelled = new Set<string>();
+  for (const r of map.roads) {
     if (!r.name) continue;
-    const [p, q] = [nodePos(r.a), nodePos(r.b)];
-    if (Math.hypot(q.x - p.x, q.y - p.y) < 170) continue;
-    let ang = Math.atan2(q.y - p.y, q.x - p.x);
-    if (ang > Math.PI / 2) ang -= Math.PI;
-    if (ang < -Math.PI / 2) ang += Math.PI;
+    const spot = labelSpot(r);
+    if (spot.len < 170) continue;
+    // One label per street name keeps a long road from shouting.
+    if (labelled.has(r.name) && R() < 0.6) continue;
+    labelled.add(r.name);
     const t = new Text({ text: r.name, style: { ...labelStyle, fontSize: 12.5 } });
     t.anchor.set(0.5);
-    t.position.set((p.x + q.x) / 2, (p.y + q.y) / 2);
-    t.rotation = ang;
+    t.position.set(spot.p.x, spot.p.y);
+    t.rotation = spot.angle;
     root.addChild(t);
   }
-  for (const w of WAYPOINTS) {
-    const p = placePos(w.id);
-    const t = new Text({ text: w.name, style: { ...labelStyle, fontSize: 13, fill: 0x3f2a16, stroke: { color: 0xf3e6c8, width: 3 } } });
+  for (const j of map.junctions ?? []) {
+    const t = new Text({ text: j.name, style: { ...labelStyle, fontSize: 13, fill: 0x3f2a16, stroke: { color: 0xf3e6c8, width: 3 } } });
     t.anchor.set(0.5, 0);
-    t.position.set(p.x, p.y + 28);
+    t.position.set(j.x, j.y + 28);
     root.addChild(t);
   }
   return root;
