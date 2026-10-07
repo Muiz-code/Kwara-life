@@ -4,7 +4,7 @@
 
 export interface AdSlot {
   id: string;
-  /** Place the board stands beside. */
+  /** Place or roundabout the board stands beside. */
   near: string;
   /** Offset from the place in world pixels. */
   dx: number;
@@ -22,9 +22,9 @@ export interface Ad {
 }
 
 export const AD_SLOTS: AdSlot[] = [
-  { id: "po-bridge", near: "po", dx: -150, dy: -40 },
-  { id: "taiwo-road", near: "taiwo", dx: 140, dy: -30 },
-  { id: "ahmadu-bello", near: "hotel", dx: 0, dy: 120 },
+  { id: "airport-road", near: "geri", dx: -60, dy: 150 },
+  { id: "asa-dam-road", near: "metro", dx: 150, dy: -40 },
+  { id: "sobi-road", near: "sobi", dx: 150, dy: 0 },
   { id: "fate-road", near: "mall", dx: -130, dy: 90 },
   { id: "tanke-road", near: "home", dx: -140, dy: -50 },
   { id: "unilorin-road", near: "okeodo", dx: 0, dy: 130 },
