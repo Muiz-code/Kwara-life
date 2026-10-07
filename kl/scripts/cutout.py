@@ -3,13 +3,16 @@ Cut the flat cream background off Higgsfield tiles, sprites and avatars.
 Usage:  pip install pillow numpy
         python scripts/cutout.py public/assets/raw public/assets
 Interiors (full-scene backgrounds) should NOT go through this script.
+Avatars (files named avatar-*) skip the enclosed-gap pass, so pale clothing survives.
 """
 import sys, pathlib
 from collections import deque
 import numpy as np
 from PIL import Image, ImageFilter
 
-def cutout(path, out_dir, width=440):
+def cutout(path, out_dir, width=440, holes=None):
+    if holes is None:
+        holes = not pathlib.Path(path).stem.startswith("avatar-")
     im = Image.open(path).convert("RGB")
     a = np.asarray(im).astype(int)
     h, w, _ = a.shape
@@ -38,6 +41,27 @@ def cutout(path, out_dir, width=440):
             ny, nx = y + dy, x + dx
             if 0 <= ny < h and 0 <= nx < w and near[ny, nx] and not mask[ny, nx]:
                 mask[ny, nx] = True; q.append((ny, nx))
+
+    # Background seen through gaps (under a billboard, inside a keke) never touches the
+    # border. Remove enclosed patches that are almost exactly the background colour.
+    if holes:
+        strict = (diff < 12) & ~mask
+        seen = np.zeros((h, w), bool)
+        min_area = 0.002 * h * w
+        for y0, x0 in zip(*np.nonzero(strict)):
+            if seen[y0, x0]:
+                continue
+            seen[y0, x0] = True
+            q = deque([(y0, x0)]); pts = []
+            while q:
+                y, x = q.popleft(); pts.append((y, x))
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < h and 0 <= nx < w and strict[ny, nx] and not seen[ny, nx]:
+                        seen[ny, nx] = True; q.append((ny, nx))
+            if len(pts) > min_area:
+                ys, xs = zip(*pts)
+                mask[list(ys), list(xs)] = True
 
     alpha = Image.fromarray(np.where(mask, 0, 255).astype("uint8"))
     alpha = alpha.filter(ImageFilter.MinFilter(5)).filter(ImageFilter.GaussianBlur(1.0))

@@ -43,3 +43,6 @@ sprite-horse | sprite | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWF
 sprite-keke | sprite | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_113630_9fd4faa4-311c-4b12-8a94-0c0dd0add1f5.png
 sprite-okada | sprite | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_113629_4b5f7dcc-c90f-48d2-9455-3b35bf9d335a.png
 sprite-bus | sprite | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_113629_ff8efa02-c57a-4206-8fe0-08a671b23c02.png
+metro | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_131001_5d601f58-b6a0-4b1c-8a07-c2671e96e707.png
+poly | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_131028_4ed9b45f-e4f1-4ff0-b673-03a96dfe0f76.png
+billboard | tile | https://d8j0ntlcm91z4.cloudfront.net/user_3BqLO5DMRrUqWFyRABcs5d1chYq/hf_20261007_131001_02aadd9d-7977-40a1-8df2-baeb303dd055.png
