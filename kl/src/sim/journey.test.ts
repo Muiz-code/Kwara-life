@@ -12,7 +12,7 @@ const look = { g: "m" as const, skin: "#8D5524", cloth: "#F4F1EA" };
 function citizen(patch: Partial<Citizen> = {}): Citizen {
   return {
     name: "Ada", look, stateCode: "lagos", lgaCode: "lagos/ikeja", puCode: "lagos/ikeja/1", cls: "middle", job: "Nurse",
-    home: "Mini flat", underFlyover: false, wasUnder: false, ownsTv: true, ownsRadio: true, pvc: "have",
+    home: "Mini flat", career: "worker", education: "degree", employed: true, monthlyPay: 220000, underFlyover: false, wasUnder: false, ownsTv: true, ownsRadio: true, pvc: "have",
     createdAt: at("2026-10-07T12:00:00+01:00"), registeredAt: null, ...patch,
   };
 }

@@ -3,6 +3,7 @@
 import type { Action } from "./action";
 import { LOCAL_FOOD, MARKET_NAME } from "./biomes";
 import { WORKPLACE, type ClassId } from "./jobs";
+import { CAREERS, type CareerId } from "./careers";
 import type { State } from "./states";
 
 export type LgaPlaceId =
@@ -31,6 +32,7 @@ export interface LgaContext {
   wasUnder?: boolean;
   /** The citizen is visiting this LGA: no home, workplace or shelter of theirs here. */
   visiting?: boolean;
+  career?: CareerId;
 }
 
 /** A night's lodging away from home, by class. */
@@ -42,8 +44,33 @@ export const LODGING: Record<ClassId, { name: string; price: number }> = {
 
 const shortTown = (lga: string) => lga.split(/[ /-]/)[0];
 
+/** Where each career works. Laptop careers still get a place (a co-working space) to visit. */
+export function careerWorkplace(career: CareerId, cls: ClassId): { name: string; kind: string } {
+  switch (career) {
+    case "student":
+      return { name: "Campus", kind: "school" };
+    case "corper":
+      return { name: "Your PPA", kind: "office" };
+    case "worker":
+    case "developer":
+      return { name: "Office", kind: "office" };
+    case "artisan":
+      return { name: "Workshop", kind: "workshop" };
+    case "trader":
+      return { name: "Your stall", kind: "market" };
+    case "herbalist":
+      return { name: "Herbal shop", kind: "workshop" };
+    case "politician":
+      return { name: "Party office", kind: "office" };
+    case "executive":
+      return { name: "Company HQ", kind: "tower" };
+    default:
+      return WORKPLACE[cls];
+  }
+}
+
 export function lgaPlaces(c: LgaContext): LgaPlace[] {
-  const work = WORKPLACE[c.cls];
+  const work = c.career ? careerWorkplace(c.career, c.cls) : WORKPLACE[c.cls];
   const food = LOCAL_FOOD[c.state.zone];
   const places: LgaPlace[] = [
     {
@@ -122,9 +149,16 @@ export const CIVIC_ACTIONS: Record<"inec" | "pu" | "viewing" | "kiosk" | "hall" 
 export function lgaActions(c: LgaContext): Record<LgaPlaceId, Action[]> {
   const food = LOCAL_FOOD[c.state.zone];
   const lm = c.state.landmark.name;
+  const career = c.career ? CAREERS[c.career] : null;
+  const work: Action = {
+    id: "work", label: career ? career.workLabel : `Work as a ${c.job.toLowerCase()}`, dur: 0, shift: true,
+    fx: { energy: -25, fun: -8, social: 8, hygiene: -10 }, bubble: "Working", done: "Shift done.",
+  };
+  /** Laptop and phone work can be done from home or a hotel room. */
+  const anywhere = career?.where === "anywhere" ? [work] : [];
   return {
-    home: homeActions(c.underFlyover),
-    work: [{ id: "work", label: `Work as a ${c.job.toLowerCase()}`, dur: 0, shift: true, fx: { energy: -25, fun: -8, social: 8, hygiene: -10 }, bubble: "Working", done: "Shift done." }],
+    home: [...homeActions(c.underFlyover), ...anywhere],
+    work: career?.where === "anywhere" ? [] : [work],
     ...CIVIC_ACTIONS,
     market: [
       BRIBE,
@@ -153,6 +187,7 @@ export function lgaActions(c: LgaContext): Record<LgaPlaceId, Action[]> {
     landmark: [{ id: "visit", label: `Visit ${lm}`, dur: 90, fx: { fun: 30, social: 5, energy: -10 }, bubble: "Wow", done: `You spent the afternoon at ${lm}.` }],
     shelter: [{ id: "bed", label: "Ask for a bed", dur: 60, fx: {}, shelter: true, bubble: "Waiting", done: "" }],
     hotel: [
+      ...anywhere,
       { id: "lodge", label: `Take a room for the night (${LODGING[c.cls].name.toLowerCase()})`, dur: 480, sleep: true, cost: LODGING[c.cls].price, fx: { energy: 100, hygiene: 40 }, bubble: "Zzz", done: "You slept well away from home." },
       { id: "drink", label: "Cold drink at the bar", dur: 30, cost: 1000, fx: { fun: 10, social: 8 }, overhear: true, bubble: "Sipping", done: "Cold drink at the hotel bar." },
     ],
