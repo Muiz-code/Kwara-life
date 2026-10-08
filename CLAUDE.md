@@ -21,7 +21,7 @@ campaigns, and votes once on a single shared election day. Free and fair is the 
 - Static results snapshots, news cache and ads served from a CDN; players never query results directly.
 
 ## Structure
-The Next.js app lives in kl/ (all paths below are relative to it).
+The Next.js app lives at the repo root (all paths below are relative to it).
 - src/data: states.ts (36 + FCT, 5 LGAs each, zone, slogan, landmark, default language), parties.ts (21 INEC parties,
   loaded from data, never hard-coded in UI), jobs.ts, biomes.ts, calendar.ts, i18n/ (en, pcm, yo, ha, ig),
   ilorin/ (hand-built Ilorin places, roads, actions, billboard slots)

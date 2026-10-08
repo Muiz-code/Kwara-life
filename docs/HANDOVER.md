@@ -1,14 +1,14 @@
 # Handover: Naija Votes
 
-Last updated 7 October 2026. Read this first, then `kl/CLAUDE.md` (the rules), `docs/DECISIONS.md`
+Last updated 9 October 2026. Read this first, then `CLAUDE.md` (the rules), `docs/DECISIONS.md`
 (every decision made after the design; it wins over `docs/DESIGN.md`) and `docs/DESIGN.md`.
 
 ## Where things are
 
-- Repo: `Muiz-code/Kwara-life`. The app lives in `kl/`; run every command from there.
-- Working branch: `claude/laughing-cerf-2fs1cy`. It holds everything, including the maps work.
-  `claude/osm-maps` was the maps branch and is fully merged in. Nothing is merged to `main` yet;
-  open one PR from the working branch to `main` only when the owner asks.
+- Repo: `Muiz-code/Naija-Votes` (renamed from `Kwara-life` on 9 October 2026). The app lives at the repo root;
+  the old `kl/` folder is gone. Run every command from the root.
+- Working branch: `main`. The `claude/laughing-cerf-2fs1cy` and `claude/osm-maps` branches are merged and old.
+  The OpenStreetMap map code was dropped (see DECISIONS.md, Maps).
 - Season: launch Wed 14 Oct 2026, election Sat 14 Nov 2026, polls 8am to 4pm WAT, then the game freezes for good.
 
 ## Run it
@@ -29,7 +29,7 @@ npm run build        # must stay green before every push
   - The menu (☰, top left) gains **Test: jump the clock**: registration, PVC collection, blackout, polls open, last 3 minutes, polls closed.
 - The whole election day plays through like this: jump to polls open, go to your polling unit, vote, jump to polls closed. Live collation then opens, followed by the winner screen and the closing message.
 
-## How the code is laid out (inside `kl/src`)
+## How the code is laid out (inside `src`)
 
 | Folder | What it holds |
 |---|---|
@@ -39,8 +39,8 @@ npm run build        # must stay green before every push
 | `world/` | Towns drawn on the isometric grid with PixiJS:<ul><li>`town-spec.ts` and `town.ts` generate rich, mixed and poor blocks, main roads, roundabouts, a slum, bus stops and traffic lights</li><li>`GameMap.ts` renders the town</li><li>`load.ts` exports `loadMap` and `townFor`</li></ul> |
 | `components/` | `Game.tsx` (the screen) and `game/*` (HUD, place sheet, campaign, vote and results, phone, create citizen). `MapView.tsx` mounts the map. |
 
-Art is in `kl/public/assets/`: tiles, vehicles, interiors and avatars. Each image's source URL is
-listed in `kl/reference/*.txt`. `scripts/fetch_assets.py <list>` downloads those images and cuts them out with
+Art is in `public/assets/`: tiles, vehicles, interiors and avatars. Each image's source URL is
+listed in `reference/*.txt`. `scripts/fetch_assets.py <list>` downloads those images and cuts them out with
 `scripts/cutout.py`. Delete `public/assets/raw/<file>` first to force a fresh download.
 
 ## Anti-cheat (client side, until Phase E)
@@ -130,5 +130,5 @@ Must do before launch:
 
 ## Tools in this setup
 
-- **Art** comes from Higgsfield (MCP), using model `gpt_image_2_5` at 1:1, at most 4 per batch, and costs about 0.25 credits each. Style rules are in `kl/CLAUDE.md`. If a subject wears cream or white, run it through Higgsfield's background remover; `cutout.py` keeps alpha that is already there.
+- **Art** comes from Higgsfield (MCP), using model `gpt_image_2_5` at 1:1, at most 4 per batch, and costs about 0.25 credits each. Style rules are in `CLAUDE.md`. If a subject wears cream or white, run it through Higgsfield's background remover; `cutout.py` keeps alpha that is already there.
 - **Commits:** clear messages, and push with `git push -u origin claude/laughing-cerf-2fs1cy`.
