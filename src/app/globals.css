@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+:root {
+  --page: #e6d6b8;
+  --panel: #fbf4e6;
+  --panel-2: #f1e4cb;
+  --ink: #1f2a4d;
+  --ink-soft: #5e6582;
+  --line: #d8c49e;
+  --indigo: #26355e;
+  --laterite: #b5532e;
+  --keke: #f2b705;
+  --leaf: #3f6b3a;
+  --danger: #b3261e;
+  --up: #2f7d5b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #111830;
+    --panel: #1b2443;
+    --panel-2: #232e55;
+    --ink: #f1e8d4;
+    --ink-soft: #a9afc7;
+    --line: #33406b;
+    --indigo: #0f1730;
+    --up: #7fd3a8;
+    --leaf: #8bc57a;
+  }
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-indigo: var(--indigo);
+  --color-laterite: var(--laterite);
+  --color-keke: var(--keke);
+  --color-leaf: var(--leaf);
+  --color-danger: var(--danger);
+  --color-up: var(--up);
+  --font-sans: var(--font-figtree);
+  --font-sign: var(--font-lilita);
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes confetti {
+  to { transform: translateY(110vh) rotate(720deg); }
+}
+
+/* The loading screen: the title zooms in from far away, ballots drop into the box. */
+@keyframes loaderZoom {
+  from { transform: scale(0.2); opacity: 0; filter: blur(6px); }
+  to { transform: scale(1); opacity: 1; filter: blur(0); }
+}
+
+@keyframes ballotDrop {
+  0% { transform: translate(-50%, -24px) rotate(-8deg); opacity: 0; }
+  20% { opacity: 1; }
+  70% { transform: translate(-50%, 34px) rotate(4deg); opacity: 1; }
+  100% { transform: translate(-50%, 40px) rotate(4deg); opacity: 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* No visible scrollbars anywhere in the game: panels and the phone still scroll by touch, wheel or keys. */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
