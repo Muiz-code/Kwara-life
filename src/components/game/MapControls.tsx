@@ -20,7 +20,8 @@ export function PlacesButton() {
       </button>
       {open && (
         <div className="pointer-events-auto fixed inset-0 z-40 flex items-end justify-center bg-[#0A0E1E]/45 sm:items-center" onClick={() => setOpen(false)}>
-          <div className="flex max-h-[75dvh] w-full max-w-md flex-col rounded-t-3xl bg-panel p-4 text-ink shadow-2xl sm:rounded-3xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="All places">
+          <div className="flex h-[75dvh] w-full max-w-md flex-col rounded-t-3xl bg-panel p-4 text-ink shadow-2xl sm:h-auto sm:max-h-[75dvh] sm:rounded-3xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="All places">
+            {/* A fixed height on phones, so the search box stays put however few places match. */}
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-sign text-xl text-indigo">Places in town</h2>
               <button type="button" className="text-sm font-bold text-[#5E6582]" onClick={() => setOpen(false)}>Close</button>

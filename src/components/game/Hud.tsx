@@ -2,6 +2,7 @@
 // Overlays on the map: top bar, news ticker, objectives, needs dock, bottom tabs, toasts and notes.
 import {
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   House,
   Megaphone,
@@ -327,6 +328,8 @@ export function NewsTicker({ sponsored }: { sponsored?: string }) {
 }
 
 /** What to do next, following the election calendar. */
+type Goal = { title: string; hint: string; /** Place ids to head to, first one on this map wins. */ go?: string[] };
+
 export function Objectives() {
   const c = useGame((s) => s.game.citizen);
   const voted = useGame((s) => s.game.voted.includes(CAL.id));
@@ -336,68 +339,57 @@ export function Objectives() {
   const now = useNow(15_000);
   if (!c) return null;
   const phase = civicPhase(CAL, now);
-  const goals: { title: string; hint: string }[] = [];
-  if (food < 30)
-    goals.push({ title: "Eat something", hint: "Cook at home or buy food" });
+  const goals: Goal[] = [];
+  if (food < 30) goals.push({ title: "Eat something", hint: "Cook at home or buy food", go: ["buka", "amala", "item7", "home"] });
   if (c.pvc === "none" && phase === "registration")
-    goals.push({
-      title: "Register to vote",
-      hint: "Go to the VINEC office in your LGA",
-    });
-  if (
-    c.pvc === "registered" &&
-    (phase === "pvc-collection" || phase === "blackout")
-  )
-    goals.push({
-      title: "Collect your PVC",
-      hint: "VINEC office, before 7:50am on election day",
-    });
-  if (
-    c.pvc === "registered" &&
-    (phase === "registration" || phase === "waiting-for-pvc")
-  )
-    goals.push({
-      title: "Wait for PVC collection",
-      hint: "Collection opens 31 October",
-    });
-  if (!c.employed)
-    goals.push({
-      title: "Find a job",
-      hint: "Check the openings on your phone",
-    });
+    goals.push({ title: "Register to vote", hint: "Go to the VINEC office in your LGA", go: away ? undefined : ["inec"] });
+  if (c.pvc === "registered" && (phase === "pvc-collection" || phase === "blackout"))
+    goals.push({ title: "Collect your PVC", hint: "VINEC office, before 7:50am on election day", go: away ? undefined : ["inec"] });
+  if (c.pvc === "registered" && (phase === "registration" || phase === "waiting-for-pvc"))
+    goals.push({ title: "Wait for PVC collection", hint: "Collection opens 31 October" });
+  if (!c.employed) goals.push({ title: "Find a job", hint: "Check the openings on your phone" });
   if (phase === "polls-open" && !voted && c.pvc === "have")
-    goals.push({
-      title: away ? "Travel home to vote" : "Go and vote",
-      hint: "Your polling unit, 8am to 4pm",
-    });
-  if (c.pvc === "seized")
-    goals.push({
-      title: "Your PVC was seized",
-      hint: "You cannot vote this election",
-    });
+    goals.push({ title: away ? "Travel home to vote" : "Go and vote", hint: "Your polling unit, 8am to 4pm", go: away ? undefined : ["pu"] });
+  if (c.pvc === "seized") goals.push({ title: "Your PVC was seized", hint: "You cannot vote this election" });
   const step = nextStep(visited);
   if (step)
     goals.push({
       title: `Explorer: ${visited} of ${STATES.length} states`,
       hint: `Visit ${step[0] - visited} more to become a ${step[1].toLowerCase()}. Travel from the motor park, bus terminal or airport`,
+      go: ["park", "terminal", "airport"],
     });
   return <GoalList goals={goals} />;
 }
 
 const GOALS_OPEN = "nv:goals-open";
 
+/** One tap to the place a goal needs: selects it, which opens its card with the ways to get there. */
+function GoButton({ go }: { go?: string[] }) {
+  const world = useGame((s) => s.world);
+  const busy = useGame((s) => s.activity !== null);
+  const id = go?.find((g) => world?.places.some((p) => p.id === g));
+  if (!id) return null;
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={() => getGameStore().getState().select(id)}
+      className="flex shrink-0 items-center gap-0.5 rounded-full bg-indigo px-2.5 py-1 text-xs font-bold text-[#F7E7C1] disabled:opacity-50"
+    >
+      Go <ChevronRight aria-hidden className="h-3.5 w-3.5" strokeWidth={2.5} />
+    </button>
+  );
+}
+
 /** Folded, the goals are one small chip so they don't cover the map; tap to see them all. */
-function GoalList({ goals }: { goals: { title: string; hint: string }[] }) {
+function GoalList({ goals }: { goals: Goal[] }) {
   // Phones start folded, bigger screens open. The player's last choice wins after that.
   const [open, setOpen] = useState(() => {
     try {
       const v = localStorage.getItem(GOALS_OPEN);
       if (v !== null) return v === "1";
     } catch {}
-    return (
-      typeof window !== "undefined" &&
-      window.matchMedia("(min-width: 640px)").matches
-    );
+    return typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches;
   });
   const toggle = () =>
     setOpen((o) => {
@@ -410,45 +402,34 @@ function GoalList({ goals }: { goals: { title: string; hint: string }[] }) {
   const shown = goals.slice(0, 2);
   if (!open)
     return (
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={false}
-        className="pointer-events-auto max-w-[70vw]"
-      >
-        <Glass className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold">
+      <Glass className="pointer-events-auto flex max-w-[80vw] items-center gap-1.5 py-1 pr-1 pl-3 text-sm font-bold">
+        <button type="button" onClick={toggle} aria-expanded={false} className="flex min-w-0 items-center gap-1.5 py-0.5">
           <span className="truncate">{shown[0].title}</span>
-          {shown.length > 1 && (
-            <span className="shrink-0 rounded-full bg-panel-2 px-1.5 text-xs text-ink-soft">
-              +{shown.length - 1}
-            </span>
-          )}
+          {shown.length > 1 && <span className="shrink-0 rounded-full bg-panel-2 px-1.5 text-xs text-ink-soft">+{shown.length - 1}</span>}
           <ChevronDown aria-hidden className="h-4 w-4 shrink-0 text-ink-soft" />
-        </Glass>
-      </button>
+        </button>
+        <GoButton go={shown[0].go} />
+      </Glass>
     );
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-expanded
-      className="pointer-events-auto flex max-w-70 flex-col gap-2 text-left"
-    >
+    <div className="pointer-events-auto flex max-w-70 flex-col gap-2">
       {shown.map((g, i) => (
         <Glass key={g.title} className="flex items-start gap-2 px-3 py-2">
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-bold">{g.title}</div>
-            <div className="text-xs text-ink-soft">{g.hint}</div>
+          <button type="button" onClick={toggle} aria-expanded className="min-w-0 flex-1 text-left">
+            <span className="block text-sm font-bold">{g.title}</span>
+            <span className="block text-xs text-ink-soft">{g.hint}</span>
+          </button>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            {i === 0 && (
+              <button type="button" onClick={toggle} aria-label="Fold goals" className="text-ink-soft">
+                <ChevronUp aria-hidden className="h-4 w-4" />
+              </button>
+            )}
+            <GoButton go={g.go} />
           </div>
-          {i === 0 && (
-            <ChevronUp
-              aria-label="Fold goals"
-              className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft"
-            />
-          )}
         </Glass>
       ))}
-    </button>
+    </div>
   );
 }
 
