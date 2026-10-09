@@ -202,4 +202,10 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   another device. Log out there to continue here." Logging out uploads the game and frees the account at once; a
   device that stops checking in (every 3 minutes while playing) loses it after 10 minutes, so a lost phone never
   locks a player out for good. Signed-in players can't "Start a new life": one citizen per account, kept for good.
-- Vote counts will live in project 1 for now, as counts per polling unit and party only (no ballots).
+- E2: the PVC and the vote are the server's. citizens.pvc is the status that counts; a save can only move it along
+  the real steps inside their windows (15 minutes of grace for the upload), a seizure sticks, nothing goes
+  backwards. Voting (POST /api/vote) needs a collected PVC and open polls by the database's clock; one step marks the
+  voter roll and adds one to vote_tallies (polling unit, party, count). No ballot is ever stored, so no vote can be
+  traced to a player. The voter roll keeps only the day someone voted. Turnout (GET /api/turnout) is public and
+  cached on the CDN for 30 seconds.
+- Vote counts live in project 1 for now, as counts per polling unit and party only (no ballots).

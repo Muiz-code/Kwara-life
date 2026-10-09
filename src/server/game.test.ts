@@ -1,16 +1,40 @@
 import { describe, expect, it } from "vitest";
 import { sequence } from "../sim";
 import type { GameState } from "../sim/state";
-import { DEVICE_STALE_MINUTES, ON_ANOTHER_DEVICE, device, getGame, newCitizen, putSave, type CitizenRow, type GameDb } from "./game";
+import { DEVICE_STALE_MINUTES, ON_ANOTHER_DEVICE, device, getGame, newCitizen, putSave, turnout, vote, type CitizenRow, type GameDb } from "./game";
+import { PRESIDENTIAL_2027 as CAL } from "../data/calendar";
 
-/** The database in memory, with the same rules as save_game and claim_device (minutes on a fake clock). */
-function memoryDb(): GameDb & { rows: Map<string, { citizen: CitizenRow; game: unknown; version: number }>; clock: { min: number } } {
-  const rows = new Map<string, { citizen: CitizenRow; game: unknown; version: number }>();
+type Row = { citizen: CitizenRow; game: unknown; version: number; voted: string[] };
+
+/**
+ * The database in memory, with the same rules as save_game, claim_device and cast_vote (minutes on a fake clock;
+ * pollsOpen says whether the vote clock is inside polling hours).
+ */
+function memoryDb(): GameDb & { rows: Map<string, Row>; clock: { min: number; pollsOpen: boolean }; tallies: Map<string, number> } {
+  const rows = new Map<string, Row>();
+  const tallies = new Map<string, number>();
   const held = new Map<string, { device: string; at: number }>();
-  const clock = { min: 0 };
+  const clock = { min: 0, pollsOpen: false };
   return {
     rows,
     clock,
+    tallies,
+    setPvc: async (u, from, to) => {
+      const r = rows.get(u);
+      if (r && (r.citizen.pvc ?? "none") === from) r.citizen.pvc = to;
+    },
+    castVote: async (u, election, party) => {
+      const r = rows.get(u);
+      if (!r) return "no-citizen";
+      if (r.citizen.pvc !== "have") return "no-pvc";
+      if (!clock.pollsOpen) return "closed";
+      if (r.voted.includes(election)) return "already";
+      r.voted.push(election);
+      const k = `${r.citizen.pu_code}|${party}`;
+      tallies.set(k, (tallies.get(k) ?? 0) + 1);
+      return "ok";
+    },
+    turnout: async () => [...tallies.values()].reduce((a, b) => a + b, 0),
     claim: async (u, d, stale) => {
       const h = held.get(u);
       if (h && h.device !== d && h.at >= clock.min - stale) return false;
@@ -24,7 +48,7 @@ function memoryDb(): GameDb & { rows: Map<string, { citizen: CitizenRow; game: u
     create: async (u, citizen, game) => {
       const had = rows.get(u);
       if (had) return { created: false, game: had.game, version: had.version };
-      rows.set(u, { citizen, game: structuredClone(game), version: 1 });
+      rows.set(u, { citizen: { ...citizen, pvc: "none" }, game: structuredClone(game), version: 1, voted: [] });
       return { created: true, game, version: 1 };
     },
     save: async (u, game, version) => {
@@ -123,5 +147,43 @@ describe("the game on the server", () => {
 
   it("needs a device id", async () => {
     expect((await getGame(memoryDb(), "u1", null)).status).toBe(400);
+  });
+
+  it("moves the PVC only along the real steps, in their windows", async () => {
+    const db = memoryDb();
+    const g = (await roll(db)).body.game as GameState;
+    const at = (iso: string) => Date.parse(iso);
+    const save = (pvc: string, version: number, now: number) =>
+      putSave(db, "u1", { game: { ...g, citizen: { ...g.citizen!, pvc } }, version, device: PHONE }, now);
+    // Jumping straight to a PVC in hand before collection opens: only the registration counts.
+    const early = await save("have", 1, at("2026-10-20T12:00:00+01:00"));
+    expect(db.rows.get("u1")!.citizen.pvc).toBe("registered");
+    expect((early.body.game as GameState).citizen!.pvc).toBe("registered");
+    // Collecting once collection opens.
+    await save("have", 2, at("2026-11-01T12:00:00+01:00"));
+    expect(db.rows.get("u1")!.citizen.pvc).toBe("have");
+    // Nothing goes backwards.
+    await save("none", 3, at("2026-11-02T12:00:00+01:00"));
+    expect(db.rows.get("u1")!.citizen.pvc).toBe("have");
+  });
+
+  it("votes once, only with a PVC, only while polls are open, and counts it", async () => {
+    const db = memoryDb();
+    await roll(db);
+    const ballot = { party: "APC", device: PHONE };
+    expect((await vote(db, "u1", ballot)).status).toBe(403);
+    db.rows.get("u1")!.citizen.pvc = "have";
+    expect((await vote(db, "u1", ballot)).body.error).toBe("Polls are not open");
+    db.clock.pollsOpen = true;
+    expect((await vote(db, "u1", { party: "NOPE", device: PHONE })).status).toBe(400);
+    const first = await vote(db, "u1", ballot);
+    expect(first.body).toEqual({ voted: true, already: false });
+    // A retry after bad network is not a second vote.
+    expect((await vote(db, "u1", ballot)).body).toEqual({ voted: true, already: true });
+    expect((await turnout(db)).body.votes).toBe(1);
+    // A save can't remove the vote, or add one for another election.
+    const g = (db.rows.get("u1")!.game as GameState);
+    await putSave(db, "u1", { game: { ...g, voted: ["some-other-election"] }, version: 1, device: PHONE });
+    expect((db.rows.get("u1")!.game as GameState).voted).toEqual([CAL.id]);
   });
 });

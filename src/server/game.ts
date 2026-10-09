@@ -2,6 +2,8 @@
 // server existed, and store saves. Nothing a browser sends is trusted: every save goes through the game's
 // own checks (sanitizeGame), and who the citizen is (name, state, LGA, polling unit) can never change.
 // One device plays an account at a time: the others are told to log out there first.
+// The PVC and votes are the server's (Phase E2): a save can only move the PVC along the real steps, and only the
+// voter roll can say someone voted.
 // Pure apart from the database, which is passed in, so the rules are tested without one.
 import { LGA, POLLING_UNITS_PER_LGA } from "../data/geography";
 import { STATE } from "../data/states";
@@ -9,7 +11,10 @@ import { sanitizeGame } from "../sim/sanitize";
 import { startLife } from "../sim/start";
 import { freshState, type GameState } from "../sim/state";
 import type { Rng } from "../sim/rng";
-import type { RollInput } from "../sim/roll";
+import type { PvcStatus, RollInput } from "../sim/roll";
+import { PRESIDENTIAL_2027, type ElectionCalendar } from "../data/calendar";
+import { PARTY } from "../data/parties";
+import { VOTE_REASON, reachPvc, type VoteAnswer } from "./civic";
 
 export interface CitizenRow {
   name: string;
@@ -17,11 +22,13 @@ export interface CitizenRow {
   lga_code: string;
   pu_code: string;
   zone: string;
+  /** The PVC status that counts (citizens.pvc). */
+  pvc?: PvcStatus;
 }
 
 export interface GameDb {
   /** The account's citizen and save, or null if it has none yet. */
-  load(user: string): Promise<{ citizen: CitizenRow; game: unknown; version: number } | null>;
+  load(user: string): Promise<{ citizen: CitizenRow; game: unknown; version: number; voted: string[] } | null>;
   /** A new citizen and their first save; if the account already has one, that one comes back instead. */
   create(user: string, citizen: CitizenRow, game: GameState): Promise<{ created: boolean; game: unknown; version: number }>;
   /** Store a save made from `version`; the new version, or null if another save came in between. */
@@ -30,6 +37,12 @@ export interface GameDb {
   claim(user: string, device: string, staleMinutes: number): Promise<boolean>;
   /** Free the account (logging out on this device). */
   release(user: string, device: string): Promise<void>;
+  /** Move the PVC status, only if it is still at the status given as from. */
+  setPvc(user: string, from: PvcStatus, to: PvcStatus): Promise<void>;
+  /** Cast a vote (cast_vote): THAT they voted on the roll, one more for their unit and party in the count. */
+  castVote(user: string, election: string, party: string, opens: string, closes: string): Promise<VoteAnswer>;
+  /** Votes cast so far in an election. */
+  turnout(election: string): Promise<number>;
 }
 
 /** What a route answers: an HTTP status and a body. */
@@ -101,17 +114,20 @@ export async function newCitizen(db: GameDb, user: string, body: unknown, now: n
   } else if (b.adopt !== undefined) {
     game = sanitizeGame(b.adopt);
     if (!game) return no(400, "That save can't be loaded");
-    // Votes only ever come from the server's own voter roll.
+    // Votes only ever come from the server's own voter roll; the PVC only moves along the real steps from none.
     game.voted = [];
+    if (game.citizen) game.citizen.pvc = reachPvc("none", game.citizen.pvc, game.citizen.createdAt, now);
   } else return no(400, "Nothing to create");
   const row = citizenRow(game);
   if (typeof row === "string") return no(400, row);
   const r = await db.create(user, row, stored(game));
+  const pvc = game.citizen?.pvc ?? "none";
+  if (r.created && pvc !== "none") await db.setPvc(user, "none", pvc);
   return ok({ game: r.game, version: r.version, created: r.created });
 }
 
 /** Store a save. Refused if it doesn't check out or changes who the citizen is; 409 if it is out of date. */
-export async function putSave(db: GameDb, user: string, body: unknown): Promise<Reply> {
+export async function putSave(db: GameDb, user: string, body: unknown, now = Date.now()): Promise<Reply> {
   const b = (typeof body === "object" && body ? body : {}) as { game?: unknown; version?: unknown };
   if (typeof b.version !== "number" || !Number.isInteger(b.version) || b.version < 1) return no(400, "Missing save version");
   const busy = await holds(db, user, body);
@@ -125,12 +141,20 @@ export async function putSave(db: GameDb, user: string, body: unknown): Promise<
   const c = have.citizen;
   if (row.name !== c.name || row.state_code !== c.state_code || row.lga_code !== c.lga_code || row.pu_code !== c.pu_code)
     return no(400, "Your citizen can't be changed");
-  // Votes only ever come from the server's own voter roll: keep what the stored save says.
+  // Votes only ever come from the voter roll, and the PVC only moves along the real steps.
+  const sent = { voted: [...game.voted].sort().join(), pvc: game.citizen!.pvc };
+  game.voted = [...have.voted];
   const before = sanitizeGame(have.game);
-  game.voted = before?.voted ?? [];
-  const version = await db.save(user, stored(game), b.version);
+  const had = c.pvc ?? "none";
+  const pvc = reachPvc(had, game.citizen!.pvc, before?.citizen?.createdAt ?? game.citizen!.createdAt, now);
+  game.citizen!.pvc = pvc;
+  if (pvc !== had) await db.setPvc(user, had, pvc);
+  const saved = stored(game);
+  const version = await db.save(user, saved, b.version);
   if (version === null) return { status: 409, body: { error: "Your game was saved on another phone", game: have.game, version: have.version } };
-  return ok({ version });
+  // The server changed something (a PVC step out of time, a vote that isn't on the roll): send its copy back.
+  const changed = sent.pvc !== pvc || sent.voted !== [...game.voted].sort().join();
+  return ok(changed ? { version, game: saved } : { version });
 }
 
 /** Check in while playing (keeps the account on this device), or free it when logging out. */
@@ -142,4 +166,20 @@ export async function device(db: GameDb, user: string, body: unknown): Promise<R
     return ok({ released: true });
   }
   return (await holds(db, user, body)) ?? ok({ ok: true });
+}
+
+/** Cast a vote on the server. The citizen must have collected their PVC and polls must be open. */
+export async function vote(db: GameDb, user: string, body: unknown, cal: ElectionCalendar = PRESIDENTIAL_2027): Promise<Reply> {
+  const busy = await holds(db, user, body);
+  if (busy) return busy;
+  const party = (body as { party?: unknown }).party;
+  if (typeof party !== "string" || !Object.hasOwn(PARTY, party)) return no(400, "Choose one party");
+  const answer = await db.castVote(user, cal.id, party, cal.pollsOpen, cal.pollsClose);
+  const why = VOTE_REASON[answer];
+  return why ? no(403, why) : ok({ voted: true, already: answer === "already" });
+}
+
+/** Votes cast so far: turnout only, never party standings. */
+export async function turnout(db: GameDb, cal: ElectionCalendar = PRESIDENTIAL_2027): Promise<Reply> {
+  return ok({ votes: await db.turnout(cal.id), at: new Date().toISOString() });
 }

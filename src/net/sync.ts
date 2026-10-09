@@ -6,11 +6,17 @@
 //   or closed. Not every second: a million players saving that often would be billions of calls a month.
 // - One device at a time: another device holding the account turns this one away ("blocked") until the player
 //   logs out there. Logging out here uploads the game and frees the account at once.
+// - The PVC and the vote are the server's: a PVC step is uploaded at once, and a vote counts only once the
+//   server accepts it (submitVote).
 // - Without a connection the game keeps playing here and catches up on the next upload.
 // A build without Supabase settings never calls any of this (the game plays offline).
 import { useSyncExternalStore } from "react";
+import { castVote } from "../sim/election";
 import type { RollInput } from "../sim/roll";
+import type { GameState } from "../sim/state";
+import { clockNow } from "../store/clock";
 import type { GameStoreApi } from "../store/game";
+import { getGameStore } from "../store";
 import { supabase } from "./supabase";
 
 /** How often a changed game is uploaded (or the device checks in) while playing. */
@@ -95,6 +101,13 @@ function take(store: GameStoreApi, user: string, body: Record<string, unknown>) 
   if (typeof body.version === "number" && store.getState().loadSave(body.game)) setVersion(user, body.version);
 }
 
+/** The server corrected the save (a PVC step out of its window, a vote not on the roll): take its PVC and votes. */
+function patch(store: GameStoreApi, server: unknown) {
+  const g = server as Partial<GameState> | null;
+  if (!g || !Array.isArray(g.voted) || !g.citizen) return;
+  store.setState((s) => (s.game.citizen ? { game: { ...s.game, voted: g.voted!, citizen: { ...s.game.citizen, pvc: g.citizen!.pvc } } } : {}));
+}
+
 let dirty = false;
 let pushing = false;
 
@@ -114,7 +127,10 @@ async function push(keepalive = false) {
   const r = await api("/api/game", { method: "PUT", body: text, keepalive: keepalive && text.length < KEEPALIVE_MAX });
   pushing = false;
   if (current !== c) return;
-  if (r.status === 200 && typeof r.body.version === "number") setVersion(c.user, r.body.version);
+  if (r.status === 200 && typeof r.body.version === "number") {
+    setVersion(c.user, r.body.version);
+    if (r.body.game) patch(c.store, r.body.game);
+  }
   // Played on another phone since: theirs is the life that counts now.
   else if (r.status === 409) take(c.store, c.user, r.body);
   // No connection or the server is busy: try again on the next round.
@@ -145,7 +161,10 @@ export function startSync(store: GameStoreApi, user: string): () => void {
   // Whatever was played here since the last upload goes up on the first round.
   dirty = !!store.getState().game.citizen;
   const unsub = store.subscribe((s, prev) => {
-    if (s.game !== prev.game) dirty = true;
+    if (s.game === prev.game) return;
+    dirty = true;
+    // Registering or collecting a PVC goes up at once, so a step taken just before a window closes counts.
+    if (s.game.citizen?.pvc !== prev.game.citizen?.pvc) setTimeout(() => void push(), 0);
   });
   void begin(c);
   const every = setInterval(() => void push(), UPLOAD_EVERY_MS);
@@ -188,5 +207,24 @@ export async function createCitizenOnline(input: RollInput): Promise<string | nu
   if (r.status === 0) return "No connection. Check your data and try again";
   if (r.status !== 200) return typeof r.body.error === "string" ? r.body.error : "Try again in a moment";
   take(c.store, c.user, r.body);
+  return null;
+}
+
+/**
+ * Cast a vote. Signed in, the server must accept it first (PVC collected, polls open, not voted yet), and only
+ * then is it recorded in the game. Offline builds vote in the game alone. Null when done, or a reason to show.
+ */
+export async function submitVote(party: string): Promise<string | null> {
+  const c = current;
+  if (!c) return getGameStore().getState().vote(party);
+  // The game's own checks first (at your polling unit, polls open, PVC in hand), so the server only hears real tries.
+  const st = c.store.getState();
+  const pre = castVote(st.game, party, { now: clockNow(), atPollingUnit: st.game.loc === "pu" }, () => 0.5);
+  if ("blocked" in pre) return pre.blocked;
+  const r = await post("/api/vote", { party });
+  if (r.status === 0) return "No connection. Your vote has not been cast yet. Try again";
+  if (r.status !== 200) return typeof r.body.error === "string" ? r.body.error : "Your vote has not been cast yet. Try again";
+  // Counted on the server: now the game records it (the purple ink, the note).
+  c.store.getState().vote(party);
   return null;
 }
