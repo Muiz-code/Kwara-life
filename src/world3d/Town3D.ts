@@ -35,6 +35,8 @@ import { groundOf, step, type Spot } from "./roam";
 import { cellAt, isLotCode } from "../world/town";
 import { buildScene, type BuiltScene } from "./scene";
 import { buildRoadside, plotSpots } from "./roadside";
+import { OtherPlayers } from "./others";
+import { togetherStore } from "../net/together";
 import { plotBoardsStore } from "../store/plot-boards";
 
 const SKY = new Color("#BFD3DE");
@@ -111,6 +113,8 @@ export class Town3D {
   private signs = new Group();
   private districts = new Group();
   private player = new Group();
+  /** Other real players at your place (playing together), with their game names. */
+  private others = new OtherPlayers(() => this.people);
   private figure: Character | Avatar | null = null;
   /** The real people models, once loaded; until then the player is drawn in code. */
   private people: { set: People; clone: (o: Object3D) => Object3D } | null = null;
@@ -281,6 +285,9 @@ export class Town3D {
     this.marker.rotation.x = Math.PI;
     this.player.add(this.marker);
     this.scene.add(this.player);
+    this.scene.add(this.others.group);
+    this.others.set(togetherStore.getState().here);
+    this.unsub.push(togetherStore.subscribe((s, prev) => s.here !== prev.here && this.others.set(s.here)));
     this.setLook(this.store.getState());
 
     // Camera: drag to move, twist or right-drag to turn round, pinch or scroll to zoom, tilt by turning up.
@@ -521,6 +528,9 @@ export class Town3D {
     }
     const g = this.roam && a?.kind !== "trip" ? this.roam : (placed ?? this.ground(pos));
     this.player.position.set(g.x, this.heightAt(g.x, g.z), g.z);
+    // The people at your place stand round it; nobody is shown while you are on the road.
+    this.others.group.visible = a?.kind !== "trip";
+    if (this.others.group.visible) this.others.update(dt, this.ground(pos), (x, z) => this.heightAt(x, z), st.reducedMotion);
     if (heading !== null) this.heading = heading;
     if (this.figure) {
       // Riding: inside a keke, car or danfo you can't be seen. On an okada or a horse you sit out in the open
@@ -839,6 +849,7 @@ export class Town3D {
     this.unsub.forEach((u) => u());
     this.resize?.disconnect();
     this.figure?.dispose();
+    this.others.dispose();
     this.life?.dispose();
     this.controls?.dispose();
     this.renderer?.setAnimationLoop(null);

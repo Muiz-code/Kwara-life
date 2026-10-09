@@ -46,6 +46,7 @@ import PlaceSheet, { JourneyOverlay, JourneyPicker } from "./game/PlaceSheet";
 import { BribeModal, CampaignPanel, PromoModal } from "./game/Campaign";
 import { BallotFlow, Results, VotePanel } from "./game/Vote";
 import { VotedCelebration } from "./election/BallotDrop";
+import { InviteCard, PeopleChip, PeopleSheet, TogetherLink } from "./game/People";
 import { IncomingCall, PhonePanel } from "./game/Phone";
 import { PlacesButton } from "./game/MapControls";
 import TripBar from "./game/TripBar";
@@ -113,6 +114,8 @@ export default function Game() {
   /** Phones: zoom and turn buttons folded away until asked for. */
   const [moreControls, setMoreControls] = useState(false);
   const [results, setResults] = useState(false);
+  /** The People sheet: other players here, invites and reactions. */
+  const [people, setPeople] = useState(false);
   // When polls close the results open for everyone, once; the Vote tab can replay them.
   const [seenResults, setSeenResults] = useState(false);
   const over = seasonClosed(CAL, useNow(5000));
@@ -247,6 +250,7 @@ export default function Game() {
                 />
               )}
               {citizen && revealed && away && !inside && <GoHomeButton />}
+              {citizen && revealed && !over && <PeopleChip onOpen={() => setPeople(true)} />}
             </div>
             <NeedsDock />
           </div>
@@ -357,6 +361,9 @@ export default function Game() {
         />
       )}
       <VotedCelebration />
+      {citizen && !over && <TogetherLink panelOpen={people} />}
+      {people && <PeopleSheet onClose={() => setPeople(false)} />}
+      {citizen && revealed && !over && <InviteCard />}
       <Toasts />
     </div>
   );

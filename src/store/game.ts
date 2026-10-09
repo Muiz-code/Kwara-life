@@ -71,6 +71,8 @@ export interface GameStore {
   select: (id: string) => void;
   /** served: you have already been through the counter for it, so no queue this time. */
   doAction: (actionId: string, now: number, served?: boolean) => void;
+  /** Something done with another player (src/sim/together.ts togetherAction). Returns why not, or null. */
+  doTogether: (a: Action, now: number) => string | null;
   /** Do a side hustle from the phone's Hustle app, wherever you are. Returns a reason if you can't. */
   doHustle: (id: string, now: number) => string | null;
   /** Restyle your home: walls, floor, sofa and accent colour. Free. */
@@ -329,6 +331,17 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             }
             const ms = st.reducedMotion ? 120 : actionAnimMs(r.plan);
             commit(r.state, { activity: { kind: "action", plan: r.plan, startedAt: now, ms, done: 0 } });
+          },
+
+          doTogether: (a, now) => {
+            const st = get();
+            if (isBusy(st)) return "You are busy";
+            const r = startAction(st.game, a, rng, { now: realNow(), place: placeInfo(st.world, st.game.loc) });
+            if ("blocked" in r) return r.blocked;
+            if ("flow" in r) return "Not now";
+            const ms = st.reducedMotion ? 120 : actionAnimMs(r.plan);
+            commit(r.state, { activity: { kind: "action", plan: r.plan, startedAt: now, ms, done: 0 } });
+            return null;
           },
 
           bookInspection: (houseId) => {

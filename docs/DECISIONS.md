@@ -263,8 +263,23 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - Results stay up for three days, until Tuesday 17 November 2026, 4pm WAT. After that the board shows only
   "Naija Votes has ended", the closing message and the disclaimer.
 - On the fifth day, Thursday 19 November 2026, 4pm WAT, every player's data is deleted and nobody can sign in
-  again. This is server work (accounts, saves, citizens, voter rolls, credits opt-ins); the anonymous totals
-  behind the results are not personal data.
+  again. This is server work: everything players did is deleted, vote counts included (see "Cleaning the
+  database at the end").
+
+### Playing together (9 Oct 2026)
+- Players can see other real players at the same place, by nickname only (never a real name), and do things
+  together: a date, lunch at the buka, an owambe, the match at the viewing centre, a church or mosque service,
+  a night at the club (src/data/together.ts). Still no chat: you invite with a fixed card, they answer Accept
+  or Not today, and the only other thing you can send is a quick reaction (wave, laugh, clap, dance, respect).
+- The one who invites pays for both; both spend the time and both get the lift and connections.
+- Safety: invites are off until a player switches on "Open to invites"; dates also need "Open to dates", on
+  both sides. Block and report on every player; a block hides you from each other both ways. Limits: 10
+  invites an hour, one waiting invite per person, three "Not today" from someone ends invites to them for the
+  day, invites lapse after two minutes. A "Not today" is silent beyond those words.
+- Nothing about parties anywhere in it; support cards stay the only political expression.
+- The rules are pure (src/sim/together.ts) so the server runs the same checks. The server holds presence (who
+  is where), passes invites and answers, and keeps blocks and reports. Until it does, dev builds fill places
+  with simulated players so the screens can be tried.
 
 ### Cleaning the database at the end (owner, 9 Oct 2026)
 - On 19 November 2026 at 4pm WAT the database is cleaned: every account and everything players did (saves,
