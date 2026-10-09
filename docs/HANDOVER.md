@@ -90,6 +90,7 @@ Must do before launch:
   - No real-money political promotion.
   - No ritualists.
 - **Ballot secrecy:** the saved game records only *that* you voted (`voted[]`). Your choice exists only in memory (`myBallot`) and is never saved. A test checks this.
+- **Age:** 18 and over only. Sign-up checks a date of birth on the form and in the sign-up guard, then throws it away; only the time of confirming is kept (public.age_checks).
 - **Identity:** one citizen per account: email and password with a confirmed email, a sign-up guard in Supabase (no throwaway inboxes, one account per real mailbox), device and rate limits. No SMS or WhatsApp OTP.
 - **Disclaimer:** it is shown everywhere: "A game. Not affiliated with INEC. Not a poll or prediction."
 - **Copy:** Nigerian English, no em dashes anywhere, and no AI model names in repo content.

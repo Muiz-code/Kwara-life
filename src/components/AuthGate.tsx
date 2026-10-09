@@ -1,14 +1,15 @@
 "use client";
 // Sign in before you play: one account, one citizen, one vote. Sign up with an email, a password and a
-// public username; sign in with the email or the username (through /api/auth/signin, which keeps emails
+// public username and a date of birth (18 and over only; the date is checked, never kept); sign in with the email or the username (through /api/auth/signin, which keeps emails
 // private and limits guessing). The email is confirmed before the first sign-in. Supabase checks every new account too (supabase/migrations: the
 // sign-up guard refuses throwaway inboxes and a second account for the same mailbox).
 // A build without Supabase settings skips this screen and plays offline.
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { Eye, EyeOff, KeyRound, Loader2, LogIn, Mail, UserPlus } from "lucide-react";
+import { CalendarCheck, Eye, EyeOff, KeyRound, Loader2, LogIn, Mail, UserPlus } from "lucide-react";
 import { online, supabase } from "@/net/supabase";
 import { setAccount } from "@/store";
+import { UNDER_AGE, dobProblem, dobString, lagosToday } from "@/sim/age";
 import Loader from "./game/Loader";
 
 type Mode = "signin" | "signup" | "forgot" | "newpass";
@@ -46,6 +47,36 @@ function PasswordInput({ value, onChange, autoComplete, show, onToggle, classNam
     </div>
   );
 }
+
+type Dob = { d: number; m: number; y: number };
+const NO_DOB: Dob = { d: 0, m: 0, y: 0 };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Day, month and year boxes: easier than a calendar picker on a phone, for a date decades back. */
+function DobInput({ value, onChange, className }: { value: Dob; onChange: (v: Dob) => void; className: string }) {
+  const thisYear = lagosToday()[0];
+  const years = Array.from({ length: 100 }, (_, i) => thisYear - i);
+  const box = `${className} appearance-none [&>option]:text-[#141B33]`;
+  return (
+    <div className="grid grid-cols-[1fr_1.2fr_1.4fr] gap-2">
+      <select aria-label="Day" autoComplete="bday-day" value={value.d} onChange={(e) => onChange({ ...value, d: +e.target.value })} className={box}>
+        <option value={0}>Day</option>
+        {Array.from({ length: 31 }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}
+      </select>
+      <select aria-label="Month" autoComplete="bday-month" value={value.m} onChange={(e) => onChange({ ...value, m: +e.target.value })} className={box}>
+        <option value={0}>Month</option>
+        {MONTHS.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+      </select>
+      <select aria-label="Year" autoComplete="bday-year" value={value.y} onChange={(e) => onChange({ ...value, y: +e.target.value })} className={box}>
+        <option value={0}>Year</option>
+        {years.map((y) => <option key={y} value={y}>{y}</option>)}
+      </select>
+    </div>
+  );
+}
+
+/** What to say under the date boxes once all three are picked, or null. */
+const dobNote = (v: Dob) => (v.d && v.m && v.y ? dobProblem(v.y, v.m, v.d) : null);
 
 const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
 
@@ -87,17 +118,138 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   if (!online()) return <>{children}</>;
   if (session === undefined) return <Loader done={false} label="Loading Naija Votes…" />;
   if (session && mode !== "newpass") {
-    // This account's own save; a different account remounts the game with its own life.
-    setAccount(session.user.id);
-    return <Fragment key={session.user.id}>{children}</Fragment>;
+    return (
+      <AgeGate key={session.user.id}>
+        {/* This account's own save; a different account remounts the game with its own life. */}
+        <Account id={session.user.id}>{children}</Account>
+      </AgeGate>
+    );
   }
   return <AuthScreen mode={mode} setMode={setMode} onDone={() => setMode("signin")} />;
+}
+
+function Account({ id, children }: { id: string; children: ReactNode }) {
+  setAccount(id);
+  return <Fragment key={id}>{children}</Fragment>;
+}
+
+type AgeStatus = "confirmed" | "locked" | "needed" | "error";
+
+/** 18 and over only. New accounts confirmed at sign-up; older ones confirm here once before they play. */
+function AgeGate({ children }: { children: ReactNode }) {
+  const sb = supabase()!;
+  const [status, setStatus] = useState<AgeStatus | undefined>(undefined);
+  const [tries, setTries] = useState(0);
+  const [dob, setDob] = useState<Dob>(NO_DOB);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    sb.rpc("my_age_status").then(({ data, error: e }) => {
+      if (live) setStatus(e ? "error" : (data as AgeStatus));
+    });
+    return () => {
+      live = false;
+    };
+  }, [sb, tries]);
+
+  if (status === "confirmed") return <>{children}</>;
+  if (status === undefined) return <Loader done={false} label="Loading Naija Votes…" />;
+
+  const confirm = async () => {
+    const why = dobProblem(dob.y, dob.m, dob.d);
+    if (why && why !== UNDER_AGE) return setError(why);
+    setBusy(true);
+    setError(null);
+    try {
+      const { data, error: e } = await sb.rpc("confirm_age", { dob: dobString(dob.y, dob.m, dob.d) });
+      if (e) return setError("No connection. Check your data and try again");
+      const r = data as { ok: boolean; locked?: boolean; reason?: string };
+      if (r.ok) setStatus("confirmed");
+      else if (r.locked) setStatus("locked");
+      else setError(r.reason ?? "Try again");
+    } catch {
+      setError("No connection. Check your data and try again");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const note = dobNote(dob);
+  const field = "mt-1 block w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 text-[#F7E7C1]";
+  const signOut = (
+    <button type="button" onClick={() => void sb.auth.signOut()} className="mt-4 text-sm font-semibold underline">
+      Sign out
+    </button>
+  );
+
+  return (
+    <AuthShell
+      onSubmit={() => {
+        if (status === "needed" && !busy) void confirm();
+        if (status === "error") setTries((n) => n + 1);
+      }}
+    >
+      <h1 className="mb-3 flex items-center gap-2 font-bold">
+        <CalendarCheck aria-hidden className="h-5 w-5 text-[#F2B705]" />
+        {status === "locked" ? "18 and over only" : "Confirm your age"}
+      </h1>
+      {status === "locked" && <p className="text-sm">{UNDER_AGE}, the same as voting age in Nigeria. Come back when you turn 18.</p>}
+      {status === "error" && (
+        <>
+          <p className="mb-3 text-sm">We couldn&apos;t check your account. Check your data and try again.</p>
+          <button type="submit" className="w-full rounded-2xl bg-[#F2B705] py-3 font-bold text-[#141B33]">Try again</button>
+        </>
+      )}
+      {status === "needed" && (
+        <>
+          <p className="mb-3 text-sm opacity-90">
+            Naija Votes is for players aged 18 and over. Enter your date of birth once to keep playing. We check it and don&apos;t keep it.
+          </p>
+          <div className="mb-3 text-sm font-semibold">
+            Date of birth
+            <DobInput value={dob} onChange={setDob} className={field} />
+            {note && <span className="mt-1 block text-xs font-semibold text-[#FF9C8A]">{note}</span>}
+          </div>
+          {error && <p className="mb-3 text-sm font-semibold text-[#FF9C8A]">{error}</p>}
+          <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#F2B705] py-3 font-bold text-[#141B33] transition disabled:opacity-50">
+            {busy && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}
+            Confirm
+          </button>
+        </>
+      )}
+      {signOut}
+    </AuthShell>
+  );
+}
+
+/** The sign-in screen's backdrop, title and card. */
+function AuthShell({ onSubmit, children }: { onSubmit: () => void; children: ReactNode }) {
+  return (
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_30%,#2B3A6B,#141B33_70%)] p-4 text-[#F7E7C1]">
+      <div className="pointer-events-none absolute h-[160vmax] w-[160vmax] animate-[spin_60s_linear_infinite] bg-[repeating-conic-gradient(rgba(17,138,79,0.16)_0deg_10deg,transparent_10deg_20deg)] motion-reduce:animate-none" />
+      <form
+        className="relative w-full max-w-sm rounded-3xl bg-[#141B33]/85 p-6 shadow-2xl backdrop-blur"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }}
+      >
+        <div className="mb-4 text-center">
+          <div className="font-sign text-5xl leading-none drop-shadow-[0_4px_0_#0A0E1E]">Naija Votes</div>
+          <div className="mt-1 text-sm font-semibold opacity-80">One account, one citizen, one vote. 18+ only.</div>
+        </div>
+        {children}
+      </form>
+    </div>
+  );
 }
 
 function AuthScreen({ mode, setMode, onDone }: { mode: Mode; setMode: (m: Mode) => void; onDone: () => void }) {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [nameCheck, setNameCheck] = useState<{ name: string; ok: boolean; reason?: string } | null>(null);
+  const [dob, setDob] = useState<Dob>(NO_DOB);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -168,14 +320,17 @@ function AuthScreen({ mode, setMode, onDone }: { mode: Mode; setMode: (m: Mode) 
       const badName = usernameProblem(username);
       if (badName) return badName;
       if (nameNote && !nameNote.ok) return nameNote.text;
+      const badDob = dobProblem(dob.y, dob.m, dob.d);
+      if (badDob) return badDob;
       const weak = passwordProblem(password);
       if (weak) return weak;
       if (password !== confirm) return "The two passwords don't match";
       const { data, error: e } = await sb.auth.signUp({
         email: email.trim(),
         password,
-        // The sign-up guard checks the username again and the profile is made from it.
-        options: { emailRedirectTo: origin, data: { username: username.trim().toLowerCase() } },
+        // The sign-up guard checks the username and the date of birth again. The profile is made from the
+        // username; the date is thrown away as the account is made (only "18+ confirmed" is kept).
+        options: { emailRedirectTo: origin, data: { username: username.trim().toLowerCase(), dob: dobString(dob.y, dob.m, dob.d) } },
       });
       if (e) return e.message;
       // With email confirmation on there is no session yet: the player must open the link first.
@@ -220,112 +375,110 @@ function AuthScreen({ mode, setMode, onDone }: { mode: Mode; setMode: (m: Mode) 
   const field = "mt-1 block w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 text-[#F7E7C1] placeholder:text-[#F7E7C1]/40";
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_30%,#2B3A6B,#141B33_70%)] p-4 text-[#F7E7C1]">
-      <div className="pointer-events-none absolute h-[160vmax] w-[160vmax] animate-[spin_60s_linear_infinite] bg-[repeating-conic-gradient(rgba(17,138,79,0.16)_0deg_10deg,transparent_10deg_20deg)] motion-reduce:animate-none" />
-      <form
-        className="relative w-full max-w-sm rounded-3xl bg-[#141B33]/85 p-6 shadow-2xl backdrop-blur"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!busy) void submit();
-        }}
-      >
-        <div className="mb-4 text-center">
-          <div className="font-sign text-5xl leading-none drop-shadow-[0_4px_0_#0A0E1E]">Naija Votes</div>
-          <div className="mt-1 text-sm font-semibold opacity-80">One account, one citizen, one vote.</div>
-        </div>
-        <h1 className="mb-3 flex items-center gap-2 font-bold">
-          <Icon aria-hidden className="h-5 w-5 text-[#F2B705]" />
-          {title}
-        </h1>
+    <AuthShell
+      onSubmit={() => {
+        if (!busy) void submit();
+      }}
+    >
+      <h1 className="mb-3 flex items-center gap-2 font-bold">
+        <Icon aria-hidden className="h-5 w-5 text-[#F2B705]" />
+        {title}
+      </h1>
 
-        {mode === "signin" && (
-          <label className="mb-3 block text-sm font-semibold">
-            Email or username
+      {mode === "signin" && (
+        <label className="mb-3 block text-sm font-semibold">
+          Email or username
+          <input
+            type="text"
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={field}
+            placeholder="you@example.com or tunde_ib"
+          />
+        </label>
+      )}
+      {(mode === "signup" || mode === "forgot") && (
+        <label className="mb-3 block text-sm font-semibold">
+          Email
+          <input type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} className={field} placeholder="you@example.com" />
+        </label>
+      )}
+      {mode === "signup" && (
+        <label className="mb-3 block text-sm font-semibold">
+          Username <span className="font-normal opacity-70">(your public name in the game)</span>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 opacity-60">@</span>
             <input
               type="text"
-              autoComplete="username"
+              autoComplete="nickname"
               autoCapitalize="none"
               spellCheck={false}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={field}
-              placeholder="you@example.com or tunde_ib"
+              maxLength={20}
+              value={username}
+              onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
+              className={`${field} pl-7`}
+              placeholder="tunde_ib"
             />
-          </label>
-        )}
-        {(mode === "signup" || mode === "forgot") && (
-          <label className="mb-3 block text-sm font-semibold">
-            Email
-            <input type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} className={field} placeholder="you@example.com" />
-          </label>
-        )}
-        {mode === "signup" && (
-          <label className="mb-3 block text-sm font-semibold">
-            Username <span className="font-normal opacity-70">(your public name in the game)</span>
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 opacity-60">@</span>
-              <input
-                type="text"
-                autoComplete="nickname"
-                autoCapitalize="none"
-                spellCheck={false}
-                maxLength={20}
-                value={username}
-                onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
-                className={`${field} pl-7`}
-                placeholder="tunde_ib"
-              />
-            </div>
-            {nameNote && <span className={`mt-1 block text-xs font-semibold ${nameNote.ok ? "text-[#8FE3B0]" : "text-[#FF9C8A]"}`}>{nameNote.text}</span>}
-          </label>
-        )}
-        {mode !== "forgot" && (
-          <label className="mb-3 block text-sm font-semibold">
-            {mode === "newpass" ? "New password" : "Password"}
-            <PasswordInput
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              value={password}
-              onChange={setPassword}
-              show={showPass}
-              onToggle={() => setShowPass((v) => !v)}
-              className={field}
-            />
-          </label>
-        )}
-        {(mode === "signup" || mode === "newpass") && (
-          <>
-            <label className="mb-1 block text-sm font-semibold">
-              Type it again
-              <PasswordInput autoComplete="new-password" value={confirm} onChange={setConfirm} show={showPass} onToggle={() => setShowPass((v) => !v)} className={field} />
-            </label>
-            <p className="mb-3 text-xs opacity-70">At least 8 characters, with letters and numbers.</p>
-          </>
-        )}
-
-        {error && <p className="mb-3 text-sm font-semibold text-[#FF9C8A]">{error}</p>}
-        {info && <p className="mb-3 text-sm font-semibold text-[#8FE3B0]">{info}</p>}
-        {unconfirmed && (
-          <button type="button" onClick={() => void resend()} disabled={busy} className="mb-3 text-sm font-semibold underline">
-            Send the confirmation email again
-          </button>
-        )}
-
-        <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#F2B705] py-3 font-bold text-[#141B33] transition disabled:opacity-50">
-          {busy && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}
-          {{ signin: "Sign in", signup: "Create account", forgot: "Send reset link", newpass: "Save password" }[mode]}
-        </button>
-
-        <div className="mt-4 flex flex-wrap justify-between gap-2 text-sm">
-          {mode === "signin" ? (
-            <>
-              <button type="button" onClick={() => go("signup")} className="font-semibold underline">New here? Create an account</button>
-              <button type="button" onClick={() => go("forgot")} className="opacity-80 underline">Forgot password?</button>
-            </>
-          ) : mode !== "newpass" ? (
-            <button type="button" onClick={() => go("signin")} className="font-semibold underline">Back to sign in</button>
-          ) : null}
+          </div>
+          {nameNote && <span className={`mt-1 block text-xs font-semibold ${nameNote.ok ? "text-[#8FE3B0]" : "text-[#FF9C8A]"}`}>{nameNote.text}</span>}
+        </label>
+      )}
+      {mode === "signup" && (
+        <div className="mb-3 text-sm font-semibold">
+          Date of birth <span className="font-normal opacity-70">(18+ only; we check it and don&apos;t keep it)</span>
+          <DobInput value={dob} onChange={setDob} className={field} />
+          {dobNote(dob) && <span className="mt-1 block text-xs font-semibold text-[#FF9C8A]">{dobNote(dob)}</span>}
         </div>
-      </form>
-    </div>
+      )}
+      {mode !== "forgot" && (
+        <label className="mb-3 block text-sm font-semibold">
+          {mode === "newpass" ? "New password" : "Password"}
+          <PasswordInput
+            autoComplete={mode === "signin" ? "current-password" : "new-password"}
+            value={password}
+            onChange={setPassword}
+            show={showPass}
+            onToggle={() => setShowPass((v) => !v)}
+            className={field}
+          />
+        </label>
+      )}
+      {(mode === "signup" || mode === "newpass") && (
+        <>
+          <label className="mb-1 block text-sm font-semibold">
+            Type it again
+            <PasswordInput autoComplete="new-password" value={confirm} onChange={setConfirm} show={showPass} onToggle={() => setShowPass((v) => !v)} className={field} />
+          </label>
+          <p className="mb-3 text-xs opacity-70">At least 8 characters, with letters and numbers.</p>
+        </>
+      )}
+
+      {error && <p className="mb-3 text-sm font-semibold text-[#FF9C8A]">{error}</p>}
+      {info && <p className="mb-3 text-sm font-semibold text-[#8FE3B0]">{info}</p>}
+      {unconfirmed && (
+        <button type="button" onClick={() => void resend()} disabled={busy} className="mb-3 text-sm font-semibold underline">
+          Send the confirmation email again
+        </button>
+      )}
+
+      <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#F2B705] py-3 font-bold text-[#141B33] transition disabled:opacity-50">
+        {busy && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}
+        {{ signin: "Sign in", signup: "Create account", forgot: "Send reset link", newpass: "Save password" }[mode]}
+      </button>
+
+      <div className="mt-4 flex flex-wrap justify-between gap-2 text-sm">
+        {mode === "signin" ? (
+          <>
+            <button type="button" onClick={() => go("signup")} className="font-semibold underline">New here? Create an account</button>
+            <button type="button" onClick={() => go("forgot")} className="opacity-80 underline">Forgot password?</button>
+          </>
+        ) : mode !== "newpass" ? (
+          <button type="button" onClick={() => go("signin")} className="font-semibold underline">Back to sign in</button>
+        ) : null}
+      </div>
+    </AuthShell>
   );
 }

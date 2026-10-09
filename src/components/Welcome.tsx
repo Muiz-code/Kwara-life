@@ -6,7 +6,7 @@ import { ShieldCheck } from "lucide-react";
 
 export const CONSENT_KEY = "naija-consent";
 /** Bump when the terms below change. */
-export const CONSENT_VERSION = "2026-10-08";
+export const CONSENT_VERSION = "2026-10-09";
 
 export function hasConsent(): boolean {
   try {
@@ -18,6 +18,7 @@ export function hasConsent(): boolean {
 
 const POINTS = [
   "Naija Votes is a game. It is not affiliated with INEC, any government agency, party or candidate.",
+  "Naija Votes is for players aged 18 and over, the same as voting age in Nigeria. We check your date of birth when you sign up and don't keep it.",
   "Results in the game are made by players and simulated voters. They are not a poll, survey or prediction of any real election.",
   "VINEC, the parties' campaigns, the banks, companies and people you meet are part of the game. Any resemblance to real people is not intended.",
   "One season runs for about a month: launch on Wednesday 14 October 2026, election day on Saturday 14 November 2026. When polls close the game ends for everyone. Dates may still move.",

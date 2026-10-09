@@ -114,3 +114,13 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   Every table carries a zone column so a later split by zone is a data move.
 - Browsers never write to the database. Every write goes through server code holding the secret key, which re-runs
   the game rules in src/sim.
+
+### 18 and over only (9 Oct 2026)
+- Players must be 18 or over, the same as voting age in Nigeria. Sign-up asks for a date of birth (day, month and
+  year boxes). The form checks it, and the sign-up guard checks it again on the server (dob_problem in
+  supabase/migrations/*_age_gate.sql), counting age on Nigeria's calendar.
+- The date of birth is never kept. A trigger on auth.users removes it as the account is written; public.age_checks
+  holds only when the player confirmed. This keeps the game's personal data to a minimum (NDPA).
+- Accounts made before this confirm once on their next sign-in (confirm_age). Anyone who says they are under 18
+  is locked out, so they can't just try an older date.
+- The age is what the player says. It is not verified.
