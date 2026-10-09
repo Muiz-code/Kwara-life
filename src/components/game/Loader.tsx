@@ -27,7 +27,12 @@ const TIPS = [
 export default function Loader({ done, label = "Building your town…" }: { done: boolean; label?: string }) {
   const [tip, setTip] = useState(0);
   const [gone, setGone] = useState(false);
-  const [ads] = useState(liveAds);
+  // Picked after mounting, not while rendering: the page is prerendered, so the clock can't be read there.
+  const [ads, setAds] = useState<{ title: string; image: string }[]>([]);
+  useEffect(() => {
+    const t = setTimeout(() => setAds(liveAds()), 0);
+    return () => clearTimeout(t);
+  }, []);
   const [ad, setAd] = useState(0);
   useEffect(() => {
     if (ads.length < 2) return;
