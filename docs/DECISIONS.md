@@ -91,8 +91,8 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   salary owed, ASUU strikes, japa stories, data prices, rainy-season floods.
 
 ### Revenue
-- Real-money commercial ads on in-game TVs, billboards, the news ticker and radio, sold per number of showings
-  (impressions) and targeted by nation, zone, state or LGA. Images and short videos; videos are scaled down and
+- Real-money commercial ads on in-game TVs, billboards, the news ticker and radio, sold by the day (see the
+  prices below) and targeted by nation, zone, state or LGA. Images and short videos; videos are scaled down and
   compressed to the slot the advertiser buys. Every ad is reviewed before it runs.
 - No real-money political promotion. Campaign promotion stays in-game money only (CLAUDE.md), so no party or
   supporter can buy visibility with real money.
@@ -115,8 +115,12 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   collation runs, the winning party is announced over a generic celebration video (no party marks; the party name
   and colour are overlaid), then a closing screen thanks everyone, urges them to vote in real elections and choose
   wisely, and shows the disclaimer.
-- Commercial ad prices: N5,000 per showing, or N4.5m per 1,000 showings. Prices live on the server so they can
-  change without a release.
+- Commercial ad prices (9 October 2026, replacing per-showing prices): boards are booked by the day, ₦10,000 a
+  day a face, 1 to 30 days (the season), times the board's factor (giant unipole 1.5, smart and tall screens 2,
+  square 1.2). Wall artwork in a landmark's gallery is ₦25,000 a day, one business per frame; each visit counts
+  as a view. Prices live on the server so they can change without a release.
+- Ads may stand inside town too (9 October 2026, replacing "outside town only"): up to eight "Place your ad
+  here" boards on empty plots per town, and the three gallery frames inside each state's landmark.
 
 ### Sign-in and Supabase (8 Oct 2026)
 - Sign-in is email and password only, the owner's choice over Google. The email must be confirmed before the first

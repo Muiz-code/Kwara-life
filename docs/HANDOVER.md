@@ -121,7 +121,7 @@ Must do before launch:
    - collation job and CDN results snapshots (players never query results directly);
    - live turnout counter from the server (currently simulated in `components/game/Vote.tsx`, `TurnoutCounter`);
    - load test.
-3. **Ads portal:** real-money ads on in-game TV, billboards, the news ticker, radio and the journey screen. Pricing is ₦5,000 per showing or ₦4.5m per 1,000 showings (`data/ads.ts`). Videos are allowed but scaled and compressed to the slot, at 15 seconds maximum.
+3. **Ads portal:** real-money ads on in-game TV, billboards, the news ticker, radio and the journey screen. Pricing is by the day: ₦10,000 a day a face for boards (1 to 30 days, times the board's factor) and ₦25,000 a day for gallery wall artwork (`data/ads.ts`, `sim/ads.ts`). Boards also stand on up to eight empty plots in each town. Videos are allowed but scaled and compressed to the slot, at 15 seconds maximum.
 4. **Celebration video** for the winner screen. It must be generic: no party marks, with the party name and colour overlaid.
 5. **Checks before launch:**
    - Ask the owner to confirm the airport list in `data/capitals.ts`.
