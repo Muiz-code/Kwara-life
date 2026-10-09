@@ -11,9 +11,8 @@ export const ELECTION_SEED = 20261114;
 
 export type BoardPhase = "before" | "live" | "final";
 
-/** The demo plays the whole day in three minutes, holds the final result, then starts again. Dev builds only. */
+/** The demo plays the whole day in three minutes, then stays closed on the final result. Reload to run it again. Dev builds only. */
 const DEMO_DAY_MS = 180_000;
-const DEMO_HOLD_MS = 30_000;
 
 export interface LiveResults {
   /** Null until the clock has ticked once in the browser (the page itself is static). */
@@ -44,7 +43,7 @@ export function useLiveResults(feedFilter?: (puCode: string) => boolean, filterK
     started.current = performance.now();
     const read = () => {
       if (demo) {
-        const t = (performance.now() - started.current) % (DEMO_DAY_MS + DEMO_HOLD_MS);
+        const t = performance.now() - started.current;
         const progress = Math.min(1, t / DEMO_DAY_MS);
         return { now: timeAt(progress), progress, demo };
       }
