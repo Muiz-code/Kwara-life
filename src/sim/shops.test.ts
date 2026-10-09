@@ -50,7 +50,7 @@ describe("shops", () => {
     expect(after.notes.at(-1)!.title).toBe("Your own house");
     // At home with NEPA gone, the generator keeps the light on.
     const tv: Action = { id: "tv", label: "TV", dur: 60, light: true, fx: {}, done: "" };
-    const dark = { ...after, loc: "home", light: false };
+    const dark = { ...after, loc: "home", light: false, citizen: { ...after.citizen!, ownsTv: true } };
     expect(blockReason(dark, tv, { place: { ...place, gen: false } })).toBeNull();
     expect(blockReason({ ...dark, house: null }, tv, { place: { ...place, gen: false } })).toBe("NEPA took light");
     // No stepping down to a smaller house.

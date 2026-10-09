@@ -3,8 +3,9 @@ import { PRESIDENTIAL_2027 as CAL } from "../data/calendar";
 import { lgaActions, lgaPlaces, type LgaPlaceId } from "../data/lga";
 import { PARTIES } from "../data/parties";
 import { STATE } from "../data/states";
+import { HOME_ACTIONS } from "../data/ilorin/actions";
 import {
-  ballot, buyPromo, buyVotes, bvasScan, castVote, catchRisk, collate, freshState, offerDue, performAction, postSupportCard,
+  ballot, blockReason, buyPromo, buyVotes, bvasScan, castVote, catchRisk, collate, freshState, offerDue, performAction, postSupportCard,
   puSheets, resolveChoice, rollCitizen, seeded, sequence, showOffer, simulateVoters, spreadBribes, uploadOrder, PARTY_INDEX,
   type Citizen, type GameState,
 } from ".";
@@ -128,6 +129,15 @@ describe("civic actions on an LGA map", () => {
     const bought = run(onMap("market", citizen({ ownsRadio: false })), "buyradio", EARLY);
     expect(bought.citizen!.ownsRadio).toBe(true);
     expect(why({ ...bought, loc: "market" }, "buyradio", EARLY)).toBe("You already have one");
+  });
+
+  it("needs a TV for Africa Magic in an Ilorin home too", () => {
+    const magic = HOME_ACTIONS.find((a) => a.id === "tv")!;
+    const s = onMap("home", citizen({ ownsTv: false }));
+    expect(blockReason(s, magic, { place: place(s) })).toMatch(/You don't have a TV/);
+    expect(blockReason(onMap("home", citizen({ ownsTv: true })), magic, { place: place(s) })).toBeNull();
+    // The legacy Ilorin game, with no citizen, keeps its TV.
+    expect(blockReason({ ...freshState(), t: 10 * 60 }, magic)).toBeNull();
   });
 
   it("media and gist make you more informed and show the news", () => {

@@ -79,6 +79,8 @@ export function blockReason(s: GameState, a: Action, ctx: ActionContext = {}): s
   if (a.job && s.flags.worked === dayNum(s.t)) return "You already worked today";
   if (a.horse && horseToday(s)) return "You already have a horse today";
   if (a.furnish && s.furniture.includes(a.furnish)) return "You already have one at home";
+  // Any TV at home (Ilorin's Africa Magic included) needs a TV you own. The legacy Ilorin game has one.
+  if (a.id === "tv" && s.citizen && !s.citizen.ownsTv && s.loc === s.homeId) return "You don't have a TV. Buy one at the market or watch at the viewing centre";
   if (a.phone && phoneOf(s.phone, s.citizen?.cls).id === a.phone) return "You already have this phone";
   if (a.car && s.car === a.car) return "You already own this car";
   if (a.house && s.house === a.house) return "You already own this house";
