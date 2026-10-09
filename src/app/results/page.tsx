@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     locale: "en_NG",
     url: "/results",
     title: "Naija Votes live results",
-    description: "Every vote in the game, counted live from 8am on election day. A game. Not affiliated with INEC. Not a poll or prediction.",
+    description: "Every vote in the game, counted live on election day. A game, not affiliated with INEC.",
   },
   twitter: { card: "summary_large_image", title: "Naija Votes live results", description: "Every vote in the game, counted live on election day." },
 };

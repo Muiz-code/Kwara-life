@@ -4,5 +4,8 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://naija-vote
 
 export const SITE_NAME = "Naija Votes";
 export const TAGLINE = "Live a Nigerian life. Get your PVC. Vote once.";
+/** For search results: Google shows about 155 characters. */
 export const SITE_DESCRIPTION =
-  "Naija Votes is a free multiplayer Nigerian life sim: pick your state and LGA, hustle, collect your PVC, campaign and vote once on one shared election day, Saturday 14 November 2026. A game, not affiliated with INEC, not a poll or prediction.";
+  "Free multiplayer Nigerian life sim: pick your state, hustle, get your PVC and vote on 14 Nov 2026. A game, not affiliated with INEC.";
+/** For share previews, which show about 125 characters. */
+export const SHARE_DESCRIPTION = "Pick your state, hustle, get your PVC and vote on 14 Nov 2026. A game, not affiliated with INEC.";

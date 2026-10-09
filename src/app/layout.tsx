@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Figtree, Lilita_One } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, TAGLINE } from "./site";
+import { SHARE_DESCRIPTION, SITE_DESCRIPTION, SITE_NAME, SITE_URL, TAGLINE } from "./site";
 
 const figtree = Figtree({
   variable: "--font-figtree",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     locale: "en_NG",
     url: "/",
     title: `${SITE_NAME}: live a Nigerian life, get your PVC, vote`,
-    description: SITE_DESCRIPTION,
+    description: SHARE_DESCRIPTION,
   },
   twitter: { card: "summary_large_image", title: SITE_NAME, description: TAGLINE },
   robots: { index: true, follow: true },
