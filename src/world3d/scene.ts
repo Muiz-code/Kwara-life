@@ -37,6 +37,39 @@ const ROAD = { a: "#4B4C50", r: "#5A5B5E", t: "#A07E58", b: "#6A6B6E" } as Recor
 const SOIL = "#8A5D3B";
 const PAVEMENT = "#CEC6B6";
 const DIRS: [number, number][] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+/** An overhead footbridge's deck height, and its colours: grey concrete, Lagos-green railings. */
+const BRIDGE_H = 5.2;
+const BRIDGE_DECK = "#B9B4AA";
+const BRIDGE_RAIL = "#2E7D4F";
+
+/**
+ * An overhead footbridge across the road at (X, Z): a deck on two pairs of pillars, railings and a mesh
+ * of rails on the sides, and a flight of stairs down to each pavement, running along the road.
+ */
+function footbridge(kit: Kit, X: number, Z: number, span: "u" | "v") {
+  // Build along z (span "v"), turned for span "u".
+  kit.frame.makeRotationY(span === "u" ? Math.PI / 2 : 0).setPosition(X, 0, Z);
+  const half = CELL / 2 + 1.8;
+  kit.box(2.4, 0.35, half * 2, 0, BRIDGE_H, 0, BRIDGE_DECK);
+  for (const sx of [-1.15, 1.15]) {
+    kit.box(0.08, 1.1, half * 2, sx, BRIDGE_H + 0.35, 0, BRIDGE_RAIL);
+    for (let k = -half + 0.5; k < half; k += 1.2) kit.box(0.06, 1.1, 0.06, sx, BRIDGE_H + 0.35, k, BRIDGE_RAIL);
+  }
+  for (const sz of [-1, 1]) {
+    // Pillars on the pavement, clear of the carriageway.
+    for (const sx of [-0.8, 0.8]) kit.cyl(0.3, 0.35, BRIDGE_H, sx, 0, sz * (CELL / 2 + 0.6), BRIDGE_DECK, 8);
+    // The landing and the stairs down, running beside the road.
+    kit.box(2.4, 0.35, 1.8, 0, BRIDGE_H, sz * (half + 0.9), BRIDGE_DECK);
+    const steps = 12;
+    for (let i = 0; i < steps; i++) {
+      const top = BRIDGE_H * (1 - (i + 1) / (steps + 1));
+      kit.box(0.6, 0.3, 1.6, 1.5 + i * 0.6, top, sz * (half + 0.9), BRIDGE_DECK);
+    }
+    kit.box(steps * 0.6, 0.08, 0.08, 1.5 + (steps * 0.6) / 2 - 0.3, BRIDGE_H * 0.5 + 0.9, sz * (half + 0.9) + 0.75, BRIDGE_RAIL);
+  }
+  kit.frame.identity();
+}
+
 /** A roundabout's island and the outer edge of its carriageway, from the island's centre. */
 const RING_IN = 6;
 const RING_OUT = 14.5;
@@ -116,6 +149,8 @@ export function buildScene(map: WorldMap): BuiltScene {
     const w = toWorld(g, lot);
     lots.set(key(w.x, w.z), lot);
   }
+  // Overhead footbridges over the main roads at crossings without a roundabout.
+  for (const b of map.footbridges ?? []) footbridge(kitAt(b.u * CELL, b.v * CELL), b.u * CELL, b.v * CELL, b.span);
   for (let v = g.v0; v < g.v0 + g.rows; v++) {
     for (let u = g.u0; u < g.u0 + g.cols; u++) {
       const c = cell(u, v);

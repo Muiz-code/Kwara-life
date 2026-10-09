@@ -118,6 +118,11 @@ export interface WorldMap {
   blocks?: { zone: ZoneKind; corners: Point[] }[];
   /** Roundabouts where main roads cross: the island's centre. */
   roundabouts?: Point[];
+  /**
+   * Overhead footbridges for pedestrians, by grid cell: the bridge stands on that main-road cell and spans
+   * across the road along "u" or "v". Crossings without a roundabout get one nearby.
+   */
+  footbridges?: { u: number; v: number; span: "u" | "v" }[];
   /** Bus stops on the main roads, and which side the kerb is on. */
   stops?: (Point & { face: Facing })[];
   /** What grows round the town. */

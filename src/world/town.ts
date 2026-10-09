@@ -292,18 +292,45 @@ export function buildTown(spec: TownSpec): BuiltTown {
     for (let v = H + 2; v < v0 + rows; v++) for (let u = u0; u < u0 + cols; u++) at(u, v)!.kind = "water";
   }
 
-  // Roundabouts where main roads cross inside town: the crossing becomes an
-  // island and the eight cells round it the ring.
+  // Where main roads cross inside town: the most central crossing and about four in ten of the others are
+  // roundabouts (an island, the eight cells round it the ring). The rest stay crossroads, with an overhead
+  // footbridge for people on foot a little way along one of the roads. Picked from the crossing's place, not
+  // the town's random sequence, so the rest of the town is built exactly as before.
   const roundabouts: Point[] = [];
-  for (const u of bu.slice(1, -1)) {
+  const footbridges: { u: number; v: number; span: "u" | "v" }[] = [];
+  const crossings: [number, number][] = [];
+  for (const u of bu.slice(1, -1))
     for (const v of bv.slice(1, -1)) {
       if (inWater(u)) continue;
+      if (DIRS.every(([du, dv]) => at(u + du * 2, v + dv * 2)?.kind === "main")) crossings.push([u, v]);
+    }
+  const mid = crossings.reduce(([a, b], [u, v]) => [a + u / crossings.length, b + v / crossings.length], [0, 0]);
+  const central = crossings.reduce<[number, number] | null>((best, c) => (!best || Math.hypot(c[0] - mid[0], c[1] - mid[1]) < Math.hypot(best[0] - mid[0], best[1] - mid[1]) ? c : best), null);
+  const roll = (u: number, v: number) => {
+    let h = (spec.seed ^ Math.imul(u + 1009, 73856093) ^ Math.imul(v + 2003, 19349663)) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 3266489909) >>> 0;
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  };
+  for (const [u, v] of crossings) {
+    const r = roll(u, v);
+    if (crossings.length < 3 || (central && central[0] === u && central[1] === v) || r < 0.4) {
       const ring = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
-      if (!DIRS.every(([du, dv]) => at(u + du * 2, v + dv * 2)?.kind === "main")) continue;
       for (const [du, dv] of ring) Object.assign(at(u + du, v + dv)!, { kind: "main", cls: "primary", street: "Roundabout" });
       Object.assign(at(u, v)!, { kind: "island", street: undefined });
       roundabouts.push({ x: u, y: v });
+      continue;
     }
+    // A footbridge two cells along one of the roads, where the road runs straight between plots.
+    const tries: [number, number, "u" | "v"][] = r < 0.7 ? [[u + 2, v, "v"], [u - 2, v, "v"], [u, v + 2, "u"], [u, v - 2, "u"]] : [[u, v + 2, "u"], [u, v - 2, "u"], [u + 2, v, "v"], [u - 2, v, "v"]];
+    const fits = ([fu, fv, span]: [number, number, "u" | "v"]) => {
+      if (at(fu, fv)?.kind !== "main") return false;
+      // Its two ends land on the pavement either side, not on another road.
+      const [du, dv] = span === "v" ? [0, 1] : [1, 0];
+      return [at(fu + du, fv + dv)?.kind, at(fu - du, fv - dv)?.kind].every((k) => k !== "main" && k !== "lane" && k !== "water" && k !== undefined);
+    };
+    const spot = tries.find(fits);
+    if (spot) footbridges.push({ u: spot[0], v: spot[1], span: spot[2] });
   }
 
   // Roads out of town, with a row of plots along each side for roadside villages.
@@ -587,6 +614,7 @@ export function buildTown(spec: TownSpec): BuiltTown {
     places: places.map((p) => ({ ...mv(p), ...(p.gates ? { gates: p.gates.map(mv) } : {}), ...(p.stand ? { stand: mv(p.stand) } : {}) })),
     lights: lights.map(mv),
     roundabouts: roundabouts.map((r) => mv(toXY(r.x, r.y))),
+    footbridges,
     blocks,
     stops: stops.map(mv),
     scenery: { farmland: spec.farmland, hills: spec.hills },
