@@ -68,6 +68,14 @@ export const MAX_TAKEAWAY = 3;
 export const takeawayPacks = (s: GameState): number[] =>
   Array.isArray(s.flags.takeaway) ? s.flags.takeaway.filter((v) => typeof v === "number" && v > 0).map((v) => Math.min(100, v)) : [];
 
+/** How many take-away packs you have, for the action list: "2 packs at home", or "1 of 3 packs at home" when buying. */
+export function packNote(s: GameState, a: Action): string | null {
+  if (!a.eatTakeaway && !a.takeaway) return null;
+  const n = takeawayPacks(s).length;
+  const packs = `${n} ${n === 1 ? "pack" : "packs"}`;
+  return a.eatTakeaway ? `${packs} at home` : `${n} of ${MAX_TAKEAWAY} packs at home`;
+}
+
 /** Eat a take-away pack at home: the food it was bought with. */
 export const EAT_TAKEAWAY: Action = {
   id: "eat-takeaway", label: "Eat your take-away", dur: 20, fx: { fun: 4 }, eatTakeaway: true, bubble: "Eating",

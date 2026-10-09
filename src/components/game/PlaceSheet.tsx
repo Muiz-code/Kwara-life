@@ -7,7 +7,7 @@ import { PLACE as ILORIN_PLACE } from "@/data/ilorin/places";
 import { STATES, STATE } from "@/data/states";
 import { SHORT_NEED } from "./labels";
 import {
-  journeyModes, actionCost, actionMinutes, blockReason, currentLga, fmtDuration, isOpen, modeBlockReason, openText, quoteJourney,
+  journeyModes, actionCost, actionMinutes, blockReason, packNote, currentLga, fmtDuration, isOpen, modeBlockReason, openText, quoteJourney,
   quoteTrip, type JourneyMode, hourOf, worldT } from "@/sim";
 import { actionsAt, placeInfo, tripWorldFor } from "@/store/world";
 import { getGameStore, useGame } from "@/store";
@@ -48,6 +48,7 @@ export default function PlaceSheet({ onClose }: { onClose: () => void }) {
             const why = busy ? null : blockReason(game, a, { now, place: info });
             const cost = actionCost(game, a);
             const mins = actionMinutes(game, a);
+            const packs = packNote(game, a);
             return (
               <button
                 key={a.id}
@@ -65,6 +66,7 @@ export default function PlaceSheet({ onClose }: { onClose: () => void }) {
                   {mins > 0 && <Chip>{fmtDuration(mins)}</Chip>}
                   {cost > 0 && <Chip tone="cost">{naira(cost)}</Chip>}
                   {a.earn && <Chip tone="up">+{naira(a.earn)}</Chip>}
+                  {packs && <Chip>{packs}</Chip>}
                   {Object.entries(a.fx).map(([k, v]) => (
                     <Chip key={k} tone={(v ?? 0) > 0 ? "up" : "down"}>
                       {(v ?? 0) > 0 ? "+" : "−"}

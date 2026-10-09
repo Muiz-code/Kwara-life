@@ -3,7 +3,7 @@
 // Tap the floor to walk; tap something you can use and it asks what to do (sleep or take a nap).
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { blockReason, actionCost, actionMinutes } from "@/sim/actions";
+import { blockReason, actionCost, actionMinutes, packNote } from "@/sim/actions";
 import { fmtDuration } from "@/sim/time";
 import { Paintbrush, X } from "lucide-react";
 import {
@@ -152,6 +152,7 @@ export default function InteriorView({
                     <span className="text-xs text-[#5E6582]">
                       {fmtDuration(actionMinutes(st.game, a))}
                       {cost > 0 ? ` · ${naira(cost)}` : ""}
+                      {packNote(st.game, a) ? ` · ${packNote(st.game, a)}` : ""}
                     </span>
                     {why && (
                       <span className="block text-xs font-semibold text-danger">
