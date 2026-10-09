@@ -45,6 +45,7 @@ import {
 import PlaceSheet, { JourneyOverlay, JourneyPicker } from "./game/PlaceSheet";
 import { BribeModal, CampaignPanel, PromoModal } from "./game/Campaign";
 import { BallotFlow, Results, VotePanel } from "./game/Vote";
+import { VotedCelebration } from "./election/BallotDrop";
 import { IncomingCall, PhonePanel } from "./game/Phone";
 import { PlacesButton } from "./game/MapControls";
 import TripBar from "./game/TripBar";
@@ -355,6 +356,7 @@ export default function Game() {
           }}
         />
       )}
+      <VotedCelebration />
       <Toasts />
     </div>
   );

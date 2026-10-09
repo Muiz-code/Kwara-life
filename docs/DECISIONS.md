@@ -181,9 +181,12 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   and for game UI animation. Respect the phone's reduce-motion setting.
 
 ### Closing video and admin roles (9 Oct 2026)
-- Two videos at the end of the season: the generic celebration video under the winner announcement, then a
-  closing video before the closing screen (the town at dusk, people heading home, inked thumbs, then "Thank you.
-  Now go and vote for real."). Both are generic, with no party marks and no text in the video; words are overlaid
+- Two videos at the end of the season: the celebration under the winner announcement, set at the Presidential
+  Villa in Abuja under Aso Rock, the camera moving from outside the gates into the state hall where people
+  celebrate; then a closing video before the closing screen (a street at dusk, polling tables packed away, a
+  young woman holding up her inked thumb, then "Thank you. Now go and vote for real."). People are drawn as
+  cartoon humans (full bodies, faces, hair), never bean-shaped figures or anyone real. Green-white-green national
+  flags are fine; party marks are not. Both are generic, with no party marks and no text in the video; words are overlaid
   in code.
 - Admin roles: the owner has every power (election date and poll hours before polls open, ads and prices, bans,
   announcements). Moderators can only review support-card notes, sponsored news and ads, and ban accounts. No
@@ -209,3 +212,15 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   traced to a player. The voter roll keeps only the day someone voted. Turnout (GET /api/turnout) is public and
   cached on the CDN for 30 seconds.
 - Vote counts live in project 1 for now, as counts per polling unit and party only (no ballots).
+
+### Closing remarks and credits (9 Oct 2026)
+- After the closing scene, credits roll like the end of a film (src/components/election/Credits.tsx): who built
+  the game (src/data/credits.ts), the top 20 brands by ad spend (names only, never amounts), thanks to every
+  player, the season's top 10 players, special thanks to Raavon, Klario and Sync, a "vote wisely" note (the choice
+  made in the real 2027 election lasts until 2031), then the owner's signed message: this is a simulation, not
+  real; nothing in the real election comes from it; no affiliation with INEC or any party; your real vote counts;
+  let us make Nigeria great again and pray for our leaders. Signed, Muiz.
+- Top brands and top players come from a snapshot the server writes once at polls close, /season/credits.json
+  ({ brands: string[], players: { name, place }[] }). The game only reads it; until it exists those sections hide.
+- Open: how "top player" is measured, whether players opt in to having their name shown, and the full list of
+  builders. To be confirmed by the owner.
