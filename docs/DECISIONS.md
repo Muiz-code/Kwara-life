@@ -150,3 +150,22 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   stays flat at a million players), and a CDN snapshot backs anyone who joins late or loses connection.
 - At 4pm the game freezes and the final collation (unit, LGA, state, nation) plays out on the result sheet, then
   the winner and the closing screen, as above.
+
+### Public results board, and no one can change results (9 Oct 2026)
+- Results are public. A results board at /results needs no sign-in and is made for a big screen (TV, projector,
+  viewing centre) as well as phones: national totals, a map lighting up by state, turnout, the live feed of
+  polling units, and the disclaimer always on screen. It updates live from 8am the same way the in-game view does.
+- No one can change a result: not the debug tools, not the admin panel, not the owner. In practice:
+  - The only way a vote enters is the vote route, for a signed-in citizen at their own polling unit while polls
+    are open by the server's clock. Votes are append-only: the database refuses any update or delete on ballots
+    and totals, and totals are only ever written by the trigger that records a ballot.
+  - The admin panel has no results controls at all (no edit, no hold, no re-run). It can only watch.
+  - The debug tools (clock jumps and test votes) are left out of the production build. The server decides the
+    time, so a player's clock changes nothing.
+  - The election date and poll hours can still be moved for a postponement before polls open. Once polls open
+    they are locked.
+  - Tamper evidence: each ballot carries a hash of the one before it, and every minute the running totals and the
+    latest hash are published to the CDN as files that are never overwritten. Anyone can check that the totals
+    on the board add up and that no earlier minute was rewritten.
+- Honest limit: whoever holds the database owner keys could in theory still go around all of this. The hash chain
+  and the published minute files are what make any such change visible.
