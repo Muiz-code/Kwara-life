@@ -265,3 +265,12 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - On the fifth day, Thursday 19 November 2026, 4pm WAT, every player's data is deleted and nobody can sign in
   again. This is server work (accounts, saves, citizens, voter rolls, credits opt-ins); the anonymous totals
   behind the results are not personal data.
+
+### Cleaning the database at the end (owner, 9 Oct 2026)
+- On 19 November 2026 at 4pm WAT the database is cleaned: every account and everything players did (saves,
+  citizens, PVC records, voter rolls, vote counts, support cards, plays, devices, sign-in logs) is deleted. Only the
+  rule lists (blocked email domains and username words) are kept. This replaces "the anonymous totals are kept".
+- It runs inside Supabase on a pg_cron timer (supabase/migrations/*_season_purge.sql): a rehearsal on 18 November
+  at 4pm WAT only counts what would go (season_purge_log); a kill switch (season_control.enabled = false) stops both
+  if the election moves. Sign-up and sign-in are refused from the same moment.
+- Supabase backups may still hold data for up to their retention period (about a week on Pro) after the clean-up.
