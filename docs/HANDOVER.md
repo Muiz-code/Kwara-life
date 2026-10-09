@@ -126,6 +126,12 @@ Must do before launch:
     collected PVC and open polls by the database clock, and only add to vote_tallies (no ballots stored). The game
     records a vote only after the server accepts it (submitVote). Turnout: GET /api/turnout, CDN-cached 30 seconds.
 
+- Playing together, server side: /api/together/{here,inbox} (GET) and {presence,settings,invite,answer,emote,block,report}
+  (POST), rules in src/server/together.ts (invites checked with src/sim/together.ts inviteProblem, counts from the
+  server, the host must have the money), tables in the together migration. Players are known by citizen id and
+  game name only. The client polls every 30 seconds while the People panel is open; Supabase Realtime is the next
+  step before many players are on at once.
+
 ## Next, in order
 
 1. **Phase E3:** the support-card feed on the server (support_cards table, one card a day, filtered note), and

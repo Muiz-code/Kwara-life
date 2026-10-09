@@ -9,6 +9,7 @@ import { INVITE_LIMITS } from "@/data/together";
 import type { Invite, Player } from "@/sim/together";
 import { activitiesAt, inviteExpired } from "@/sim/together";
 import { DEBUG_ALLOWED } from "@/store/clock";
+import { supabase } from "./supabase";
 
 export interface Reaction {
   id: string;
@@ -72,15 +73,23 @@ export type ReportReason = (typeof REPORT_REASONS)[number];
 
 // ---- The server ----
 
+/** The signed-in player's token: every together call is made as them (src/app/api/together). */
+const auth = async (): Promise<Record<string, string>> => {
+  const token = (await supabase()?.auth.getSession())?.data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const get = async (path: string) => fetch(path, { headers: await auth() });
+
 const post = async (path: string, body: unknown) => {
-  const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json", ...(await auth()) }, body: JSON.stringify(body) });
   return r.ok ? r.json().catch(() => ({})) : { error: (await r.json().catch(() => ({})))?.error ?? "Try again" };
 };
 
 export const serverTransport: TogetherTransport = {
-  async here(_lga, placeId, _kind, me) {
-    await post("/api/together/presence", { placeId, busy: me.busy }).catch(() => {});
-    const r = await fetch(`/api/together/here?place=${encodeURIComponent(placeId)}`).catch(() => null);
+  async here(lgaCode, placeId, placeKind, me) {
+    await post("/api/together/presence", { lgaCode, placeId, placeKind, busy: me.busy }).catch(() => {});
+    const r = await get("/api/together/here").catch(() => null);
     return r?.ok ? ((await r.json()).players ?? []) : [];
   },
   async settings(s) {
@@ -91,7 +100,7 @@ export const serverTransport: TogetherTransport = {
     return r.invite ? { invite: r.invite } : { error: r.error ?? "Try again" };
   },
   async inbox() {
-    const r = await fetch("/api/together/inbox").catch(() => null);
+    const r = await get("/api/together/inbox").catch(() => null);
     const j = r?.ok ? await r.json() : {};
     return { invites: j.invites ?? [], answers: j.answers ?? [], reactions: j.reactions ?? [] };
   },
