@@ -3,7 +3,7 @@
 // flyers and sponsored news instead, paid with in-game money.
 // The payment here is a simulation until Paystack is connected (docs/HANDOVER.md, Phase E): no card
 // details are taken and no money moves.
-import { adPrice } from "../data/ads";
+import { adPrice, DAY_MS, MAX_AD_DAYS, PRICE_PER_DAY } from "../data/ads";
 import { BOARDS, type BoardFace, type BoardType } from "../data/boards";
 import { bookingEnds } from "./carousel";
 import { BLOCKED_WORDS } from "../data/campaign";
@@ -19,7 +19,10 @@ export interface AdBooking {
   title: string;
   /** The ad picture, cropped to the board (a JPEG data URL). */
   image: string;
+  /** Old bookings were by showings; new ones are by days (showings is 0). */
   showings: number;
+  /** Days booked, 1 to 30. */
+  days?: number;
   price: number;
   /** Real time it was paid for. */
   paidAt: number;
@@ -43,6 +46,20 @@ export function boardTypeOf(boardId: string): BoardType {
   if (boardId.startsWith("attention-")) return "prime";
   return "classic";
 }
+
+/** Days you can book: whole days, 1 to 30. */
+export const clampDays = (n: number) => Math.max(1, Math.min(MAX_AD_DAYS, Math.floor(Number.isFinite(n) ? n : 1)));
+
+/** Price for some days on a kind of board, on one face or both. */
+export function boardDayPrice(days: number, type: BoardType, face: BoardFace | "both"): number {
+  return Math.round(clampDays(days) * PRICE_PER_DAY * BOARDS[type].priceFactor) * (face === "both" ? 2 : 1);
+}
+
+/** When a booking of some days, paid at paidAt, stops showing. */
+export const daysUntil = (paidAt: number, days: number) => paidAt + clampDays(days) * DAY_MS;
+
+/** Quick picks for days. */
+export const DAY_OPTIONS = [1, 7, 14, 30];
 
 /** Price for a number of showings on a kind of board, on one face or both. */
 export function boardPrice(showings: number, type: BoardType, face: BoardFace | "both"): number {

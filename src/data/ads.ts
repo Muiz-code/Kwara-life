@@ -11,6 +11,13 @@ export const AD_SLOT_KINDS: { kind: AdSlotKind; label: string; video: boolean; s
   { kind: "radio", label: "Radio spot", video: false, size: null },
 ];
 
+/** Boards are booked by the day: the season runs 30 days, so 30 is the most. Naira per day, per face. */
+export const PRICE_PER_DAY = 10_000;
+export const MAX_AD_DAYS = 30;
+export const DAY_MS = 86_400_000;
+/** Wall artwork inside a landmark building: premium, by the day. */
+export const WALL_ART_PER_DAY = 25_000;
+
 /** Naira per single showing. */
 export const PRICE_PER_SHOWING = 5000;
 /** Naira per 1,000 showings (bulk). */

@@ -12,7 +12,8 @@ import { showing } from "../sim/carousel";
 import { adsStore, faceQueue } from "../store/ads";
 import { videoUrl } from "../store/ad-media";
 import { roadsideSpots, type RoadsideKind, type RoadsideSpot } from "../world/roadside";
-import type { WorldMap } from "../world/types";
+import { cellAt } from "../world/town";
+import type { Facing, WorldMap } from "../world/types";
 import { CELL, FACE_TURN } from "./coords";
 import { Kit } from "./kit";
 
@@ -66,9 +67,34 @@ interface FaceSlot {
   ref: string | null;
 }
 
-/** Build every billboard, unipole, smart screen and poster ground outside the town. */
-export function buildRoadside(map: WorldMap, font: string): Roadside {
-  const spots = roadsideSpots(map);
+/** How many "Place your ad here" boards stand on empty plots in a town. */
+export const MAX_PLOT_BOARDS = 8;
+
+/**
+ * Boards on a few empty plots in town (the owner's call, 9 October 2026): spread out, each facing the road
+ * beside its plot. Plots are world positions of empty grid cells (BuiltScene.emptyPlots).
+ */
+export function plotSpots(map: WorldMap, plots: { x: number; z: number }[]): RoadsideSpot[] {
+  const g = map.grid;
+  if (!g) return [];
+  const ROAD = new Set(["a", "r", "t", "b"]);
+  const STEP: [number, number][] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+  const sorted = [...plots].sort((a, b) => a.x - b.x || a.z - b.z);
+  const out: RoadsideSpot[] = [];
+  const stride = Math.max(1, Math.floor(sorted.length / MAX_PLOT_BOARDS));
+  for (let i = 0; i < sorted.length && out.length < MAX_PLOT_BOARDS; i += stride) {
+    const u = Math.round(sorted[i].x / CELL);
+    const v = Math.round(sorted[i].z / CELL);
+    const face = ([0, 1, 2, 3] as Facing[]).find((f) => ROAD.has(cellAt(g, u + STEP[f][0], v + STEP[f][1])));
+    if (face === undefined || out.some((o) => Math.hypot(o.u - u, o.v - v) < 4)) continue;
+    out.push({ id: `plot-${u}_${v}`, kind: "billboard", u, v, face });
+  }
+  return out;
+}
+
+/** Build every billboard, unipole, smart screen and poster ground outside the town, and the boards on plots. */
+export function buildRoadside(map: WorldMap, font: string, plots: RoadsideSpot[] = []): Roadside {
+  const spots = [...roadsideSpots(map), ...plots];
   const group = new Group();
   const hits: Mesh[] = [];
   const noop = { group, hits, spots, dispose: () => {} };
@@ -88,9 +114,11 @@ export function buildRoadside(map: WorldMap, font: string): Roadside {
     square: new MeshBasicMaterial({ map: squareArt(font) }),
     tall: new MeshBasicMaterial({ map: tallArt(font) }),
   };
+  const plotArt = new MeshBasicMaterial({ map: plotBoardArt(font) });
   const slots: FaceSlot[] = [];
 
   for (const s of spots) {
+    const onPlot = s.id.startsWith("plot-");
     const X = s.u * CELL;
     const Z = s.v * CELL;
     const ry = FACE_TURN[s.face];
@@ -110,12 +138,13 @@ export function buildRoadside(map: WorldMap, font: string): Roadside {
       // Front and back, each its own mesh so each runs its own carousel.
       const plane = (planes[s.kind] ??= new PlaneGeometry(f.w, f.h));
       for (const [face, z, side] of [["front", f.z, 0], ["back", f.z - (f.back ?? 0.5), Math.PI]] as const) {
-        const mesh = new Mesh(plane, art[s.kind]);
+        const fallback = onPlot ? plotArt : art[s.kind];
+        const mesh = new Mesh(plane, fallback);
         mesh.matrixAutoUpdate = false;
         mesh.matrix.copy(place(z, side));
         mesh.userData.board = s.id;
         group.add(mesh);
-        slots.push({ boardId: s.id, face, mesh, fallback: art[s.kind], ref: null });
+        slots.push({ boardId: s.id, face, mesh, fallback, ref: null });
       }
     }
 
@@ -151,6 +180,8 @@ export function buildRoadside(map: WorldMap, font: string): Roadside {
     spots,
     dispose: () => {
       carousel.stop();
+      plotArt.map?.dispose();
+      plotArt.dispose();
       for (const m of Object.values(art)) {
         m.map?.dispose();
         m.dispose();
@@ -369,6 +400,26 @@ function texture(c: HTMLCanvasElement) {
   t.colorSpace = SRGBColorSpace;
   t.anisotropy = 4;
   return t;
+}
+
+/** An empty plot's board before anyone books it: a framed box that says place your ad here. */
+function plotBoardArt(font: string) {
+  const { c, g } = canvas(1024, 512);
+  g.fillStyle = "#F4F1EA";
+  g.fillRect(0, 0, 1024, 512);
+  g.strokeStyle = "#0E7A4B";
+  g.lineWidth = 22;
+  g.setLineDash([44, 26]);
+  g.strokeRect(40, 40, 944, 432);
+  g.setLineDash([]);
+  g.fillStyle = "#0E7A4B";
+  g.textAlign = "center";
+  g.font = `112px ${font}`;
+  g.fillText("Place your ad here", 512, 250);
+  g.fillStyle = "#26355E";
+  g.font = `46px ${font}`;
+  g.fillText("Tap to book this plot. From ₦10,000 a day", 512, 350);
+  return texture(c);
 }
 
 function billboardArt(font: string, town: string) {

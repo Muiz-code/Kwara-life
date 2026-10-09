@@ -1,12 +1,14 @@
 "use client";
 // Book a billboard: pick a face (front, back or both), upload a picture (or a video on a smart screen),
-// name the business, choose how many showings, pay (simulated for now) and the ad joins that face's
+// name the business, choose how many days, pay (simulated for now) and the ad joins that face's
 // carousel. Political promotion is refused. Ads can carry the business's website: tapping a board shows
 // what is on it now, and a player can visit an ad's site in a new tab after a "you're leaving" check.
 import { useState } from "react";
 import { Check, ExternalLink, ImageUp, Loader2, ShieldCheck, Video } from "lucide-react";
 import { BOARDS, SHAPE_ASPECT, SHAPE_PX, boardsWithShape, shapeFor, type BoardFace, type BoardShape } from "@/data/boards";
-import { adTextProblem, boardPrice, boardTypeOf, cleanAdLink, linkHost, simulatePayment, SHOWING_OPTIONS, type AdBooking as Booked } from "@/sim/ads";
+import { adTextProblem, boardDayPrice, boardTypeOf, clampDays, cleanAdLink, DAY_OPTIONS, daysUntil, linkHost, simulatePayment, type AdBooking as Booked } from "@/sim/ads";
+import { MAX_AD_DAYS, PRICE_PER_DAY } from "@/data/ads";
+import { usePlotBoards } from "@/store/plot-boards";
 import { adsStore, faceQueue, useAds } from "@/store/ads";
 import { saveVideo, videoProblem } from "@/store/ad-media";
 import { Button, Modal, naira } from "./ui";
@@ -183,8 +185,11 @@ function OnBoard({ ads, onBook, onClose }: { ads: { face: BoardFace; ad: Booked 
   );
 }
 
-function Booking({ mapId, boardId, onClose }: { mapId: string; boardId: string; onClose: () => void }) {
+function Booking({ mapId, boardId: tapped, onClose }: { mapId: string; boardId: string; onClose: () => void }) {
   const queue = useAds((s) => s.queue);
+  // A plot board: the advertiser can pick any of the town's plot boards, not only the one tapped.
+  const [boardId, setBoardId] = useState(tapped);
+  const plots = usePlotBoards();
   const type = boardTypeOf(boardId);
   const spec = BOARDS[type];
   const [face, setFace] = useState<BoardFace | "both">("both");
@@ -206,11 +211,11 @@ function Booking({ mapId, boardId, onClose }: { mapId: string; boardId: string; 
   const px = SHAPE_PX[spec.shape];
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
-  const [showings, setShowings] = useState(SHOWING_OPTIONS[0]);
+  const [days, setDays] = useState(DAY_OPTIONS[1]);
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ref, setRef] = useState("");
-  const price = boardPrice(showings, type, face);
+  const price = boardDayPrice(days, type, face);
 
   const pick = async (f: File | undefined, mode: "fit" | "fill" = layout) => {
     setError(null);
@@ -265,7 +270,7 @@ function Booking({ mapId, boardId, onClose }: { mapId: string; boardId: string; 
         return setStep("pay");
       }
     }
-    adsStore.getState().book({ ref: r.ref, mapId, boardId, title: title.trim(), image: image!, showings, price, paidAt: r.paidAt, face, type, ...(videoId ? { video: videoId } : {}), ...(linkCheck && "url" in linkCheck ? { link: linkCheck.url } : {}) });
+    adsStore.getState().book({ ref: r.ref, mapId, boardId, title: title.trim(), image: image!, showings: 0, days, until: daysUntil(r.paidAt, days), price, paidAt: r.paidAt, face, type, ...(videoId ? { video: videoId } : {}), ...(linkCheck && "url" in linkCheck ? { link: linkCheck.url } : {}) });
     setRef(r.ref);
     setStep("done");
   };
@@ -279,6 +284,23 @@ function Booking({ mapId, boardId, onClose }: { mapId: string; boardId: string; 
             {spec.blurb}{" "}
             Each face takes turns between up to {spec.queue} businesses, {spec.slotMs / 1000} seconds each.
           </p>
+          {tapped.startsWith("plot-") && plots.length > 1 && (
+            <label className="block text-sm font-bold">
+              Which plot
+              <select
+                value={boardId}
+                onChange={(e) => setBoardId(e.target.value)}
+                className="mt-1 block w-full rounded-xl border border-line bg-panel-2 px-3 py-2 font-semibold"
+              >
+                {plots.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-0.5 block text-xs font-normal text-ink-soft">Your board goes up on this plot in town.</span>
+            </label>
+          )}
           <div>
             <span className="text-sm font-bold">Which face</span>
             <div className="mt-1 grid grid-cols-3 gap-1.5">
@@ -385,25 +407,35 @@ function Booking({ mapId, boardId, onClose }: { mapId: string; boardId: string; 
             </span>
           </label>
           <div>
-            <span className="text-sm font-bold">How many showings</span>
-            <div className="mt-1 grid grid-cols-4 gap-1.5">
-              {SHOWING_OPTIONS.map((n) => (
+            <span className="text-sm font-bold">How many days</span>
+            <div className="mt-1 grid grid-cols-5 gap-1.5">
+              {DAY_OPTIONS.map((n) => (
                 <button
                   key={n}
                   type="button"
-                  aria-pressed={showings === n}
-                  onClick={() => setShowings(n)}
-                  className={`rounded-xl border px-2 py-1.5 text-sm font-bold ${showings === n ? "border-indigo bg-indigo text-[#F7E7C1]" : "border-line bg-panel-2"}`}
+                  aria-pressed={days === n}
+                  onClick={() => setDays(n)}
+                  className={`rounded-xl border px-2 py-1.5 text-sm font-bold ${days === n ? "border-indigo bg-indigo text-[#F7E7C1]" : "border-line bg-panel-2"}`}
                 >
-                  {n.toLocaleString()}
+                  {n === 1 ? "1 day" : `${n} days`}
                 </button>
               ))}
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={MAX_AD_DAYS}
+                value={days}
+                aria-label="Number of days"
+                onChange={(e) => setDays(clampDays(Number(e.target.value)))}
+                className="rounded-xl border border-line bg-panel-2 px-2 py-1.5 text-center text-sm font-bold"
+              />
             </div>
             <p className="mt-1 text-sm">
               Price: <span className="font-bold">{naira(price)}</span>{" "}
               <span className="text-ink-soft">
-                (₦5,000 a showing, ₦4.5m per 1,000{spec.priceFactor !== 1 ? `, times ${spec.priceFactor} on a ${spec.label.toLowerCase()}` : ""}
-                {face === "both" ? ", for each face" : ""})
+                ({naira(PRICE_PER_DAY)} a day{spec.priceFactor !== 1 ? `, times ${spec.priceFactor} on a ${spec.label.toLowerCase()}` : ""}
+                {face === "both" ? ", for each face" : ""}. Up to {MAX_AD_DAYS} days, the whole season)
               </span>
             </p>
           </div>
@@ -430,7 +462,7 @@ function Booking({ mapId, boardId, onClose }: { mapId: string; boardId: string; 
           <div className="rounded-xl bg-panel-2 p-3 text-sm">
             <div className="flex justify-between"><span>{title.trim()}</span><span className="font-bold">{naira(price)}</span></div>
             <div className="text-xs text-ink-soft">
-              {showings.toLocaleString()} showings on this {spec.label.toLowerCase()}, {face === "both" ? "both faces" : `${face} face`}
+              {days === 1 ? "1 day" : `${days} days`} on this {spec.label.toLowerCase()}, {face === "both" ? "both faces" : `${face} face`}
               {video ? ", video ad" : ""}
               {linkCheck && "url" in linkCheck ? `, links to ${linkHost(linkCheck.url)}` : ""}
             </div>
@@ -455,7 +487,7 @@ function Booking({ mapId, boardId, onClose }: { mapId: string; boardId: string; 
           <Check aria-hidden className="mx-auto h-12 w-12 rounded-full bg-[#0E7A4B] p-2 text-white" />
           <p className="text-sm">
             <span className="font-bold">{title.trim()}</span> has joined the carousel on {face === "both" ? "both faces" : `the ${face} face`} of this{" "}
-            {spec.label.toLowerCase()}, for {showings.toLocaleString()} showings.
+            {spec.label.toLowerCase()}, for {days === 1 ? "1 day" : `${days} days`}.
           </p>
           <p className="text-xs text-ink-soft">Reference {ref}. Test payment: nothing was charged. Ads booked now show in this browser only until the ads service is live.</p>
           <Button onClick={onClose} className="w-full">See it in town</Button>

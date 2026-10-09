@@ -34,7 +34,8 @@ const PILLION: Partial<Record<VehicleKind, { back: number; up: number }>> = { ok
 import { groundOf, step, type Spot } from "./roam";
 import { cellAt, isLotCode } from "../world/town";
 import { buildScene, type BuiltScene } from "./scene";
-import { buildRoadside } from "./roadside";
+import { buildRoadside, plotSpots } from "./roadside";
+import { plotBoardsStore } from "../store/plot-boards";
 
 const SKY = new Color("#BFD3DE");
 /** Places whose grounds spread well past one plot. */
@@ -255,9 +256,21 @@ export class Town3D {
       this.districts.add(s);
     }
     this.scene.add(this.districts);
-    // Ads stand only on open land outside town (the owner's rule): billboards, giant unipoles, smart
-    // screens and poster grounds, each face running its own carousel of booked ads.
-    const roadside = (this.roadside = buildRoadside(this.map, sign1));
+    // Ads on open land outside town (billboards, giant unipoles, smart screens, poster grounds), and since
+    // 9 October 2026 a few "Place your ad here" boards on empty plots in town. Each face runs its own carousel.
+    const plots = plotSpots(this.map, this.built.emptyPlots);
+    plotBoardsStore.setState({
+      mapId: this.map.id,
+      boards: plots.map((p, i) => {
+        const near = this.built.places.reduce<{ id: string; d: number } | null>((best, q) => {
+          const d = Math.hypot(q.x - p.u * CELL, q.z - p.v * CELL);
+          return !best || d < best.d ? { id: q.id, d } : best;
+        }, null);
+        const name = near ? this.map.places.find((q) => q.id === near.id)?.name : null;
+        return { id: p.id, label: name ? `Plot ${i + 1}, by ${name}` : `Plot ${i + 1}` };
+      }),
+    });
+    const roadside = (this.roadside = buildRoadside(this.map, sign1, plots));
     this.scene.add(roadside.group);
     if (roadside.hits.length) this.hits.add(...roadside.hits);
     // ?debug in a dev build: reach the camera from the console or a screenshot script.
