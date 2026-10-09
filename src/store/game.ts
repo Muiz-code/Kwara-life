@@ -5,8 +5,8 @@ import type { Character } from "../data/character";
 import { PLACE } from "../data/ilorin/places";
 import {
   advance, checkCritical, clone, finishAction, finishTrip, freshState, log, note, resolveChoice,
-  pvcReminders, sanitizeGame, startAction, startTrip, tripAnimMs, rollCitizen, castVote, postSupportCard, buyPromo, applyForJob,
-  buyVotes as buyVotesSim, type Ballot, type CardInput, type PromoInput, type BribeInput, type Opening, startingMoney, takeJourney, airportTown, currentLga, handoverSeconds, type JourneyMode, type ActionFlow, type ActionPlan, type ChoiceId, type GameState, type Rng, type Trip,
+  pvcReminders, sanitizeGame, startAction, startTrip, tripTiming, tripTotalMs, rollCitizen, castVote, postSupportCard, buyPromo, applyForJob,
+  buyVotes as buyVotesSim, type Ballot, type CardInput, type PromoInput, type BribeInput, type Opening, startingMoney, takeJourney, airportTown, currentLga, handoverSeconds, type JourneyMode, type ActionFlow, type ActionPlan, type ChoiceId, type GameState, type Rng, type Trip, type TripTiming,
 } from "../sim";
 import { clockNow } from "./clock";
 import { HUSTLE } from "../data/hustles";
@@ -31,7 +31,7 @@ export const MINUTES_PER_TICK = 2;
 /** Something that takes real time to play out: an action or a trip. */
 export type Activity =
   | { kind: "action"; plan: ActionPlan; startedAt: number; ms: number; done: number }
-  | { kind: "trip"; trip: Trip; startedAt: number; ms: number; done: number };
+  | { kind: "trip"; trip: Trip; startedAt: number; ms: number; done: number; timing: TripTiming };
 
 export interface GameStore {
   game: GameState;
@@ -68,6 +68,8 @@ export interface GameStore {
   /** Sit the booked interview with an answer per question. */
   sitInterview: (answers: number[]) => { hired: boolean; score: number } | string;
   travel: (dest: string, mode: string, now: number) => void;
+  /** Jump a trip straight to arrival: same fare, same game time, no more watching. */
+  skipTrip: (now: number) => void;
   /**
    * The player walked to a place on foot (free roam in 3D): the walk's time, tiredness and anything on
    * the way happen at once, under the same rules as a walking trip. Returns a reason if they can't go in.
@@ -264,8 +266,15 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             if (isBusy(st)) return;
             const r = startTrip(st.game, dest, mode, realNow(), tripWorldFor(st.game, st.world));
             if ("blocked" in r) return toast(r.blocked);
-            const ms = st.reducedMotion ? 400 : tripAnimMs(mode, r.trip.route.length);
-            commit(r.state, { activity: { kind: "trip", trip: r.trip, startedAt: now, ms, done: 0 } });
+            const timing = st.reducedMotion ? { wait: 0, board: 0, ride: 400, alight: 0 } : tripTiming(mode, r.trip.route.length);
+            commit(r.state, { activity: { kind: "trip", trip: r.trip, startedAt: now, ms: tripTotalMs(timing), done: 0, timing } });
+          },
+
+          skipTrip: (now) => {
+            const a = get().activity;
+            if (a?.kind !== "trip") return;
+            set({ activity: { ...a, startedAt: now - a.ms } });
+            get().progress(now);
           },
 
           arrive: (dest) => {

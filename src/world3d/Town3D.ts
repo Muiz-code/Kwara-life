@@ -11,6 +11,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { GameStore, GameStoreApi } from "../store/game";
 import { debugMode } from "../store/clock";
 import { easeInOut } from "../sim/world";
+import { tripPhase } from "../sim/travel";
 import { nightLevel, worldT } from "../sim/time";
 import { standAt } from "../world/layout";
 import { pointAlong, router, type MapRoute } from "../world/routing";
@@ -390,32 +391,84 @@ export class Town3D {
 
     // The player: on a trip, walking freely, or standing outside a place.
     const a = st.activity;
-    let pos = standAt(this.map, st.game.loc);
+    const pos = standAt(this.map, st.game.loc);
     let heading: number | null = null;
     /** The vehicle you booked, while you ride it. */
     let ride: VehicleKind | null = null;
+    /** Where the vehicle is and faces, when it is not under the player (pulling up, waiting at the kerb). */
+    let car: { x: number; z: number; h: number } | null = null;
+    let onBoard = false;
     let speed = this.walk(st, dt);
+    let placed: { x: number; z: number } | null = null;
     if (a?.kind === "trip") {
-      const p = Math.min(1, Math.max(0, (now - a.startedAt) / a.ms));
       const path = this.pathFor(st.game.loc, a.trip.dest, a.startedAt, a.trip.route.pts);
-      const at = pointAlong(path, easeInOut(p));
-      pos = at;
-      const ahead = this.ground(pointAlong(path, Math.min(1, easeInOut(p) + 0.01)));
-      const here = this.ground(at);
-      if (Math.hypot(ahead.x - here.x, ahead.z - here.z) > 0.01) heading = Math.atan2(ahead.x - here.x, ahead.z - here.z);
-      speed = WALK_SPEED;
+      const { phase, q } = tripPhase(a.timing, now - a.startedAt);
       ride = RIDE_VEHICLE[a.trip.mode] ?? null;
+      const along = (pts: Point[], f: number) => {
+        const here = this.ground(pointAlong(pts, f));
+        const ahead = this.ground(pointAlong(pts, Math.min(1, f + 0.01)));
+        const h = Math.hypot(ahead.x - here.x, ahead.z - here.z) > 0.01 ? Math.atan2(ahead.x - here.x, ahead.z - here.z) : null;
+        return { ...here, h };
+      };
+      const face = (from: { x: number; z: number }, to: { x: number; z: number }) => Math.atan2(to.x - from.x, to.z - from.z);
+      const lerp = (p: { x: number; z: number }, r: { x: number; z: number }, k: number) => ({ x: p.x + (r.x - p.x) * k, z: p.z + (r.z - p.z) * k });
+      if (!ride || path.length < 4) {
+        // On foot (or a hop too short for a kerbside stop): straight along the route in the ride phase.
+        const f = phase === "ride" ? easeInOut(q) : phase === "alight" ? 1 : 0;
+        const w = along(path, f);
+        placed = w;
+        if (w.h !== null) heading = w.h;
+        speed = phase === "ride" ? WALK_SPEED : 0;
+        onBoard = !!ride && phase === "ride";
+        if (!onBoard) ride = null;
+      } else {
+        const road = path.slice(1, -1);
+        const kerbA = this.ground(path[0]);
+        const roadA = this.ground(path[1]);
+        const next = this.ground(path[2]);
+        const roadB = this.ground(path[path.length - 2]);
+        const kerbB = this.ground(path[path.length - 1]);
+        const prevB = this.ground(path[path.length - 3]);
+        const back = Math.hypot(roadA.x - next.x, roadA.z - next.z) || 1;
+        // It comes down the same street from behind, so it pulls up already facing the way you go.
+        const from = { x: roadA.x + ((roadA.x - next.x) / back) * CELL * 5, z: roadA.z + ((roadA.z - next.z) / back) * CELL * 5 };
+        if (phase === "wait") {
+          const k = 1 - Math.pow(1 - q, 2);
+          car = { ...lerp(from, roadA, k), h: face(roadA, next) };
+          placed = kerbA;
+          heading = face(kerbA, car);
+          speed = 0;
+        } else if (phase === "board") {
+          car = { ...roadA, h: face(roadA, next) };
+          placed = lerp(kerbA, roadA, Math.min(1, q * 1.25));
+          heading = face(kerbA, roadA);
+          speed = q < 0.8 ? WALK_SPEED : 0;
+          onBoard = q >= 0.8;
+        } else if (phase === "ride") {
+          const w = along(road, easeInOut(q));
+          placed = w;
+          if (w.h !== null) heading = w.h;
+          speed = 0;
+          onBoard = true;
+        } else {
+          car = { ...roadB, h: face(prevB, roadB) };
+          placed = lerp(roadB, kerbB, Math.min(1, q * 1.25));
+          heading = face(roadB, kerbB);
+          speed = q < 0.8 ? WALK_SPEED : 0;
+        }
+      }
     }
-    const g = this.roam && a?.kind !== "trip" ? this.roam : this.ground(pos);
+    const g = this.roam && a?.kind !== "trip" ? this.roam : (placed ?? this.ground(pos));
     this.player.position.set(g.x, this.heightAt(g.x, g.z), g.z);
     if (heading !== null) this.heading = heading;
     if (this.figure) {
       this.figure.root.rotation.y = this.heading;
       this.figure.update(dt, st.reducedMotion ? 0 : speed);
       // Riding: you are inside (or on) the vehicle, which carries its own rider.
-      this.figure.root.visible = !ride;
+      this.figure.root.visible = !onBoard;
     }
-    this.showRide(ride);
+    // The vehicle rides under you, or stands on its own while it pulls up and while you climb in or out.
+    this.showRide(ride, onBoard ? { x: g.x, z: g.z, h: this.heading } : car);
     this.player.visible = !(a?.kind === "action" && a.plan.action.goal === "fly");
     this.marker.position.y = 2.7 + (st.reducedMotion ? 0 : Math.sin(now / 200) * 0.25);
 
@@ -527,13 +580,19 @@ export class Town3D {
   };
 
   /** The vehicle under the player for this ride, built once per kind. */
-  private showRide(kind: VehicleKind | null) {
-    if (this.rideKind === kind) {
-      if (this.rideMesh) this.rideMesh.rotation.y = this.heading;
-      return;
+  private showRide(kind: VehicleKind | null, at: { x: number; z: number; h: number } | null) {
+    if (this.rideKind !== kind) this.makeRide(kind);
+    if (!this.rideMesh) return;
+    this.rideMesh.visible = !!at;
+    if (at) {
+      this.rideMesh.position.set(at.x, this.heightAt(at.x, at.z), at.z);
+      this.rideMesh.rotation.y = at.h;
     }
+  }
+
+  private makeRide(kind: VehicleKind | null) {
     this.rideKind = kind;
-    if (this.rideMesh) this.player.remove(this.rideMesh);
+    if (this.rideMesh) this.scene.remove(this.rideMesh);
     this.rideMesh = null;
     if (!kind) return;
     let geo = this.rideGeos.get(kind);
@@ -543,8 +602,7 @@ export class Town3D {
     }
     this.rideMesh = new Mesh(geo, new MeshLambertMaterial({ vertexColors: true, side: DoubleSide }));
     this.rideMesh.castShadow = true;
-    this.rideMesh.rotation.y = this.heading;
-    this.player.add(this.rideMesh);
+    this.scene.add(this.rideMesh);
   }
 
   /** Ground height: plots are raised above the road. */

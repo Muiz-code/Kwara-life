@@ -47,6 +47,7 @@ import { BribeModal, CampaignPanel, PromoModal } from "./game/Campaign";
 import { BallotFlow, Results, VotePanel } from "./game/Vote";
 import { IncomingCall, PhonePanel } from "./game/Phone";
 import { PlacesButton } from "./game/MapControls";
+import TripBar from "./game/TripBar";
 import { DISCLAIMER, useNow } from "./game/ui";
 import { PRESIDENTIAL_2027 as CAL, seasonClosed } from "@/data/calendar";
 
@@ -223,7 +224,11 @@ export default function Game() {
         <div className="px-3">
           <Objectives />
         </div>
-        <div className="mt-auto flex items-end justify-between gap-2 px-3 pt-3 pb-2 sm:p-3">
+        {/* While you travel: what is happening, how long is left, and Skip. */}
+        <div className="mt-auto px-3">
+          <TripBar />
+        </div>
+        <div className="flex items-end justify-between gap-2 px-3 pt-3 pb-2 sm:p-3">
           <div className="flex min-w-0 flex-col items-start gap-2">
             <div className="flex flex-wrap gap-2 sm:flex-col sm:items-start">
               {citizen && revealed && insideOf && (

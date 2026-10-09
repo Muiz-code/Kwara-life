@@ -8,7 +8,7 @@ import { BIOMES } from "../data/biomes";
 import type { GameStore, GameStoreApi } from "../store/game";
 import { easeInOut } from "../sim/world";
 import { nightLevel, worldT } from "../sim/time";
-import type { ModeId } from "../sim/travel";
+import { tripPhase, type ModeId } from "../sim/travel";
 import {
   AVATAR_ART, AVATAR_H, BILLBOARD_ART, BILLBOARD_FACE, BILLBOARD_W, TILE_BASE, TILE_W,
   TRAFFIC_W, VEHICLE_ART, VEHICLE_W,
@@ -525,7 +525,9 @@ export class GameMap {
     let mode: ModeId | null = null;
     let dx = 1;
     if (a?.kind === "trip") {
-      const p = Math.min(1, Math.max(0, (now - a.startedAt) / a.ms));
+      // The flat map has no kerbside scene: it waits, rides, then waits at the far end.
+      const t = tripPhase(a.timing, now - a.startedAt);
+      const p = t.phase === "ride" ? t.q : t.phase === "alight" ? 1 : 0;
       const path = this.pathFor(st.game.loc, a.trip.dest, a.startedAt, a.trip.route.pts);
       const at = pointAlong(path, easeInOut(p));
       pos = at;

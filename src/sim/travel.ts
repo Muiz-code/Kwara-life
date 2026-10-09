@@ -45,10 +45,54 @@ export const MODE_IDS = Object.keys(MODES) as ModeId[];
 /** Longest walk allowed, in world pixels. */
 export const MAX_WALK = 1300;
 
-/** Real-time animation length per world pixel (ms), and the cap. */
-export const ANIM_MS_PER_PX: Record<string, number> = { walk: 2.4, keke: 1.1, okada: 0.85, bus: 1.2, horse: 2, danfo: 1.2, ride: 0.9, suv: 0.9 };
-/** How long a trip plays on screen: about five seconds across town, longer for far trips, up to ten. */
-export const tripAnimMs = (mode: AnyModeId, d: number) => Math.min(10000, Math.max(3500, 2500 + d * (ANIM_MS_PER_PX[mode] ?? 1.1) * 1.5));
+/**
+ * How a trip plays in real time, in milliseconds: waiting for the vehicle to pull up, climbing in, the
+ * ride itself and climbing out. The ride grows with distance between the mode's shortest and longest.
+ * A keke never takes less than 30 seconds on the road; the player can skip to the end at any point.
+ */
+export interface TripTiming {
+  wait: number;
+  board: number;
+  ride: number;
+  alight: number;
+}
+
+const TRIP_FEEL: Record<string, { wait: number; board: number; ride: [number, number]; alight: number }> = {
+  walk: { wait: 0, board: 0, ride: [8_000, 30_000], alight: 0 },
+  keke: { wait: 6_000, board: 2_500, ride: [30_000, 60_000], alight: 1_500 },
+  okada: { wait: 4_000, board: 2_000, ride: [20_000, 40_000], alight: 1_500 },
+  bus: { wait: 9_000, board: 3_000, ride: [40_000, 75_000], alight: 2_000 },
+  danfo: { wait: 9_000, board: 3_000, ride: [40_000, 75_000], alight: 2_000 },
+  ride: { wait: 8_000, board: 2_500, ride: [25_000, 50_000], alight: 1_500 },
+  suv: { wait: 3_000, board: 2_500, ride: [20_000, 45_000], alight: 1_500 },
+  horse: { wait: 0, board: 3_000, ride: [35_000, 70_000], alight: 2_000 },
+};
+
+/** A route this long (world pixels) or longer gets the mode's longest ride. */
+const FAR_TRIP = 3000;
+
+export function tripTiming(mode: AnyModeId, d: number): TripTiming {
+  const f = TRIP_FEEL[mode] ?? TRIP_FEEL.keke;
+  const k = Math.min(1, Math.max(0, d / FAR_TRIP));
+  return { wait: f.wait, board: f.board, ride: Math.round(f.ride[0] + (f.ride[1] - f.ride[0]) * k), alight: f.alight };
+}
+
+export const tripTotalMs = (t: TripTiming) => t.wait + t.board + t.ride + t.alight;
+
+export type TripPhase = "wait" | "board" | "ride" | "alight";
+
+/** Where a trip is, elapsed ms after it started: the phase and how far through that phase (0 to 1). */
+export function tripPhase(t: TripTiming, elapsed: number): { phase: TripPhase; q: number } {
+  let e = Math.max(0, elapsed);
+  for (const phase of ["wait", "board", "ride", "alight"] as const) {
+    if (e < t[phase]) return { phase, q: e / t[phase] };
+    e -= t[phase];
+  }
+  return { phase: "alight", q: 1 };
+}
+
+/** How long a trip plays on screen (all four phases). */
+export const tripAnimMs = (mode: AnyModeId, d: number) => tripTotalMs(tripTiming(mode, d));
 
 /**
  * The map a trip happens on: how to route between its places, which modes it offers, and place names.
