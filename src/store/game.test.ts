@@ -74,8 +74,9 @@ describe("game store", () => {
   it("toasts the reason an action is blocked", () => {
     const { store } = started();
     store.getState().doAction("cook", 0);
-    store.getState().progress(10_000);
-    store.getState().doAction("cook", 20_000);
+    // Cooking plays for about 20 seconds now.
+    store.getState().progress(60_000);
+    store.getState().doAction("cook", 70_000);
     expect(store.getState().toasts.at(-1)).toMatch(/No foodstuff/);
     expect(store.getState().activity).toBeNull();
   });

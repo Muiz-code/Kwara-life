@@ -30,7 +30,7 @@ export const MINUTES_PER_TICK = 2;
 
 /** Something that takes real time to play out: an action or a trip. */
 export type Activity =
-  | { kind: "action"; plan: ActionPlan; startedAt: number; ms: number; done: number }
+  | { kind: "action"; plan: ActionPlan; startedAt: number; ms: number; done: number; fast?: boolean }
   | { kind: "trip"; trip: Trip; startedAt: number; ms: number; done: number; timing: TripTiming; fast?: boolean };
 
 export interface GameStore {
@@ -68,8 +68,8 @@ export interface GameStore {
   /** Sit the booked interview with an answer per question. */
   sitInterview: (answers: number[]) => { hired: boolean; score: number } | string;
   travel: (dest: string, mode: string, now: number) => void;
-  /** Fast-forward a trip: the rest plays out in about two seconds. Same fare, same game time. */
-  skipTrip: (now: number) => void;
+  /** Fast-forward a trip or an action: the rest plays out in about two seconds. Same cost, same game time. */
+  fastForward: (now: number) => void;
   /**
    * The player walked to a place on foot (free roam in 3D): the walk's time, tiredness and anything on
    * the way happen at once, under the same rules as a walking trip. Returns a reason if they can't go in.
@@ -107,7 +107,16 @@ export const isModalOpen = (s: GameStore) => s.game.notes.length > 0 || !s.game.
 /** How long the rest of a fast-forwarded trip takes on screen. */
 export const FAST_FORWARD_MS = 2200;
 
-export const actionAnimMs = (dur: number) => Math.min(1800, 500 + dur * 2.2);
+/**
+ * How long an action plays on screen. Long enough to feel like you did it (eating 20 seconds, a bath 15,
+ * a night's sleep 30, a work shift a minute to a minute and a half), never a chore: fast-forward is one tap.
+ */
+export function actionAnimMs(plan: { dur: number; sleep: boolean; action: { shift?: boolean } }) {
+  if (plan.dur <= 0) return 600;
+  if (plan.sleep) return plan.dur >= 300 ? 30_000 : 15_000;
+  if (plan.action.shift) return Math.round(60_000 + Math.min(1, Math.max(0, (plan.dur - 240) / 240)) * 30_000);
+  return Math.round(Math.min(40_000, Math.max(6_000, plan.dur * 500)));
+}
 
 export interface StoreOptions {
   rng?: Rng;
@@ -222,7 +231,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             const r = startAction(st.game, a, rng, ctx);
             if ("blocked" in r) return toast(r.blocked);
             if ("flow" in r) return set({ flow: r.flow });
-            const ms = st.reducedMotion ? 120 : actionAnimMs(r.plan.dur);
+            const ms = st.reducedMotion ? 120 : actionAnimMs(r.plan);
             commit(r.state, { activity: { kind: "action", plan: r.plan, startedAt: now, ms, done: 0 } });
           },
 
@@ -240,7 +249,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             const r = startAction(st.game, h, rng, ctx);
             if ("blocked" in r) return r.blocked;
             if ("flow" in r) return null;
-            const ms = st.reducedMotion ? 120 : actionAnimMs(r.plan.dur);
+            const ms = st.reducedMotion ? 120 : actionAnimMs(r.plan);
             commit(r.state, { activity: { kind: "action", plan: r.plan, startedAt: now, ms, done: 0 } });
             return null;
           },
@@ -273,9 +282,9 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             commit(r.state, { activity: { kind: "trip", trip: r.trip, startedAt: now, ms: tripTotalMs(timing), done: 0, timing } });
           },
 
-          skipTrip: (now) => {
+          fastForward: (now) => {
             const a = get().activity;
-            if (a?.kind !== "trip" || a.fast) return;
+            if (!a || a.fast) return;
             // Stretch time so the rest of the trip plays in FAST_FORWARD_MS: every phase keeps its share,
             // and you still see the vehicle go the whole way.
             const p = Math.min(0.999, Math.max(0, (now - a.startedAt) / a.ms));
@@ -283,6 +292,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             if (left <= FAST_FORWARD_MS) return;
             const ms = FAST_FORWARD_MS / (1 - p);
             const k = ms / a.ms;
+            if (a.kind === "action") return set({ activity: { ...a, ms, startedAt: now - p * ms, fast: true } });
             const t = a.timing;
             const timing = { wait: t.wait * k, board: t.board * k, ride: t.ride * k, alight: t.alight * k };
             set({ activity: { ...a, ms, startedAt: now - p * ms, timing, fast: true } });

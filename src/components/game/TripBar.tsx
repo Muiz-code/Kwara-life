@@ -31,12 +31,20 @@ function usePerfNow() {
 export default function TripBar() {
   const a = useGame((s) => s.activity);
   const now = usePerfNow();
-  if (a?.kind !== "trip" || a.ms < 1000 || !now) return null;
+  if (!a || a.ms < 3000 || !now) return null;
   const elapsed = now - a.startedAt;
-  const { phase } = tripPhase(a.timing, elapsed);
   const left = Math.max(0, Math.ceil((a.ms - elapsed) / 1000));
   const p = Math.min(1, Math.max(0, elapsed / a.ms));
-  const line = phase === "ride" ? `On the way to ${a.trip.destName}` : (LINES[a.trip.mode]?.[phase] ?? `Off to ${a.trip.destName}`);
+  let line: string;
+  let tag: string;
+  if (a.kind === "trip") {
+    const { phase } = tripPhase(a.timing, elapsed);
+    line = phase === "ride" ? `On the way to ${a.trip.destName}` : (LINES[a.trip.mode]?.[phase] ?? `Off to ${a.trip.destName}`);
+    tag = a.trip.modeLabel;
+  } else {
+    line = a.plan.action.label;
+    tag = a.plan.action.bubble ?? "Busy";
+  }
   return (
     <div className="pointer-events-auto mx-auto flex w-full max-w-md items-center gap-3 rounded-2xl bg-indigo/95 px-3 py-2 text-[#F7E7C1] shadow-lg">
       <div className="min-w-0 flex-1">
@@ -46,14 +54,14 @@ export default function TripBar() {
             <div className="h-full rounded-full bg-keke" style={{ width: `${p * 100}%` }} />
           </div>
           <span className="shrink-0 text-xs tabular-nums opacity-80">
-            {a.trip.modeLabel} · {left}s
+            {tag} · {left}s
           </span>
         </div>
       </div>
       <button
         type="button"
         disabled={a.fast}
-        onClick={() => getGameStore().getState().skipTrip(performance.now())}
+        onClick={() => getGameStore().getState().fastForward(performance.now())}
         className="flex shrink-0 items-center gap-1 rounded-xl bg-keke px-3 py-1.5 text-sm font-bold text-[#2A2000] hover:brightness-105 disabled:opacity-70"
       >
         <FastForward aria-hidden className={a.fast ? "h-4 w-4 animate-pulse" : "h-4 w-4"} strokeWidth={2.5} />

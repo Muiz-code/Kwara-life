@@ -55,7 +55,7 @@ describe("fast-forward", () => {
     store.getState().travel("item7", "keke", 0);
     const a = store.getState().activity!;
     const half = a.ms / 2;
-    store.getState().skipTrip(half);
+    store.getState().fastForward(half);
     const b = store.getState().activity!;
     expect(b.kind).toBe("trip");
     // Same point in the trip, the rest squeezed into FAST_FORWARD_MS.
