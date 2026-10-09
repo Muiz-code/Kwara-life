@@ -13,7 +13,11 @@ describe("the home", () => {
       it(`a ${cls} home with ${furniture.length ? "everything bought" : "nothing bought"} has every thing in reach`, () => {
         const kit = new Kit();
         const { spots } = furnish(kit, "home", { furniture, tv: true, radio: true, cls, style: null });
-        expect(spots.map((s) => s.actions[0]).sort()).toEqual(["bath", "cook", "radio", "sleep", "tv"]);
+        expect([...new Set(spots.map((s) => s.actions[0]))].sort()).toEqual(["bath", "cook", "eat-takeaway", "phone", "radio", "sleep", "tv"]);
+        // Cooking ends at the table, and every seat for eating or your phone is a sit.
+        expect(spots.filter((s) => s.after === "@dine").length).toBe(1);
+        expect(spots.filter((s) => s.actions.includes("@dine")).length).toBeGreaterThan(0);
+        for (const s of spots.filter((x) => x.actions.includes("phone"))) expect(s.use.pose, s.label).toBe("sit");
         const plan = new FloorPlan(12, 10, 0.2);
         plan.markGeometry(kit.merge()!);
         plan.grow(1);
@@ -57,4 +61,24 @@ describe("styling the home", () => {
     expect(sanitizeGame({ ...freshState(), homeStyle: null })?.homeStyle).toBeNull();
     expect(sanitizeGame({ ...freshState(), homeStyle: { ...style, wall: "gold-leaf" } })).toBeNull();
   });
+});
+
+describe("eating out", () => {
+  for (const room of ["buka", "cafe", "shop", "supermarket", "classroom", "lounge"] as const)
+    it(`a ${room} that serves food has a seat you can walk to`, () => {
+      const kit = new Kit();
+      const { spots } = furnish(kit, room, { furniture: [], tv: false, radio: false, cls: "middle", dine: true });
+      const seats = spots.filter((s) => s.actions.includes("@eat"));
+      expect(seats.length).toBeGreaterThan(0);
+      const [W, D] = room === "supermarket" ? [16, 12] : [12, 10];
+      const plan = new FloorPlan(W, D, 0.2);
+      plan.markGeometry(kit.merge()!);
+      plan.grow(1);
+      const start = plan.nearestFree(0.5, 3.6)!;
+      for (const s of seats) {
+        const to = plan.nearestFree(s.stand[0], s.stand[1])!;
+        expect(Math.hypot(to.x - s.stand[0], to.z - s.stand[1]), `${room} ${s.x},${s.z}`).toBeLessThan(0.6);
+        expect(plan.path(start, to).length).toBeGreaterThan(0);
+      }
+    });
 });

@@ -17,8 +17,13 @@ export interface Use {
 }
 
 export interface Spot {
-  /** The home actions this thing offers (sleep and nap for a bed, cook for a stove...). */
+  /**
+   * The home actions this thing offers (sleep and nap for a bed, cook for a stove...). Seats also carry a
+   * marker: "@dine" for a dining chair, "@eat" for a seat where you eat what you bought.
+   */
   actions: string[];
+  /** Halfway through, get up and go to a seat with this marker (cook at the stove, then eat at the table). */
+  after?: string;
   use: Use;
   /** What it is, for the hint. */
   label: string;
@@ -38,6 +43,8 @@ export interface Own {
   cls: string;
   /** How the player has styled the place; unstyled, it looks the way their class would have it. */
   style?: HomeStyle | null;
+  /** The place serves food you sit down to eat: make sure it has somewhere to sit. */
+  dine?: boolean;
 }
 
 /** The home's colours: the paint, the floor tiles, the sofa and the accents. */
@@ -158,6 +165,15 @@ const STARTING: Record<string, string[]> = {
 };
 
 /** Build the flat into the kit; returns the things you can use. The outer walls and floor are drawn by the caller. */
+/** A seat you can tap and sit on for these actions; you walk to stand first. */
+function sitSpot(label: string, actions: string[], x: number, z: number, turn: number, stand: [number, number]): Spot {
+  return { actions, use: { pose: "sit", x, y: 0, z, turn }, label, x, z, w: 0.6, d: 0.6, h: 0.9, stand };
+}
+
+/** A dining chair: eat a take-away there, sit down to eat after cooking, or scroll your phone. */
+const diningSeat = (x: number, z: number, turn: number) =>
+  sitSpot("Dining table", ["eat-takeaway", "phone", "@dine"], x, z, turn, [x, turn ? z + 0.7 : z - 0.7]);
+
 export function homeRoom(kit: Kit, own: Own): Spot[] {
   const owned = new Set([...own.furniture, ...(STARTING[own.cls] ?? [])]);
   const has = (f: string) => owned.has(f);
@@ -334,7 +350,7 @@ export function homeRoom(kit: Kit, own: Own): Spot[] {
       kit.cyl(0.13, 0.12, 0.16, 0.15, 0.95, 0.15, "#9AA3AD", 12); // a pot on the boil
     });
     gasBottle(kit, -5.65, 0.35);
-    spots.push({ actions: ["cook", "eat-takeaway"], use: { pose: "work", x: -4.75, y: 0, z: 1.0, turn: -Math.PI / 2 }, label: "Gas cooker", x: -5.6, z: 1.0, w: 0.7, d: 0.7, h: 1.1, stand: [-4.6, 1.1] });
+    spots.push({ actions: ["cook"], after: "@dine", use: { pose: "work", x: -4.75, y: 0, z: 1.0, turn: -Math.PI / 2 }, label: "Gas cooker", x: -5.6, z: 1.0, w: 0.7, d: 0.7, h: 1.1, stand: [-4.6, 1.1] });
   } else if (cooker === "top") {
     placed(kit, -5.55, 1.0, Math.PI / 2, () => {
       table(kit, 0.7, 0.5, 0.72, "#9AA3AD", "#5E6B73");
@@ -344,7 +360,7 @@ export function homeRoom(kit: Kit, own: Own): Spot[] {
       kit.cyl(0.12, 0.1, 0.18, -0.15, 0.83, 0, "#9AA3AD", 12);
     });
     gasBottle(kit, -5.65, 0.4, "#2B5C9A");
-    spots.push({ actions: ["cook", "eat-takeaway"], use: { pose: "work", x: -4.75, y: 0, z: 1.0, turn: -Math.PI / 2 }, label: "Table-top gas cooker", x: -5.55, z: 1.0, w: 0.7, d: 0.6, h: 1.0, stand: [-4.6, 1.1] });
+    spots.push({ actions: ["cook"], after: "@dine", use: { pose: "work", x: -4.75, y: 0, z: 1.0, turn: -Math.PI / 2 }, label: "Table-top gas cooker", x: -5.55, z: 1.0, w: 0.7, d: 0.6, h: 1.0, stand: [-4.6, 1.1] });
   } else {
     // A kerosene stove: a round blue tank with its wick ring and the pot stand, on a low wooden stool.
     placed(kit, -5.5, 1.0, Math.PI / 2, () => {
@@ -361,7 +377,7 @@ export function homeRoom(kit: Kit, own: Own): Spot[] {
       kit.box(0.04, 0.04, 0.05, 0, 0.38, 0.21, "#C9A227"); // the wick knob
     });
     kit.box(0.2, 0.3, 0.14, -5.75, 0, 0.45, "#E0A526"); // the kerosene jerrycan
-    spots.push({ actions: ["cook", "eat-takeaway"], use: { pose: "work", x: -4.75, y: 0, z: 1.0, turn: -Math.PI / 2 }, label: "Kerosene stove", x: -5.5, z: 1.0, w: 0.6, d: 0.6, h: 1.0, stand: [-4.6, 1.1] });
+    spots.push({ actions: ["cook"], after: "@dine", use: { pose: "work", x: -4.75, y: 0, z: 1.0, turn: -Math.PI / 2 }, label: "Kerosene stove", x: -5.5, z: 1.0, w: 0.6, d: 0.6, h: 1.0, stand: [-4.6, 1.1] });
   }
   if (has("fridge")) {
     kit.box(0.7, 1.8, 0.7, -5.55, 0, 4.5, "#E8E8E8");
@@ -381,17 +397,20 @@ export function homeRoom(kit: Kit, own: Own): Spot[] {
       kit.cyl(0.14, 0.09, 0.07, 0, 0.77, 0, "#F4F1EA", 14);
       for (const [x, c] of [[-0.05, "#F2B705"], [0.06, "#C0392B"], [0, "#3F6B2A"]] as const) kit.ball(0.05, x, 0.86, x * 2, c, 1, 1);
     });
-    for (const [x, z, t] of [[-2.8, 2.0, 0], [-2.0, 2.0, 0], [-2.8, 3.6, Math.PI], [-2.0, 3.6, Math.PI]] as const)
+    for (const [x, z, t] of [[-2.8, 2.0, 0], [-2.0, 2.0, 0], [-2.8, 3.6, Math.PI], [-2.0, 3.6, Math.PI]] as const) {
+      spots.push(diningSeat(x, z, t));
       placed(kit, x, z, t, () => {
         legs(kit, 0.42, 0.42, 0.42, DARK, 0.022, 0.04);
         cushion(kit, 0.42, 0.08, 0.42, 0, 0.42, 0, look.sofa);
         for (const s of [-1, 1]) kit.box(0.04, 0.5, 0.04, s * 0.19, 0.48, -0.19, DARK);
         kit.box(0.42, 0.18, 0.03, 0, 0.78, -0.19, WOOD);
       });
+    }
   } else {
     // A plastic table and chair.
     placed(kit, -2.4, 2.8, 0, () => table(kit, 0.7, 0.7, 0.68, "#2B5C9A", "#2B5C9A"));
     placed(kit, -2.4, 3.5, Math.PI, () => plasticChair(kit, "#C0392B"));
+    spots.push(diningSeat(-2.4, 3.5, Math.PI));
   }
 
   // ---- Sitting room (front right), arranged round the TV ----
@@ -431,6 +450,11 @@ export function homeRoom(kit: Kit, own: Own): Spot[] {
   if (!has("sofa")) seat(3.3, 3.55, Math.PI, 1);
   seat(1.9, 1.5, Math.PI / 2, 1);
   seat(5.5, 1.5, -Math.PI / 2, 1);
+  // Somewhere to sit with your phone: either end of the sofa (or the plastic chairs), and the armchairs.
+  const chair = has("sofa") ? "Sofa" : "Chair";
+  for (const x of has("sofa") ? [3.28, 4.72] : [3.3, 4.0]) spots.push(sitSpot(chair, ["phone"], x, 3.55, Math.PI, [x, 2.75]));
+  spots.push(sitSpot(has("sofa") ? "Armchair" : "Chair", ["phone"], 1.9, 1.5, Math.PI / 2, [2.75, 1.5]));
+  spots.push(sitSpot(has("sofa") ? "Armchair" : "Chair", ["phone"], 5.5, 1.5, -Math.PI / 2, [5.0, 2.45]));
   // A side table with a lamp, and the radio on another.
   placed(kit, 5.55, 3.6, 0, () => {
     sideTable(kit, WOOD);

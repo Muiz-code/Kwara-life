@@ -23,6 +23,12 @@ import { listenForTaps } from "./tap";
 
 export { roomFor, type Room } from "../data/rooms";
 import { roomFor, type Room } from "../data/rooms";
+import type { Action } from "../data/action";
+import { actionsAt } from "../store/world";
+import { debugMode } from "../store/clock";
+
+/** Food you sit down to eat where you bought it (not a take-away, foodstuff or cooking at home). */
+const eatsHere = (a: Action) => (a.fx.food ?? 0) > 0 && !a.takeaway && !a.groc && !a.usesFood && !a.eatTakeaway;
 
 /** Where each business's counter is, where you stand at it, and which way you face. */
 const COUNTERS: Partial<Record<Room, { box: { x: number; z: number; w: number; d: number; h: number }; stand: [number, number]; turn: number }>> = {
@@ -105,6 +111,9 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
   };
   const lights: [number, number, number, string][] = [];
   const spots: Spot[] = [];
+  /** A free seat where you sit to eat what you bought. */
+  const eatSeat = (x: number, z: number, turn: number, stand: [number, number]): Spot =>
+    ({ actions: ["@eat"], use: { pose: "sit", x, y: 0, z, turn }, label: "Seat", x, z, w: 0.5, d: 0.5, h: 0.6, stand });
   const walls = {
     home: homeLook(own).wall,
     church: "#F4EFE4", mosque: "#F1EEE6", club: "#16161E", lounge: "#E6D3AE", buka: "#C8B79A", office: "#E8ECEF",
@@ -411,6 +420,7 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
       for (let r = 0; r < 3; r++) for (let k = 0; k < 5; k++) {
         kit.box(0.5, 0.42, 0.5, -3 + k * 1.5, 0, -1 + r * 1.6, ["#F4F1EA", "#C0392B", "#2B5C9A"][(r + k) % 3]);
         if (R() < 0.65) crowd.push({ x: -3 + k * 1.5, z: -1 + r * 1.6, turn: Math.PI, g: R() < 0.7 ? "m" : "h", pose: "sit" });
+        else spots.push(eatSeat(-3 + k * 1.5, -1 + r * 1.6, Math.PI, [-3 + k * 1.5, -0.35 + r * 1.6]));
       }
       if (room === "lounge") {
         kit.box(1.6, 0.9, 0.7, 4.6, 0, 3.8, "#3A3F45");
@@ -432,6 +442,7 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
         kit.box(1.6, 0.75, 0.8, x, 0, z, ["#2B5C9A", "#C0392B", "#2E7D4F"][Math.abs(Math.round(x)) % 3]);
         kit.box(1.6, 0.42, 0.3, x, 0, z + 0.7, "#8C6A4A");
         if (R() < 0.7) crowd.push({ x, z: z + 0.7, turn: Math.PI, g: R() < 0.5 ? "m" : "f", pose: "sit" });
+        else spots.push(eatSeat(x, z + 0.7, Math.PI, [x, z + 1.35]));
       }
       crowd.push({ x: -1.5, z: -3.4, turn: 0, g: "f", pose: "talk" });
       lights.push([0, H - 0.3, 0, "#FFE4B0"]);
@@ -496,7 +507,7 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
         if (R() < 0.6) {
           crowd.push({ x: x - 0.85, z, turn: Math.PI / 2, g: "f", pose: "sit" });
           crowd.push({ x: x + 0.85, z, turn: -Math.PI / 2, g: "m", pose: "sit" });
-        }
+        } else for (const s of [-1, 1]) spots.push(eatSeat(x + s * 0.85, z, -s * Math.PI / 2, [x + s * 0.85, z + 0.8]));
       }
       lights.push([0, H - 0.3, 0, "#FFE4F0"]);
       break;
@@ -539,6 +550,19 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
         crowd.push({ x: 1.5, z: -3.5, turn: 0, g: "f", pose: "talk" });
       }
       lights.push([0, H - 0.3, 0, "#FFF2D6"]);
+    }
+  }
+  // Somewhere to sit and eat in a place that serves food but has no free seat: the sit-out, two plastic tables
+  // with chairs by the door.
+  if (own.dine && room !== "home" && !spots.some((s) => s.actions.includes("@eat"))) {
+    for (const tx of [W / 2 - 2.2, W / 2 - 4.6]) {
+      const tz = D / 2 - 2.2;
+      kit.box(0.9, 0.7, 0.9, tx, 0, tz, "#F4F1EA");
+      for (const s of [-1, 1]) {
+        kit.box(0.45, 0.42, 0.45, tx + s * 0.85, 0, tz, "#C0392B");
+        kit.box(0.06, 0.45, 0.45, tx + s * 1.05, 0.42, tz, "#C0392B");
+        spots.push(eatSeat(tx + s * 0.85, tz, -s * Math.PI / 2, [tx + s * 0.85, tz - 0.8]));
+      }
     }
   }
   // The counter: tap the person behind it for everything the place offers, or to talk.
@@ -628,6 +652,8 @@ export class Interior3D {
   }
 
   private async init() {
+    // ?debug in a dev build: reach the room from the console or a screenshot script.
+    if (debugMode()) (window as unknown as { interior3d?: Interior3D }).interior3d = this;
     const r = new WebGLRenderer({ antialias: true });
     this.renderer = r;
     r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -646,6 +672,7 @@ export class Interior3D {
       radio: !!c?.ownsRadio,
       cls: this.room === "home" ? homeClass(g) : (c?.cls ?? "poor"),
       style: g.homeStyle,
+      dine: actionsAt(g, this.store.getState().world, this.opts.placeId).some(eatsHere),
     });
     const geo = kit.merge();
     if (geo) {
@@ -776,6 +803,19 @@ export class Interior3D {
     if (!this.me.path.length && then) this.startUse();
   }
 
+  /** One of the things offering this action (or marker), at random; null if there is none. */
+  private pick(key: string): Spot | null {
+    const all = this.spots.filter((s) => s.actions.includes(key));
+    return all.length ? all[Math.floor(Math.random() * all.length)] : null;
+  }
+
+  /** Walk over to act out an action that is already running. */
+  private goUse(spot: Spot, action: string) {
+    this.me.path = this.plan.path(this.me, { x: spot.stand[0], z: spot.stand[1] });
+    this.me.then = { spot, action, already: true };
+    if (!this.me.path.length) this.startUse();
+  }
+
   /** Walk to a thing and use it for this action (sleep, nap, cook...). */
   use(spot: Spot, action: string) {
     if (this.using || this.store.getState().activity) return;
@@ -812,7 +852,8 @@ export class Interior3D {
   /** Step the player along their path round the furniture. Returns the speed moved at. */
   private walkMe(dt: number): number {
     const m = this.me;
-    if (this.using || this.store.getState().activity || !this.player || !m.path.length) return 0;
+    // While an action runs you only walk to act it out (to the sofa for the TV, the table to eat).
+    if (this.using || (this.store.getState().activity && !m.then?.already) || !this.player || !m.path.length) return 0;
     const speed = 2.6;
     let left = speed * dt;
     while (left > 0 && m.path.length) {
@@ -858,14 +899,22 @@ export class Interior3D {
     const a = st.activity?.kind === "action" ? st.activity.plan.action : null;
     // An action started from the place card: walk to the thing it uses and act it out.
     const running = st.activity?.kind === "action" ? st.activity.plan.action.id : null;
-    if (running && running !== this.acting && !this.using) {
+    if (running && a && running !== this.acting && !this.using) {
       this.acting = running;
-      const spot = this.spots.find((s) => s.actions.includes(running)) ?? this.spots.find((s) => s.actions.includes("*"));
-      if (spot) {
-        this.me.path = this.plan.path(this.me, { x: spot.stand[0], z: spot.stand[1] });
-        this.me.then = { spot, action: running, already: true };
-        if (!this.me.path.length) this.startUse();
-      }
+      // The thing it uses (one of them at random: any seat will do for your phone), a free seat to eat what you
+      // bought, or the counter.
+      const spot = this.pick(running) ?? (eatsHere(a) ? this.pick("@eat") : null) ?? this.pick("*");
+      if (spot) this.goUse(spot, running);
+    }
+    // Halfway through cooking (after a few seconds at the stove at least): dish it out and sit down to eat.
+    const act = st.activity?.kind === "action" ? st.activity : null;
+    if (this.using?.spot.after && act && (now - act.startedAt) / act.ms >= 0.5 && now - this.using.t0 > 3000) {
+      const seat = this.pick(this.using.spot.after);
+      const doing = this.using.action;
+      if (seat) {
+        this.endUse();
+        this.goUse(seat, doing);
+      } else this.using.spot = { ...this.using.spot, after: undefined };
     }
     if (!running && !this.using) this.acting = null;
     // Your number was called: walk up to the counter for the steps there.
