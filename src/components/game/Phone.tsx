@@ -4,8 +4,8 @@
 // calls and USSD banking. Better phones are sold at the phone stalls (the market, or Taiwo Oke in Ilorin).
 import { useEffect, useMemo, useState } from "react";
 import {
-  BatteryFull, BookOpen, Briefcase, Coins, IdCard, PhoneOff, Car, ChevronLeft, Circle, Image as ImageIcon, Landmark, Newspaper, Phone as PhoneIcon,
-  Settings, Signal, Square, User, Wifi, X, type LucideIcon,
+  BatteryFull, BookOpen, Briefcase, Coins, IdCard, PhoneOff, ChevronLeft, Circle, Image as ImageIcon, Landmark, Newspaper, Phone as PhoneIcon,
+  Layers, Settings, Signal, Square, User, Wifi, X, type LucideIcon,
 } from "lucide-react";
 import { CAREERS, EDUCATION_LABEL } from "@/data/careers";
 import { LGA } from "@/data/geography";
@@ -22,14 +22,15 @@ import { tripWorldFor } from "@/store/world";
 import { Button, cx, naira } from "./ui";
 import KlarioApp, { KlarioUssd } from "./KlarioApp";
 import { JourneyPicker } from "./PlaceSheet";
+import SyncApp from "./SyncApp";
 
-type App = "journal" | "calls" | "gallery" | "ride" | "bank" | "news" | "jobs" | "me" | "about" | "hustle" | "vinec";
+type App = "journal" | "calls" | "gallery" | "ride" | "sync" | "bank" | "news" | "jobs" | "me" | "about" | "hustle" | "vinec";
 
 const APPS: { id: App; label: string; icon: LucideIcon; tint: string }[] = [
   { id: "journal", label: "Journal", icon: BookOpen, tint: "from-[#F2B705] to-[#E67E22]" },
   { id: "calls", label: "Phone", icon: PhoneIcon, tint: "from-[#2ECC71] to-[#1E9E55]" },
   { id: "gallery", label: "Gallery", icon: ImageIcon, tint: "from-[#FF7AA2] to-[#C2578A]" },
-  { id: "ride", label: "Waka", icon: Car, tint: "from-[#2B2F36] to-[#111418]" },
+  { id: "sync", label: "Sync", icon: Layers, tint: "from-[#2B2F36] to-[#111418]" },
   { id: "bank", label: "Klario", icon: Landmark, tint: "from-[#14B8B8] to-[#0B7F7F]" },
   { id: "news", label: "News", icon: Newspaper, tint: "from-[#C0392B] to-[#8E2219]" },
   { id: "jobs", label: "Jobs", icon: Briefcase, tint: "from-[#6C3CE1] to-[#4A23A8]" },
@@ -38,7 +39,7 @@ const APPS: { id: App; label: string; icon: LucideIcon; tint: string }[] = [
   { id: "me", label: "Me", icon: User, tint: "from-[#2B5C9A] to-[#1F3F6E]" },
   { id: "about", label: "Settings", icon: Settings, tint: "from-[#8E979F] to-[#5E6B73]" },
 ];
-const TITLE: Record<App, string> = { hustle: "Hustle", vinec: "VINEC", journal: "Journal", calls: "Phone", gallery: "Gallery", ride: "Waka", bank: "Klario", news: "News", jobs: "Jobs", me: "Me", about: "About phone" };
+const TITLE: Record<App, string> = { hustle: "Hustle", vinec: "VINEC", journal: "Journal", calls: "Phone", gallery: "Gallery", ride: "Call a keke", sync: "Sync", bank: "Klario", news: "News", jobs: "Jobs", me: "Me", about: "About phone" };
 
 export function PhonePanel({ onClose }: { onClose: () => void }) {
   const owned = useGame((s) => s.game.phone);
@@ -128,6 +129,7 @@ function AppScreen({ app, model }: { app: App; model: PhoneModel }) {
     case "calls": return <Calls />;
     case "gallery": return <Gallery />;
     case "ride": return <Ride />;
+    case "sync": return <SyncApp ride={<Ride />} />;
     case "bank": return <Bank />;
     case "news": return <News />;
     case "jobs": return <Jobs />;

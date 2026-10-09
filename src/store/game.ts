@@ -19,6 +19,7 @@ import { throttledStorage } from "./storage";
 import { findActionAt, placeInfo, tripWorldFor } from "./world";
 import { serviceFor, type Service } from "../data/services";
 import { roomFor } from "../data/rooms";
+import { CAR_HIRE } from "../data/sync";
 import { tasksFor, taskAt, taskPay } from "../data/work-tasks";
 import { naira } from "../sim/state";
 import type { WorldMap } from "../world";
@@ -75,6 +76,8 @@ export interface GameStore {
   /** Sit the booked interview with an answer per question. */
   sitInterview: (answers: number[]) => { hired: boolean; score: number } | string;
   travel: (dest: string, mode: string, now: number) => void;
+  /** Book a Sync car and driver for today from the app. Returns why not, or null. */
+  hireCar: () => string | null;
   /** At work: you handled task i of the shift in time. */
   workTask: (i: number, now: number) => void;
   /** Your turn at the counter: from the queue to the steps. */
@@ -288,6 +291,18 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             }
             const ms = st.reducedMotion ? 120 : actionAnimMs(r.plan);
             commit(r.state, { activity: { kind: "action", plan: r.plan, startedAt: now, ms, done: 0 } });
+          },
+
+          hireCar: () => {
+            const st = get();
+            if (isBusy(st)) return "You are busy";
+            // From the app: no office hours, the driver comes to you.
+            const ctx = { now: realNow(), place: { name: "Sync", open: [0, 24] as [number, number], gen: true } };
+            const r = startAction(st.game, CAR_HIRE, rng, ctx);
+            if ("blocked" in r) return r.blocked;
+            if ("flow" in r) return null;
+            commit(finishAction(r.state, { ...r.plan, dur: 0 }, rng, ctx));
+            return null;
           },
 
           workTask: (i, now) => {

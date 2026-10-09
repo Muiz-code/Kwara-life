@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { lgaActions, lgaPlaces, type LgaContext } from "../data/lga";
 import { STATES } from "../data/states";
-import { CAR_HIRE, CAR_HIRE_PRICE } from "../data/sync";
+import { CAR_HIRE, CAR_HIRE_PRICE, townEvents } from "../data/sync";
 import { HOUSE_ACTIONS } from "../data/shops";
 import { tasksFor } from "../data/work-tasks";
 import { tripWorldFor } from "../store/world";
@@ -60,5 +60,23 @@ describe("Sync", () => {
     const moved = ok(performAction(s, rent, sequence(0.99), { place }));
     expect(moved.house).toBe("miniflat");
     expect(blockReason({ ...s, house: "bungalow" }, rent, { place })).toMatch(/own a house already/);
+  });
+});
+
+describe("what's on in town", () => {
+  const all = () => true;
+  it("lists the week ahead, soonest first, only where the town has the place", () => {
+    // Thursday 9am.
+    const ev = townEvents(3, 9, all);
+    expect(ev[0].inDays).toBe(0);
+    expect(ev.every((e, i) => i === 0 || e.inDays > ev[i - 1].inDays || (e.inDays === ev[i - 1].inDays && e.hour >= ev[i - 1].hour))).toBe(true);
+    expect(ev.find((e) => e.title === "Jummah prayers")?.inDays).toBe(1);
+    expect(townEvents(3, 9, (p) => p !== "mosque" && p !== "mosque2" && p !== "palace").some((e) => e.title === "Jummah prayers")).toBe(false);
+  });
+
+  it("an event already over today moves to next week, and a daily one to tomorrow", () => {
+    const fridayNight = townEvents(4, 23, all);
+    expect(fridayNight.find((e) => e.title === "Jummah prayers")).toBeUndefined();
+    expect(fridayNight.find((e) => e.title === "Evening tafsir")?.inDays).toBe(1);
   });
 });
