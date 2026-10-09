@@ -15,6 +15,8 @@ import type { PvcStatus, RollInput } from "../sim/roll";
 import { PRESIDENTIAL_2027, type ElectionCalendar } from "../data/calendar";
 import { PARTY } from "../data/parties";
 import { VOTE_REASON, reachPvc, type VoteAnswer } from "./civic";
+import { playedOn } from "../sim/daily";
+import { watDate } from "../sim/civic";
 
 export interface CitizenRow {
   name: string;
@@ -24,6 +26,9 @@ export interface CitizenRow {
   zone: string;
   /** The PVC status that counts (citizens.pvc). */
   pvc?: PvcStatus;
+  /** The last real day (WAT) counted as a play, and whether they agreed to be named in the credits. */
+  last_play?: string | null;
+  credits_ok?: boolean;
 }
 
 export interface GameDb {
@@ -43,6 +48,12 @@ export interface GameDb {
   castVote(user: string, election: string, party: string, opens: string, closes: string): Promise<VoteAnswer>;
   /** Votes cast so far in an election. */
   turnout(election: string): Promise<number>;
+  /** One more play for this real day, at most once a day. */
+  notePlay(user: string, day: string): Promise<void>;
+  /** Agree (or stop agreeing) to be named in the closing credits. */
+  setCredits(user: string, ok: boolean): Promise<void>;
+  /** The most-played citizens who agreed to be named. */
+  topPlayers(limit: number): Promise<{ name: string; state_code: string; lga_code: string; plays: number }[]>;
 }
 
 /** What a route answers: an HTTP status and a body. */
@@ -152,6 +163,11 @@ export async function putSave(db: GameDb, user: string, body: unknown, now = Dat
   const saved = stored(game);
   const version = await db.save(user, saved, b.version);
   if (version === null) return { status: 409, body: { error: "Your game was saved on another phone", game: have.game, version: have.version } };
+  // A real day signed in with enough done counts as a play (once a day), and the credits choice is kept.
+  const today = watDate(now);
+  if (playedOn(game, today) && c.last_play !== today) await db.notePlay(user, today);
+  const credits = game.flags.credits === true;
+  if (credits !== (c.credits_ok ?? false)) await db.setCredits(user, credits);
   // The server changed something (a PVC step out of time, a vote that isn't on the roll): send its copy back.
   const changed = sent.pvc !== pvc || sent.voted !== [...game.voted].sort().join();
   return ok(changed ? { version, game: saved } : { version });
@@ -182,4 +198,21 @@ export async function vote(db: GameDb, user: string, body: unknown, cal: Electio
 /** Votes cast so far: turnout only, never party standings. */
 export async function turnout(db: GameDb, cal: ElectionCalendar = PRESIDENTIAL_2027): Promise<Reply> {
   return ok({ votes: await db.turnout(cal.id), at: new Date().toISOString() });
+}
+
+/** How many players the closing credits name. */
+export const CREDITS_PLAYERS = 10;
+
+/**
+ * The season's closing credits, once polls have closed: the most-played citizens who agreed to be named (their game
+ * name and LGA only). Brands come from the ads server once ads are paid for there; until then the list is empty.
+ * Null before polls close: there is nothing to publish yet.
+ */
+export async function seasonCredits(db: GameDb, now: number, cal: ElectionCalendar = PRESIDENTIAL_2027) {
+  if (now < Date.parse(cal.pollsClose)) return null;
+  const top = await db.topPlayers(CREDITS_PLAYERS);
+  return {
+    brands: [] as string[],
+    players: top.map((p) => ({ name: p.name, place: `${LGA[p.lga_code]?.name ?? ""}, ${STATE[p.state_code]?.name ?? ""}`, plays: p.plays })),
+  };
 }

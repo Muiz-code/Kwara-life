@@ -75,6 +75,8 @@ export interface Flags {
   daily?: import("./daily").Daily;
   /** Stamps for firsts: id to the game minute it was earned. */
   stamps?: Record<string, number>;
+  /** Show my name (citizen name and LGA only) in the season's closing credits. Off unless the player turns it on. */
+  credits?: boolean;
   /** Real days played in a row (WAT dates). */
   streak?: { last: string; count: number };
   /** A home with an inspection booked and not yet done (a house id). */

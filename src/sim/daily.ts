@@ -1,6 +1,7 @@
 // Reasons to come back: a daily streak, three missions a day and a stamp book of firsts. Days are real days
 // in WAT, like the rest of the season. Everything lives in flags so old saves load as they are.
 import type { GameState } from "./state";
+import { PRESIDENTIAL_2027 } from "../data/calendar";
 import { naira, note } from "./state";
 import { book } from "./bank";
 import { seeded } from "./rng";
@@ -68,7 +69,15 @@ const STAMP_LABEL = Object.fromEntries(STAMPS.map((s) => [s.id, s.label]));
 export interface Daily {
   day: string;
   missions: { id: string; got: number }[];
+  /** Activities done today. Signed in with PLAY_ACTIVITIES or more, the day counts as one play (season credits). */
+  acts?: number;
 }
+
+/** A day counts as a play for the season credits once you have done this many activities (owner, 9 Oct 2026). */
+export const PLAY_ACTIVITIES = 5;
+
+/** Whether this real day (WAT) counts as a play: at least PLAY_ACTIVITIES activities done. */
+export const playedOn = (s: GameState, day: string) => s.flags.daily?.day === day && (s.flags.daily.acts ?? 0) >= PLAY_ACTIVITIES;
 
 const hash = (s: string) => {
   let h = 2166136261;
@@ -110,6 +119,7 @@ export function stamp(s: GameState, id: string) {
 export function track(s: GameState, m: Moment, day: string) {
   for (const st of STAMPS) if (st.match?.(m)) stamp(s, st.id);
   const d = dailyOf(s, day);
+  if (m.kind === "action") d.acts = (d.acts ?? 0) + 1;
   for (const ms of d.missions) {
     const def = MISSION[ms.id];
     if (!def || ms.got >= def.need || !def.match(m)) continue;
@@ -127,6 +137,14 @@ const yesterday = (day: string) => new Date(Date.parse(`${day}T12:00:00Z`) - 86_
 /** The streak reward for day n of a streak: ₦500 a day, up to ₦3,500 from day seven. */
 export const streakReward = (n: number) => Math.min(7, n) * 500;
 
+/** In the last week before polls open, ask once whether the player wants their name in the closing credits. */
+function creditsReminder(s: GameState, day: string) {
+  const left = (Date.parse(PRESIDENTIAL_2027.pollsOpen) - Date.parse(`${day}T00:00:00+01:00`)) / 86_400_000;
+  if (!s.citizen || s.flags.credits !== undefined || s.seen.creditsAsk || left > 7 || left < 0) return;
+  s.seen.creditsAsk = true;
+  note(s, "Your name in the credits?", "When the season ends, the players who played the most are named in the closing credits. Only those who agree, and only your citizen's name and LGA. Turn it on in the menu: Show my name in the closing credits.");
+}
+
 /** Mutates s: the first visit of a real day checks you in. Returns true if it did. */
 export function checkIn(s: GameState, day: string): boolean {
   const st = s.flags.streak;
@@ -142,5 +160,6 @@ export function checkIn(s: GameState, day: string): boolean {
     `${count > 1 ? `You've played ${count} days running.` : "Your streak starts today."} Here's ${naira(reward)}. Today's three missions are on your phone in Daily. Come back tomorrow to keep the streak.`,
   );
   if (count >= 7) stamp(s, "week");
+  creditsReminder(s, day);
   return true;
 }

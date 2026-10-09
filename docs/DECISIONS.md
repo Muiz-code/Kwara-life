@@ -239,5 +239,9 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   player is told their vote is still theirs, because the ballot is secret.
 - Real players buying votes from real players: agreed in principle, but how they reach each other is not designed
   yet. Not built. Whatever the design, sellers still vote freely on election day.
-- Big-ticket prices (houses, cars, rent): the owner agreed to raise them. They are unchanged until the owner sees how
-  the new pay lines up with today's real Nigerian prices, then picks how much to raise them.
+- Big-ticket prices (houses, cars, rent) stay at their real Nigerian prices (owner, after seeing how the new pay
+  lines up with them).
+- A play, for the closing credits: a real day (WAT) on which the player was signed in and did at least 5 activities.
+  The server counts it from their saves, once a day (citizens.plays). Players opt in to being named with "Show my
+  name in the closing credits" in the menu (off by default; one reminder in the week before polls). Only the
+  citizen's game name and LGA are shown. /season/credits.json answers 404 until polls close, then the top 10.

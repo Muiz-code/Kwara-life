@@ -109,6 +109,8 @@ export interface GameStore {
   setCharacter: (c: Character) => void;
   togglePause: () => void;
   setReducedMotion: (v: boolean) => void;
+  /** Agree (or not) to be named in the season's closing credits; the server picks it up with the next save. */
+  setCreditsName: (on: boolean) => void;
   shiftToast: () => void;
   closeFlow: () => void;
   setWorld: (map: WorldMap) => void;
@@ -516,6 +518,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
 
           togglePause: () => set({ paused: !get().paused }),
           setReducedMotion: (v) => set({ reducedMotion: v }),
+          setCreditsName: (on) => set({ game: { ...get().game, flags: { ...get().game.flags, credits: on } } }),
           closeFlow: () => set({ flow: null }),
           setWorld: (map) => set({ world: map }),
           createCitizen: (input) => {

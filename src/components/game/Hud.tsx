@@ -184,6 +184,30 @@ function ClockJumps({ onDone }: { onDone: () => void }) {
 }
 
 /** Options: pause, how to play, about, start again. */
+/**
+ * Show my name in the closing credits: the season's most-played citizens are named there, but only those who agree.
+ * Only the citizen's game name and LGA would show. Off until the player turns it on.
+ */
+function CreditsChoice() {
+  const on = useGame((s) => s.game.flags.credits === true);
+  const hasCitizen = useGame((s) => !!s.game.citizen);
+  if (!hasCitizen) return null;
+  return (
+    <label className="flex items-start gap-3 rounded-2xl bg-panel-2 px-3 py-2.5 text-sm">
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={(e) => getGameStore().getState().setCreditsName(e.target.checked)}
+        className="mt-0.5 h-5 w-5 shrink-0 accent-[#0E7A4B]"
+      />
+      <span>
+        <span className="block font-bold">Show my name in the closing credits</span>
+        <span className="text-ink-soft">The players who played the most are named when the season ends. Only your citizen&apos;s name and LGA, never your username or email.</span>
+      </span>
+    </label>
+  );
+}
+
 /** "Signed in as @tunde_ib": the username given at sign-up, read from the session. */
 function SignedInAs() {
   const [name, setName] = useState<string | null>(null);
@@ -259,6 +283,7 @@ function GameMenu({ onClose }: { onClose: () => void }) {
             )}
             {debugMode() && <ClockJumps onDone={onClose} />}
             {online() && <SignedInAs />}
+            {online() && <CreditsChoice />}
             {online() && (
               <Button
                 tone="ghost"
