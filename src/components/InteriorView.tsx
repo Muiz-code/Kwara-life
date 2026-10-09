@@ -118,13 +118,11 @@ export default function InteriorView({
               style={
                 phone
                   ? undefined
-                  : {
-                      left: Math.min(menu.x, window.innerWidth - 250),
-                      top: Math.min(
-                        Math.max(8, menu.y - 20),
-                        window.innerHeight - 320,
-                      ),
-                    }
+                  : (() => {
+                      // Never past the bottom of the screen: it scrolls inside the space it has.
+                      const top = Math.max(8, Math.min(menu.y - 20, window.innerHeight - 320));
+                      return { left: Math.min(menu.x, window.innerWidth - 250), top, maxHeight: window.innerHeight - top - 12 };
+                    })()
               }
               onPointerDown={(e) => e.stopPropagation()}
               role="menu"

@@ -37,6 +37,8 @@ import { buildScene, type BuiltScene } from "./scene";
 import { buildRoadside } from "./roadside";
 
 const SKY = new Color("#BFD3DE");
+/** Places whose grounds spread well past one plot. */
+const BIG_GROUNDS = new Set(["stadium", "trainstation", "busterminal", "kwasu", "campus", "airport"]);
 /** How close the camera rides along with you. */
 const RIDE_CAM_DIST = 42;
 /** How far back down the street a vehicle starts when it comes to pick you up, in map pixels. */
@@ -214,14 +216,19 @@ export class Town3D {
     // Invisible boxes to tap places by, and their name signs.
     const hidden = new MeshBasicMaterial({ visible: false });
     for (const p of this.built.places) {
-      const box = new Mesh(new Box(9, Math.max(4, p.top), 9), hidden);
+      const place = this.map.places.find((q) => q.id === p.id)!;
+      // The whole plot answers a tap, not just the middle of it; the big grounds (stadium, station, terminal,
+      // campus) answer over their whole spread.
+      const size = BIG_GROUNDS.has(place.kind) ? CELL * 2.6 : CELL;
+      const box = new Mesh(new Box(size, Math.max(4, p.top), size), hidden);
       box.position.set(p.x, Math.max(4, p.top) / 2, p.z);
       box.userData.id = p.id;
       this.hits.add(box);
-      const place = this.map.places.find((q) => q.id === p.id)!;
       // Your home is labelled Home, wherever it is (in Ilorin, a room in Tanke Compound).
       const s = sign(p.id === "home" ? "Home" : place.name, sign1);
       s.position.set(p.x, p.top + 1.2, p.z);
+      // Tapping the name works too.
+      s.userData.id = p.id;
       this.signs.add(s);
     }
     // Names written on the map: a shore road, a promenade, the lagoon.
@@ -349,7 +356,10 @@ export class Town3D {
       const rect = el.getBoundingClientRect();
       const ndc = new Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
       this.ray.setFromCamera(ndc, this.camera);
-      const hit = this.ray.intersectObjects(this.hits.children, false)[0];
+      // A place's name sign counts as the place (sprites need the camera to be hit).
+      this.ray.camera = this.camera;
+      const named = !this.signs.visible ? undefined : this.ray.intersectObjects(this.signs.children.filter((c) => c.visible && c.userData.id), false)[0];
+      const hit = named ?? this.ray.intersectObjects(this.hits.children, false)[0];
       if (hit?.object.userData.board) this.cb.onBillboard?.(hit.object.userData.board as string);
       else if (hit) this.store.getState().select(hit.object.userData.id as string);
       // Open ground does nothing: on the town map you walk with the keys, and a drag pans (the owner's call).
