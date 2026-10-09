@@ -43,10 +43,11 @@ Art is in `public/assets/`: tiles, vehicles, interiors and avatars. Each image's
 listed in `reference/*.txt`. `scripts/fetch_assets.py <list>` downloads those images and cuts them out with
 `scripts/cutout.py`. Delete `public/assets/raw/<file>` first to force a fresh download.
 
-## Anti-cheat (client side, until Phase E)
+## Anti-cheat
 
-The browser is the player's, so nothing here is final; it closes the easy cheats and keeps the checks in
-`src/sim` for the edge functions to reuse. The server must never trust a client save or request.
+The server is the authority for what counts (Phase E): the citizen roll, the PVC and the vote live there, and
+every save is re-checked with `src/sim` before it is stored (src/server). The client-side checks below still close
+the easy cheats while playing. The server must never trust a client save or request.
 
 - **Clock:** `clockNow()` runs from the server's time (`/api/time`) plus `performance.now()`, so changing the
   phone's date doesn't open the polls early.
@@ -65,8 +66,7 @@ Supabase project 1 is `ykdpwbxfkarnhttdnute` (see supabase/migrations and supaba
 `npx supabase config push`, which sends EVERY auth setting in the file, so keep the file matching the live project).
 
 Must do before launch:
-1. **Server-side game.** Saves, citizens and votes still live in the browser. Build the server routes (create citizen,
-   save sync through sanitizeGame, vote with the voter roll) before the election counts for anything.
+1. **Server-side game.** Done for citizens, saves, the PVC and the vote (Phase E1 and E2, below). Still to do: E3.
 2. **Email sender.** Supabase's built-in email is for testing only. Connect an SMTP provider (Resend, Amazon SES,
    Brevo) with SPF and DKIM on your domain, or players never get their confirmation links.
 3. **Supabase plan.** Free caps at 50k monthly users and pauses idle projects. Pro includes 100k monthly users, then
@@ -114,16 +114,27 @@ Must do before launch:
   and full-screen modes. Numbers come from src/net/live-results.ts, simulated for now (src/sim/live.ts); add ?demo
   in dev to watch a whole day in three minutes. It only reads; swap that hook to the server feed in Phase F.
 
+- Phase E1 and E2 (the game on the server). Next.js API routes on Vercel, pinned to London (lhr1), rules in
+  src/server, client in src/net/sync.ts; migrations game_sync, one_device and votes are applied to project 1.
+  - Citizens are rolled on the server (POST /api/game/citizen), one per account; a pre-server save is taken over
+    once, checked, without votes.
+  - Saves (GET and PUT /api/game) upload every 3 minutes when changed and when the app is hidden or closed; checked by
+    sanitizeGame, refused if they change who the citizen is, and versioned so the newer save wins (409).
+  - One device per account (POST /api/game/device): another device is told to log out there first; a device that
+    stops checking in loses the account after 10 minutes. Signed-in players can't start a new life.
+  - The PVC (citizens.pvc) moves only along the real steps inside their windows; votes (POST /api/vote) need a
+    collected PVC and open polls by the database clock, and only add to vote_tallies (no ballots stored). The game
+    records a vote only after the server accepts it (submitVote). Turnout: GET /api/turnout, CDN-cached 30 seconds.
+
 ## Next, in order
 
-1. **Phase E: Supabase.** This is blocked until the owner provides these:
-   - Supabase project URL, anon key and service key (one project per zone shard, NC, NE, NW, SE, SS and SW, plus one national project);
-   - a Paystack account for the ads.
-
-   Plan: `supabase/shard` and `supabase/national` hold migrations and edge functions (sign-up, act, vote, promo). All writes go through edge functions. There is a unique (citizen, election) constraint and idempotency keys, and votes are stored apart from identity. `src/sim` is reused inside the functions.
+1. **Phase E3:** the support-card feed on the server (support_cards table, one card a day, filtered note), and
+   server-side caps for vote buying effects (they feed the results) and flyers and sponsored news.
 2. **Phase F:**
-   - collation job and CDN results snapshots (players never query results directly);
-   - live turnout counter from the server (currently simulated in `components/game/Vote.tsx`, `TurnoutCounter`);
+   - collation job and CDN results snapshots (players never query results directly), read from vote_tallies plus
+     the simulated voters and vote-buying effects; swap src/net/live-results.ts to it;
+   - write /season/credits.json once at polls close for the closing credits (src/net/credits.ts reads it; how top
+     players are ranked, and whether they opt in, is still open with the owner);
    - load test.
 3. **Ads portal:** real-money ads on in-game TV, billboards, the news ticker, radio and the journey screen. Pricing is by the day: ₦10,000 a day a face for boards (1 to 30 days, times the board's factor) and ₦25,000 a day for gallery wall artwork (`data/ads.ts`, `sim/ads.ts`). Boards also stand on up to eight empty plots in each town. Videos are allowed but scaled and compressed to the slot, at 15 seconds maximum.
 4. **Celebration video** for the winner screen. It must be generic: no party marks, with the party name and colour overlaid.
