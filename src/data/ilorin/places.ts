@@ -5,7 +5,9 @@ export type PlaceKind =
   | "junction" | "palace" | "oldtown" | "shops" | "stadium" | "garage" | "estate"
   | "airport" | "square" | "office" | "hotel" | "hub" | "govhouse" | "garden"
   | "buka" | "mall" | "house" | "market" | "campus" | "poly" | "village"
-  | "farmstop" | "kwasu" | "bank" | "techhub" | "club" | "trainstation" | "busterminal";
+  | "farmstop" | "kwasu" | "bank" | "techhub" | "club" | "trainstation" | "busterminal"
+  // The civic places every LGA has (the same ids and kinds as src/data/lga.ts).
+  | "inec" | "school" | "viewing" | "kiosk" | "townhall" | "board";
 
 export interface Place {
   id: string;
@@ -60,6 +62,22 @@ PLACES.push(
   { id: "terminal", name: "Kwara Express Terminal", area: "Sobi Rd", lat: 8.5302, lng: 4.5551, kind: "busterminal", blurb: "Luxury coaches to Lagos, Abuja and every capital. The ticket office, the hawkers, the loud horns.", open: [5, 21], gen: true },
   { id: "club", name: "Klub Rush", area: "Tanke Road", lat: 8.4822, lng: 4.6245, kind: "club", blurb: "Top floor on Tanke Road. Students and workers dancing till morning; the DJ never tires.", open: [21, 4], gen: true },
 );
+
+/**
+ * The civic places every LGA has, which Ilorin was missing: without them an Ilorin citizen could not
+ * register, collect a PVC or vote. Same ids as the generated towns, so every civic rule just works.
+ */
+PLACES.push(
+  { id: "inec", name: "VINEC Office", area: "Ahmadu Bello Way", lat: 8.4851, lng: 4.5724, kind: "inec", blurb: "VINEC's Ilorin office. Register, collect your PVC and ask questions.", open: [8, 17], gen: true },
+  { id: "pu", name: "Polling Unit", area: "Tanke, in the primary school", lat: 8.4799, lng: 4.6188, kind: "school", blurb: "Your polling unit, in a primary school in Tanke. This is where you vote.", open: [0, 24], gen: false },
+  { id: "viewing", name: "Viewing Centre", area: "Tanke", lat: 8.4817, lng: 4.6205, kind: "viewing", blurb: "Big TV, plastic chairs, small fee. News and football for people without TV at home.", open: [10, 23], gen: true },
+  { id: "kiosk", name: "News Stand", area: "Post Office", lat: 8.4884, lng: 4.5652, kind: "kiosk", blurb: "Newspapers on display at the Post Office junction. Plenty people read the front pages for free.", open: [6, 19], gen: false },
+  { id: "hall", name: "Town Hall", area: "Oja Oba", lat: 8.4962, lng: 4.5491, kind: "townhall", blurb: "Voter education sessions and community debates.", open: [8, 20], gen: false },
+  { id: "board", name: "Notice Board", area: "Post Office", lat: 8.4874, lng: 4.5638, kind: "board", blurb: "Flyers and announcements. Campaign flyers posted in this LGA show here.", open: [0, 24], gen: false },
+);
+
+/** The civic places above: they were never on the old hand-drawn map, so trip checks against it skip them. */
+export const ILORIN_CIVIC_IDS = new Set(["inec", "pu", "viewing", "kiosk", "hall", "board"]);
 
 /** How many places the prototype had: the ones before this are checked against it. */
 export const PROTOTYPE_PLACES = 27;

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { LGAS } from "../data/geography";
-import { PLACES, PROTOTYPE_PLACES } from "../data/ilorin/places";
+import { ILORIN_CIVIC_IDS, PLACES, PROTOTYPE_PLACES } from "../data/ilorin/places";
 import { lgaPlaces } from "../data/lga";
 import { STATES } from "../data/states";
 import { route as oldRoute } from "../sim/world";
@@ -184,7 +184,8 @@ describe("Ilorin as a grid town", () => {
    */
   it("keeps the average trip, and everyday trips from home, close to the old map's", () => {
     const r = router(map);
-    const ids = PLACES.map((p) => p.id);
+    // Places the old map had (the civic places were added on the grid only).
+    const ids = PLACES.filter((p) => !ILORIN_CIVIC_IDS.has(p.id)).map((p) => p.id);
     const timeErr: number[] = [];
     const fareErr: number[] = [];
     let oldTotal = 0;

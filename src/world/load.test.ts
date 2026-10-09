@@ -11,7 +11,9 @@ describe("picking a map for a citizen", () => {
     const kwara = STATES.find((s) => s.code === "kwara")!;
     const map = loadMap({ lgaCode: "kwara/ilorin-west", state: kwara, lgaName: "Ilorin West", ...citizen });
     expect(map.id).toBe("kwara/ilorin");
-    expect(map.places.length).toBe(32);
+    expect(map.places.length).toBe(38);
+    // Every civic place a citizen needs to register, collect a PVC and vote.
+    for (const id of ["inec", "pu", "viewing", "kiosk", "hall", "board"]) expect(map.places.some((p) => p.id === id)).toBe(true);
     expect(map.grid).toBeDefined();
   });
 

@@ -57,6 +57,11 @@ const BLOCK: Record<string, number | "out"> = {
   amala: 10, froyo: 10, mall: 10,
   poly: 11,
   shao: "out", farm: "out",
+  // Civic places: VINEC on Ahmadu Bello Way, the polling unit in the Tanke school, the rest round Post Office.
+  inec: 4,
+  pu: 11,
+  viewing: 2,
+  kiosk: 3, board: 3, hall: 3,
 };
 
 const OUT_AT: Record<string, { road: number; along: number }> = {
