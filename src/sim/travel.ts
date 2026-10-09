@@ -47,8 +47,8 @@ export const MAX_WALK = 1300;
 
 /**
  * How a trip plays in real time, in milliseconds: waiting for the vehicle to pull up, climbing in, the
- * ride itself and climbing out. The ride grows with distance between the mode's shortest and longest.
- * A keke never takes less than 30 seconds on the road; the player can skip to the end at any point.
+ * ride itself and climbing out. The ride is the route's length at the vehicle's speed, so a short hop is
+ * quick and the long road to Malete takes a while; the player can skip to the end at any point.
  */
 export interface TripTiming {
   wait: number;
@@ -57,24 +57,22 @@ export interface TripTiming {
   alight: number;
 }
 
-const TRIP_FEEL: Record<string, { wait: number; board: number; ride: [number, number]; alight: number }> = {
-  walk: { wait: 0, board: 0, ride: [8_000, 30_000], alight: 0 },
-  keke: { wait: 6_000, board: 2_500, ride: [30_000, 60_000], alight: 1_500 },
-  okada: { wait: 4_000, board: 2_000, ride: [20_000, 40_000], alight: 1_500 },
-  bus: { wait: 9_000, board: 3_000, ride: [40_000, 75_000], alight: 2_000 },
-  danfo: { wait: 9_000, board: 3_000, ride: [40_000, 75_000], alight: 2_000 },
-  ride: { wait: 8_000, board: 2_500, ride: [25_000, 50_000], alight: 1_500 },
-  suv: { wait: 3_000, board: 2_500, ride: [20_000, 45_000], alight: 1_500 },
-  horse: { wait: 0, board: 3_000, ride: [35_000, 70_000], alight: 2_000 },
+/** speed: world pixels a second on screen. A typical trip across town is about 1,100 pixels. */
+const TRIP_FEEL: Record<string, { wait: number; board: number; speed: number; min: number; max: number; alight: number }> = {
+  walk: { wait: 0, board: 0, speed: 40, min: 4_000, max: 40_000, alight: 0 },
+  keke: { wait: 4_000, board: 2_000, speed: 75, min: 5_000, max: 60_000, alight: 1_200 },
+  okada: { wait: 3_000, board: 1_500, speed: 95, min: 4_000, max: 45_000, alight: 1_200 },
+  bus: { wait: 7_000, board: 2_500, speed: 60, min: 7_000, max: 75_000, alight: 1_500 },
+  danfo: { wait: 7_000, board: 2_500, speed: 60, min: 7_000, max: 75_000, alight: 1_500 },
+  ride: { wait: 6_000, board: 2_000, speed: 95, min: 4_000, max: 45_000, alight: 1_200 },
+  suv: { wait: 2_500, board: 2_000, speed: 100, min: 4_000, max: 45_000, alight: 1_200 },
+  horse: { wait: 0, board: 2_500, speed: 45, min: 6_000, max: 70_000, alight: 1_500 },
 };
-
-/** A route this long (world pixels) or longer gets the mode's longest ride. */
-const FAR_TRIP = 3000;
 
 export function tripTiming(mode: AnyModeId, d: number): TripTiming {
   const f = TRIP_FEEL[mode] ?? TRIP_FEEL.keke;
-  const k = Math.min(1, Math.max(0, d / FAR_TRIP));
-  return { wait: f.wait, board: f.board, ride: Math.round(f.ride[0] + (f.ride[1] - f.ride[0]) * k), alight: f.alight };
+  const ride = Math.round(Math.min(f.max, Math.max(f.min, (d / f.speed) * 1000)));
+  return { wait: f.wait, board: f.board, ride, alight: f.alight };
 }
 
 export const tripTotalMs = (t: TripTiming) => t.wait + t.board + t.ride + t.alight;

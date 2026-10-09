@@ -11,6 +11,7 @@ import { dailyLife, resolveFamily } from "./naija-life";
 import { decideApplications } from "./jobs";
 import { bankDaily, book, resolveStock } from "./bank";
 import { addConnections, checkStanding, OWAMBE_CONNECTIONS } from "./standing";
+import { CAREERS } from "../data/careers";
 
 export const NEPA_CUT_CHANCE = 0.07;
 export const NEPA_RESTORE_CHANCE = 0.22;
@@ -31,6 +32,11 @@ export function hourly(s: GameState, rng: Rng) {
     s.seen[key] = true;
     return true;
   };
+
+  // Morning nudge: a job you haven't done today.
+  const c = s.citizen;
+  if (h === 7 && c?.employed && CAREERS[c.career] && s.flags.shiftDay !== dayNum(s.t) && once("work-call"))
+    s.toasts.push(`Time for work: ${CAREERS[c.career].workLabel.toLowerCase()}`);
 
   if (s.light) {
     if (rng() < NEPA_CUT_CHANCE) {

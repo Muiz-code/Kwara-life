@@ -22,7 +22,8 @@ import { AVATAR_ART } from "@/data/character";
 import { PRESIDENTIAL_2027 as CAL, civicPhase } from "@/data/calendar";
 import { NEWS } from "@/data/media";
 import { NEEDS, type NeedKey } from "@/data/needs";
-import { DAYS, dayOfWeek, fmtTime, mood, worldT } from "@/sim";
+import { DAYS, dayNum, dayOfWeek, fmtTime, mood, worldT } from "@/sim";
+import { CAREERS } from "@/data/careers";
 import {
   clockJumped,
   debugMode,
@@ -336,6 +337,7 @@ export function Objectives() {
   const away = useGame((s) => !!s.game.at);
   const food = useGame((s) => s.game.needs.food);
   const visited = useGame((s) => s.game.visited.length);
+  const workedToday = useGame((s) => s.game.flags.shiftDay === dayNum(s.game.t));
   const now = useNow(15_000);
   if (!c) return null;
   const phase = civicPhase(CAL, now);
@@ -348,6 +350,14 @@ export function Objectives() {
   if (c.pvc === "registered" && (phase === "registration" || phase === "waiting-for-pvc"))
     goals.push({ title: "Wait for PVC collection", hint: "Collection opens 31 October" });
   if (!c.employed) goals.push({ title: "Find a job", hint: "Check the openings on your phone" });
+  else if (!workedToday && !away && CAREERS[c.career]) {
+    const career = CAREERS[c.career];
+    goals.push({
+      title: "Go to work",
+      hint: career.where === "anywhere" ? `${career.workLabel}. You can do it from home` : `${career.workLabel}. Not done today`,
+      go: career.where === "anywhere" ? ["home"] : ["work", "secretariat"],
+    });
+  }
   if (phase === "polls-open" && !voted && c.pvc === "have")
     goals.push({ title: away ? "Travel home to vote" : "Go and vote", hint: "Your polling unit, 8am to 4pm", go: away ? undefined : ["pu"] });
   if (c.pvc === "seized") goals.push({ title: "Your PVC was seized", hint: "You cannot vote this election" });
