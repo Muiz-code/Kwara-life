@@ -109,6 +109,10 @@ Must do before launch:
   - live collation, the winner screen and the closing message, with the game frozen after polls close.
 - Phase C (maps): block towns for every LGA, with real district names. The vehicle and traffic-light art is drawn on the streets.
 - The menu, responsive fixes and the debug clock jumps.
+- Public results board at /results (no sign-in, big screen and phone): party standings ranked live from 8am with
+  animated overtakes (motion library), drill-down nation, zone, state, LGA, a state map, the reporting feed, cycle
+  and full-screen modes. Numbers come from src/net/live-results.ts, simulated for now (src/sim/live.ts); add ?demo
+  in dev to watch a whole day in three minutes. It only reads; swap that hook to the server feed in Phase F.
 
 ## Next, in order
 
