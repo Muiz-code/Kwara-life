@@ -29,6 +29,8 @@ import { rng } from "./coords";
 
 /** Which vehicle each way of travelling uses. Walking has none. */
 const RIDE_VEHICLE: Record<string, VehicleKind> = { keke: "keke", okada: "okada", bus: "danfo", danfo: "danfo", ride: "car", suv: "car", drive: "car", hire: "car", horse: "horse" };
+/** Open rides you sit on behind the rider: how far back and up from the vehicle's middle (see life.ts). */
+const PILLION: Partial<Record<VehicleKind, { back: number; up: number }>> = { okada: { back: 0.62, up: 0.45 }, horse: { back: 0.75, up: 1.1 } };
 import { groundOf, step, type Spot } from "./roam";
 import { cellAt, isLotCode } from "../world/town";
 import { buildScene, type BuiltScene } from "./scene";
@@ -498,10 +500,15 @@ export class Town3D {
     this.player.position.set(g.x, this.heightAt(g.x, g.z), g.z);
     if (heading !== null) this.heading = heading;
     if (this.figure) {
+      // Riding: inside a keke, car or danfo you can't be seen. On an okada or a horse you sit out in the open
+      // behind the rider (the drawn stand-in figure can't sit, so it hides).
+      const pillion = onBoard && !!ride && PILLION[ride] !== undefined && this.figure instanceof Avatar;
       this.figure.root.rotation.y = this.heading;
-      this.figure.update(dt, st.reducedMotion ? 0 : speed);
-      // Riding: you are inside (or on) the vehicle, which carries its own rider.
-      this.figure.root.visible = !onBoard;
+      if (this.figure instanceof Avatar) this.figure.update(dt, st.reducedMotion ? 0 : speed, pillion ? "sit" : undefined);
+      else this.figure.update(dt, st.reducedMotion ? 0 : speed);
+      const seat = pillion ? PILLION[ride!]! : null;
+      this.figure.root.position.set(seat ? -Math.sin(this.heading) * seat.back : 0, seat ? seat.up : 0, seat ? -Math.cos(this.heading) * seat.back : 0);
+      this.figure.root.visible = !onBoard || pillion;
     }
     // The vehicle rides under you, or stands on its own while it pulls up and while you climb in or out.
     this.showRide(ride, onBoard ? { x: g.x, z: g.z, h: this.heading } : car);
