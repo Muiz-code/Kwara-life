@@ -163,6 +163,15 @@ export const COUNTER_ROLES: Record<string, CounterRole> = {
       "Your bag is slightly overweight. Just this once.",
     ],
   },
+  gallery: {
+    who: "the guide",
+    label: "Visitor desk",
+    lines: [
+      "Welcome! This place has stood longer than any of us. Take your time.",
+      "The art on the walls is from businesses in town. Your own can hang there too.",
+      "No flash photos near the old pieces, please.",
+    ],
+  },
   takeaway: {
     who: "the server",
     label: "Order counter",

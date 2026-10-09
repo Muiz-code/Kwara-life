@@ -21,6 +21,8 @@ import { roomFor, type Interior3D } from "@/world3d/interior";
 import { COUNTER_ROLES } from "@/data/counters";
 import type { Spot } from "@/world3d/home";
 import Loader from "./game/Loader";
+import AdBooking from "./game/AdBooking";
+import { ILORIN_TOWN_ID as ILORIN_MAP_ID } from "@/world/ilorin-town";
 import { isPhone, naira, useNow } from "./game/ui";
 
 export default function InteriorView({
@@ -40,6 +42,8 @@ export default function InteriorView({
   );
   const now = useNow(5000);
   const [styling, setStyling] = useState(false);
+  /** The gallery frame being booked, or null. */
+  const [wall, setWall] = useState<number | null>(null);
   /** What the person behind the counter just said. */
   const [said, setSaid] = useState<{ who: string; line: string } | null>(null);
   const role = COUNTER_ROLES[roomFor(kind, placeId)];
@@ -64,7 +68,12 @@ export default function InteriorView({
       made = await Interior3D.create(host.current, getGameStore(), {
         placeId,
         kind,
-        onSpot: (spot, x, y) => setMenu({ spot, x, y }),
+        // A gallery frame opens the booking form for that frame; anything else, its menu.
+        onSpot: (spot, x, y) => {
+          const frame = spot.actions[0]?.startsWith("wallart:") ? Number(spot.actions[0].slice(8)) : null;
+          if (frame !== null) setWall(frame);
+          else setMenu({ spot, x, y });
+        },
       });
       if (!alive) return made.destroy();
       room.current = made;
@@ -230,6 +239,11 @@ export default function InteriorView({
       {placeId === "home" && styling && (
         <StylePanel onClose={() => setStyling(false)} />
       )}
+      {wall !== null &&
+        createPortal(
+          <AdBooking mapId={getGameStore().getState().world?.id ?? ILORIN_MAP_ID} boardId={`wall-${placeId}-${wall}`} onClose={() => setWall(null)} />,
+          document.body,
+        )}
       <Loader done={ready} />
     </div>
   );

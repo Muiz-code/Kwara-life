@@ -24,6 +24,8 @@ interface AdsState {
   bookings: Record<string, AdBooking>;
   book: (b: AdBooking) => void;
   remove: (ref: string) => void;
+  /** Someone walked into the gallery and saw this artwork. */
+  addView: (ref: string) => void;
 }
 
 /** Newest booking per board, from the queue. */
@@ -49,6 +51,12 @@ export const adsStore = createStore<AdsState>()(
         const keep = all.sort((x, y) => Number(bookingUntil(y) > now) - Number(bookingUntil(x) > now) || y.paidAt - x.paidAt).slice(0, KEEP);
         for (const gone of all.slice(KEEP)) if (gone.video) void deleteVideo(gone.video);
         const queue = Object.fromEntries(keep.map((x) => [x.ref, x]));
+        set({ queue, bookings: newestPerBoard(queue) });
+      },
+      addView: (ref) => {
+        const b = get().queue[ref];
+        if (!b) return;
+        const queue = { ...get().queue, [ref]: { ...b, views: (b.views ?? 0) + 1 } };
         set({ queue, bookings: newestPerBoard(queue) });
       },
       remove: (ref) => {

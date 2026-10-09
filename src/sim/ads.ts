@@ -34,6 +34,8 @@ export interface AdBooking {
   video?: string;
   /** Real time it stops showing. */
   until?: number;
+  /** Wall artwork: how many times someone has walked in and seen it. */
+  views?: number;
   /** The business's website: players who tap the board can visit it (https only, checked by cleanAdLink). */
   link?: string;
 }
@@ -44,6 +46,7 @@ export function boardTypeOf(boardId: string): BoardType {
   if (boardId.startsWith("square-")) return "square";
   if (boardId.startsWith("tall-")) return "tall";
   if (boardId.startsWith("attention-")) return "prime";
+  if (boardId.startsWith("wall-")) return "wall";
   return "classic";
 }
 

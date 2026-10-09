@@ -1,7 +1,7 @@
 // The kinds of billboard a business can book. Every board is printed front and back, and each face runs
 // a carousel: several businesses share it, each ad showing for one slot in turn.
 
-export type BoardType = "classic" | "prime" | "smart" | "square" | "tall";
+export type BoardType = "classic" | "prime" | "smart" | "square" | "tall" | "wall";
 
 /** A face's shape, width over height. */
 export type BoardShape = "wide" | "square" | "tall";
@@ -45,6 +45,11 @@ export const BOARDS: Record<BoardType, BoardSpec> = {
   tall: {
     type: "tall", label: "Tall LED screen", video: true, slotMs: 15000, queue: 6, priceFactor: 2, shape: "tall",
     blurb: "A tall portrait screen: made for posters and phone videos filmed upright, up to 15 seconds.",
+  },
+  // Wall artwork inside a landmark's gallery: one business per frame, ₦25,000 a day (2.5 times a board).
+  wall: {
+    type: "wall", label: "Gallery wall artwork", video: false, slotMs: 60_000, queue: 1, priceFactor: 2.5, shape: "wide",
+    blurb: "A big framed artwork on the wall of the landmark's visitor centre. Every visitor who walks in sees it.",
   },
 };
 

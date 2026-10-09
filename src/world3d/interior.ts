@@ -26,9 +26,15 @@ import { roomFor, type Room } from "../data/rooms";
 import type { Action } from "../data/action";
 import { actionsAt } from "../store/world";
 import { debugMode } from "../store/clock";
+import { adsStore } from "../store/ads";
+import { ILORIN_TOWN_ID as ILORIN_MAP_ID } from "../world/ilorin-town";
+import { CanvasTexture, PlaneGeometry, SRGBColorSpace, TextureLoader } from "three";
 
 /** Food you sit down to eat where you bought it (not a take-away, foodstuff or cooking at home). */
 const eatsHere = (a: Action) => (a.fx.food ?? 0) > 0 && !a.takeaway && !a.groc && !a.usesFood && !a.eatTakeaway;
+
+/** Where the gallery's three artwork frames hang on the back wall (x), each 3.2 by 1.6 inside its frame. */
+export const GALLERY_FRAMES = [-5, 0, 5];
 
 /** Where each business's counter is, where you stand at it, and which way you face. */
 const COUNTERS: Partial<Record<Room, { box: { x: number; z: number; w: number; d: number; h: number }; stand: [number, number]; turn: number }>> = {
@@ -51,6 +57,7 @@ const COUNTERS: Partial<Record<Room, { box: { x: number; z: number; w: number; d
   airport: { box: { x: -2.7, z: 4.5, w: 3.6, d: 0.9, h: 2.0 }, stand: [-1.4, 3.8], turn: 0 },
   takeaway: { box: { x: -1.5, z: -2.8, w: 3, d: 0.8, h: 2.0 }, stand: [-1.5, -1.8], turn: Math.PI },
   cafe: { box: { x: -2, z: -3.4, w: 4, d: 0.8, h: 2.0 }, stand: [-2, -2.5], turn: Math.PI },
+  gallery: { box: { x: -5.5, z: 3.5, w: 2, d: 0.7, h: 2.0 }, stand: [-5.5, 2.7], turn: 0 },
 };
 
 /** The floor, for working out where a tap lands. */
@@ -61,7 +68,7 @@ export function dims(room: Room): [number, number, number] {
   if (room === "church" || room === "mosque") return [20, 16, 7];
   if (room === "airport" || room === "stadium") return [24, 16, 8];
   if (room === "station") return [20, 12, 6];
-  if (room === "bank" || room === "showroom" || room === "supermarket") return [16, 12, 5];
+  if (room === "bank" || room === "showroom" || room === "supermarket" || room === "gallery") return [16, 12, 5];
   if (room === "techhub") return [16, 12, 4.2];
   if (room === "club") return [14, 12, 3.8];
   return [12, 10, 3.4];
@@ -119,9 +126,9 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
     church: "#F4EFE4", mosque: "#F1EEE6", club: "#16161E", lounge: "#E6D3AE", buka: "#C8B79A", office: "#E8ECEF",
     classroom: "#F0E2C4", inec: "#EEF3EC", viewing: "#D8CDB8", hotel: "#EFE6D2", hall: "#E8DCC4", shop: "#ECE3D0",
     airport: "#E8EEF2", station: "#D8CDB8", stadium: "#C9C3B6", bank: "#F2EEE6", techhub: "#1F2433", showroom: "#F4F1EA", boutique: "#F2D9C8", supermarket: "#F2F2EE",
-    takeaway: "#F4E3C8", cafe: "#F6DCE6",
+    takeaway: "#F4E3C8", cafe: "#F6DCE6", gallery: "#F1ECE2",
   }[room];
-  const floorA = { home: homeLook(own).floor[0] as string, church: "#B07A4F", mosque: "#2E7D4F", club: "#0E0E14", lounge: "#A98E6A", buka: "#8F877C", office: "#C9C3B6", classroom: "#9C8F7A", inec: "#C9C3B6", viewing: "#8F877C", hotel: "#B07A4F", hall: "#B9A88C", shop: "#C9C3B6" , airport: "#D8DDE2", station: "#B9B1A4", stadium: "#3F7A33", bank: "#E8E2D6", techhub: "#2B2F3A", showroom: "#E8E8E8", boutique: "#B07A4F", supermarket: "#E2E2DC", takeaway: "#D8CDB8", cafe: "#F4F1EA" }[room];
+  const floorA = { home: homeLook(own).floor[0] as string, church: "#B07A4F", mosque: "#2E7D4F", club: "#0E0E14", lounge: "#A98E6A", buka: "#8F877C", office: "#C9C3B6", classroom: "#9C8F7A", inec: "#C9C3B6", viewing: "#8F877C", hotel: "#B07A4F", hall: "#B9A88C", shop: "#C9C3B6" , airport: "#D8DDE2", station: "#B9B1A4", stadium: "#3F7A33", bank: "#E8E2D6", techhub: "#2B2F3A", showroom: "#E8E8E8", boutique: "#B07A4F", supermarket: "#E2E2DC", takeaway: "#D8CDB8", cafe: "#F4F1EA", gallery: "#B9A88C" }[room];
   const floorB = room === "bank" || room === "airport" ? "#F4F1EA" : room === "home" ? homeLook(own).floor[1] : room === "club" ? "#1C1C28" : room === "mosque" ? "#2A7449" : floorA;
 
   // Floor tiles, the back and left walls full height, the front and right walls cut low.
@@ -495,6 +502,26 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
       lights.push([0, H - 0.3, -1, "#FFFFFF"], [3, H - 0.3, 2, "#FFF2D6"]);
       break;
     }
+    case "gallery": {
+      // The landmark's visitor centre: three big frames on the back wall for artwork (booked by businesses,
+      // hung by the room), carvings on plinths, benches to sit and look, the guide's desk by the door.
+      for (let i = 0; i < GALLERY_FRAMES.length; i++) {
+        const x = GALLERY_FRAMES[i];
+        kit.box(3.6, 2.0, 0.12, x, 1.8, -D / 2 + 0.06, "#5A3A22");
+        spots.push({ actions: [`wallart:${i}`], use: { pose: "talk", x, y: 0, z: -D / 2 + 2.2, turn: Math.PI }, label: "Wall artwork", x, z: -D / 2 + 0.3, w: 3.6, d: 0.4, h: 3.9, stand: [x, -D / 2 + 2.2] });
+        crowd.push({ x: x + 0.6, z: -D / 2 + 2.6, turn: Math.PI, g: (["m", "f", "h"] as const)[i % 3] });
+      }
+      for (const [x, z, art] of [[-4, 0.5, "#8C5A2B"], [0, 1.2, "#2B2F36"], [4, 0.5, "#C9A227"]] as const) {
+        kit.box(1, 1.0, 1, x, 0, z, "#E6E2D8");
+        kit.cyl(0.25, 0.4, 0.9, x, 1.0, z, art, 10);
+        kit.ball(0.32, x, 2.15, z, art, 1, 1.2);
+      }
+      for (const x of [-3, 3]) kit.box(2.6, 0.45, 0.6, x, 0, 3.4, "#6B4A2E");
+      kit.box(2, 0.9, 0.7, -5.5, 0, 3.5, "#6B4A2E");
+      crowd.push({ x: -5.5, z: 4.2, turn: Math.PI, g: "f", pose: "talk" }, { x: 3, z: 3.4, turn: Math.PI, g: "m", pose: "sit" });
+      lights.push([-4, H - 0.4, -2, "#FFF2D6"], [4, H - 0.4, -2, "#FFF2D6"], [0, H - 0.4, 2, "#FFF2D6"]);
+      break;
+    }
     case "cafe": {
       // A small dessert café: a counter with the cold display, little round tables in pairs, soft pink.
       kit.box(4, 1.0, 0.8, -2, 0, -3.4, "#F4F1EA");
@@ -634,6 +661,8 @@ export class Interior3D {
   /** Using a thing: lying on the bed, working at the stove. Ends when the action does. */
   private using: null | { spot: Spot; action: string; started: boolean; t0: number; already?: boolean } = null;
   private unsub: (() => void)[] = [];
+  /** The gallery's artwork, one picture per frame. */
+  private art: Mesh[] = [];
   private last = performance.now();
   private resize: ResizeObserver | null = null;
   private destroyed = false;
@@ -723,6 +752,7 @@ export class Interior3D {
     this.resize.observe(this.host);
     r.setAnimationLoop(this.frame);
     this.spots = spots;
+    if (this.room === "gallery") this.hangArt();
     // A screen for each thing that switches on: dark until it is used.
     for (const sp of spots) {
       if (!sp.actions.some((id) => gestureFor(id).switchOn)) continue;
@@ -774,6 +804,67 @@ export class Interior3D {
       this.scene.add(me.root);
       this.player = me;
     }
+  }
+
+  /**
+   * The gallery's frames: the artwork a business booked (the newest running one), or an invitation to book.
+   * Walking in counts as one view of every artwork on the walls.
+   */
+  private hangArt() {
+    const st = this.store.getState();
+    const mapId = st.world?.id ?? ILORIN_MAP_ID;
+    const D = this.size[1];
+    const geo = new PlaneGeometry(3.2, 1.6);
+    const c = document.createElement("canvas");
+    c.width = 640;
+    c.height = 320;
+    const g = c.getContext("2d")!;
+    g.fillStyle = "#F4F1EA";
+    g.fillRect(0, 0, 640, 320);
+    g.strokeStyle = "#B5791A";
+    g.lineWidth = 10;
+    g.setLineDash([26, 16]);
+    g.strokeRect(24, 24, 592, 272);
+    g.fillStyle = "#26355E";
+    g.textAlign = "center";
+    g.font = "bold 54px sans-serif";
+    g.fillText("Your art here", 320, 150);
+    g.font = "26px sans-serif";
+    g.fillText("Tap to book this frame · ₦25,000 a day", 320, 210);
+    const empty = new CanvasTexture(c);
+    empty.colorSpace = SRGBColorSpace;
+    const placeholder = new MeshBasicMaterial({ map: empty });
+    const loader = new TextureLoader();
+    const running = () => {
+      const now = Date.now();
+      const q = Object.values(adsStore.getState().queue);
+      return GALLERY_FRAMES.map((_, i) =>
+        q.filter((b) => b.mapId === mapId && b.boardId === `wall-${this.opts.placeId}-${i}` && (b.until ?? 0) > now).sort((a, b) => b.paidAt - a.paidAt)[0],
+      );
+    };
+    const show = () => {
+      running().forEach((ad, i) => {
+        let m = this.art[i];
+        if (!m) {
+          m = new Mesh(geo, placeholder);
+          m.position.set(GALLERY_FRAMES[i], 2.8, -D / 2 + 0.14);
+          this.scene.add(m);
+          this.art[i] = m;
+        }
+        const ref = ad?.ref ?? "";
+        if (m.userData.ref === ref) return;
+        m.userData.ref = ref;
+        if (!ad) m.material = placeholder;
+        else {
+          const tex = loader.load(ad.image);
+          tex.colorSpace = SRGBColorSpace;
+          m.material = new MeshBasicMaterial({ map: tex });
+        }
+      });
+    };
+    show();
+    for (const ad of running()) if (ad) adsStore.getState().addView(ad.ref);
+    this.unsub.push(adsStore.subscribe(show));
   }
 
   /** A tap (not a drag): on something you can use, walk to it and use it; on the floor, walk there. */

@@ -3,7 +3,8 @@
 
 export type Room =
   | "home" | "church" | "mosque" | "club" | "lounge" | "buka" | "office" | "classroom" | "inec" | "viewing" | "hotel" | "hall" | "shop"
-  | "airport" | "station" | "stadium" | "bank" | "techhub" | "showroom" | "boutique" | "supermarket" | "takeaway" | "cafe";
+  | "airport" | "station" | "stadium" | "bank" | "techhub" | "showroom" | "boutique" | "supermarket" | "takeaway" | "cafe"
+  | "gallery";
 
 /** The room for a place, by its kind (and a few places by name). */
 export function roomFor(kind: string, id: string): Room {
@@ -30,5 +31,7 @@ export function roomFor(kind: string, id: string): Room {
   if (kind === "townhall" || kind === "govhouse") return "hall";
   if (kind === "school" || kind === "campus" || kind === "poly" || kind === "kwasu") return "classroom";
   if (kind === "office" || kind === "tower" || kind === "hub" || kind === "workshop") return "office";
+  // A state's landmark has a visitor centre: a gallery with art on the walls.
+  if (kind.startsWith("lm-")) return "gallery";
   return "shop";
 }

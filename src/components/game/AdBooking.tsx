@@ -192,7 +192,8 @@ function Booking({ mapId, boardId: tapped, onClose }: { mapId: string; boardId: 
   const plots = usePlotBoards();
   const type = boardTypeOf(boardId);
   const spec = BOARDS[type];
-  const [face, setFace] = useState<BoardFace | "both">("both");
+  // A gallery frame has one face.
+  const [face, setFace] = useState<BoardFace | "both">(type === "wall" ? "front" : "both");
   const [video, setVideo] = useState<File | null>(null);
   const [now] = useState(() => Date.now());
   const sharing = (f: BoardFace) => faceQueue(queue, mapId, boardId, f, now);
@@ -282,7 +283,9 @@ function Booking({ mapId, boardId: tapped, onClose }: { mapId: string; boardId: 
         <div className="space-y-3">
           <p className="text-sm text-ink-soft">
             {spec.blurb}{" "}
-            Each face takes turns between up to {spec.queue} businesses, {spec.slotMs / 1000} seconds each.
+            {type === "wall"
+              ? "One business per frame, for the days you book. Every visitor who walks in counts as a view."
+              : `Each face takes turns between up to ${spec.queue} businesses, ${spec.slotMs / 1000} seconds each.`}
           </p>
           {tapped.startsWith("plot-") && plots.length > 1 && (
             <label className="block text-sm font-bold">
@@ -301,7 +304,8 @@ function Booking({ mapId, boardId: tapped, onClose }: { mapId: string; boardId: 
               <span className="mt-0.5 block text-xs font-normal text-ink-soft">Your board goes up on this plot in town.</span>
             </label>
           )}
-          <div>
+          {/* A gallery frame has one face. */}
+          <div className={type === "wall" ? "hidden" : undefined}>
             <span className="text-sm font-bold">Which face</span>
             <div className="mt-1 grid grid-cols-3 gap-1.5">
               {(["front", "back", "both"] as const).map((f) => {
