@@ -27,5 +27,14 @@ export function supabaseGameDb(sb: SupabaseClient): GameDb {
       if (error) throw error;
       return (data as number | null) ?? null;
     },
+    async claim(user, device, staleMinutes) {
+      const { data, error } = await sb.rpc("claim_device", { p_user: user, p_device: device, p_stale_minutes: staleMinutes });
+      if (error) throw error;
+      return data === true;
+    },
+    async release(user, device) {
+      const { error } = await sb.rpc("release_device", { p_user: user, p_device: device });
+      if (error) throw error;
+    },
   };
 }

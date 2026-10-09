@@ -7,7 +7,8 @@ import { supabaseGameDb } from "@/server/supabase-game";
 // Next to the database (Supabase project in London).
 export const preferredRegion = "lhr1";
 
-export const GET = (req: Request) => forPlayer(req, async (user) => send(await getGame(supabaseGameDb(supabaseAdmin()), user)));
+export const GET = (req: Request) =>
+  forPlayer(req, async (user) => send(await getGame(supabaseGameDb(supabaseAdmin()), user, new URL(req.url).searchParams.get("device"))));
 
 export const PUT = (req: Request) =>
   forPlayer(req, async (user) => {

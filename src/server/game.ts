@@ -1,6 +1,7 @@
 // The server's side of a player's game (Phase E1): roll a new citizen, take over a save made before the
 // server existed, and store saves. Nothing a browser sends is trusted: every save goes through the game's
 // own checks (sanitizeGame), and who the citizen is (name, state, LGA, polling unit) can never change.
+// One device plays an account at a time: the others are told to log out there first.
 // Pure apart from the database, which is passed in, so the rules are tested without one.
 import { LGA, POLLING_UNITS_PER_LGA } from "../data/geography";
 import { STATE } from "../data/states";
@@ -25,12 +26,33 @@ export interface GameDb {
   create(user: string, citizen: CitizenRow, game: GameState): Promise<{ created: boolean; game: unknown; version: number }>;
   /** Store a save made from `version`; the new version, or null if another save came in between. */
   save(user: string, game: GameState, version: number): Promise<number | null>;
+  /** Take or keep the account for this device; false when another device has it and checked in recently. */
+  claim(user: string, device: string, staleMinutes: number): Promise<boolean>;
+  /** Free the account (logging out on this device). */
+  release(user: string, device: string): Promise<void>;
 }
 
 /** What a route answers: an HTTP status and a body. */
 export type Reply = { status: number; body: Record<string, unknown> };
 const ok = (body: Record<string, unknown>): Reply => ({ status: 200, body });
 const no = (status: number, error: string): Reply => ({ status, body: { error } });
+
+/** A device that stops checking in loses the account after this long (the game checks in every 3 minutes). */
+export const DEVICE_STALE_MINUTES = 10;
+export const ON_ANOTHER_DEVICE = "You are already playing on another device. Log out there to continue here.";
+
+const DEVICE = /^[A-Za-z0-9_-]{16,64}$/;
+const deviceOf = (body: unknown) => {
+  const d = typeof body === "object" && body ? (body as { device?: unknown }).device : undefined;
+  return typeof d === "string" && DEVICE.test(d) ? d : null;
+};
+
+/** Null when this device may play the account (it now holds it), or the reply refusing it. */
+async function holds(db: GameDb, user: string, body: unknown): Promise<Reply | null> {
+  const device = deviceOf(body);
+  if (!device) return no(400, "Reload the game");
+  return (await db.claim(user, device, DEVICE_STALE_MINUTES)) ? null : { status: 423, body: { error: ON_ANOTHER_DEVICE, busy: true } };
+}
 
 /** A save without what lives only in this browser session (toasts). */
 const stored = (g: GameState): GameState => ({ ...g, toasts: [] });
@@ -49,7 +71,9 @@ function citizenRow(g: GameState): CitizenRow | string {
 }
 
 /** The player's game as the server has it. */
-export async function getGame(db: GameDb, user: string): Promise<Reply> {
+export async function getGame(db: GameDb, user: string, device: string | null): Promise<Reply> {
+  const busy = await holds(db, user, { device });
+  if (busy) return busy;
   const row = await db.load(user);
   return ok(row ? { game: row.game, version: row.version } : { game: null });
 }
@@ -60,6 +84,8 @@ export async function getGame(db: GameDb, user: string): Promise<Reply> {
  */
 export async function newCitizen(db: GameDb, user: string, body: unknown, now: number, rng: Rng): Promise<Reply> {
   const b = (typeof body === "object" && body ? body : {}) as { input?: unknown; adopt?: unknown };
+  const busy = await holds(db, user, body);
+  if (busy) return busy;
   let game: GameState | null = null;
   if (b.input !== undefined) {
     const i = b.input as Partial<RollInput> | null;
@@ -88,6 +114,8 @@ export async function newCitizen(db: GameDb, user: string, body: unknown, now: n
 export async function putSave(db: GameDb, user: string, body: unknown): Promise<Reply> {
   const b = (typeof body === "object" && body ? body : {}) as { game?: unknown; version?: unknown };
   if (typeof b.version !== "number" || !Number.isInteger(b.version) || b.version < 1) return no(400, "Missing save version");
+  const busy = await holds(db, user, body);
+  if (busy) return busy;
   const game = sanitizeGame(b.game);
   if (!game) return no(400, "That save can't be loaded");
   const have = await db.load(user);
@@ -103,4 +131,15 @@ export async function putSave(db: GameDb, user: string, body: unknown): Promise<
   const version = await db.save(user, stored(game), b.version);
   if (version === null) return { status: 409, body: { error: "Your game was saved on another phone", game: have.game, version: have.version } };
   return ok({ version });
+}
+
+/** Check in while playing (keeps the account on this device), or free it when logging out. */
+export async function device(db: GameDb, user: string, body: unknown): Promise<Reply> {
+  const d = deviceOf(body);
+  if (!d) return no(400, "Reload the game");
+  if ((body as { release?: unknown }).release === true) {
+    await db.release(user, d);
+    return ok({ released: true });
+  }
+  return (await holds(db, user, body)) ?? ok({ ok: true });
 }

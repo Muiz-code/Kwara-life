@@ -198,4 +198,8 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   they change who the citizen is or are out of date (a version number; the newer save wins). A save made on a
   phone before the server existed is taken over once, after the same checks, without any votes.
 - Votes are only ever recorded by the server's voter roll: a save can never add one.
+- One device at a time per account (owner, 9 Oct 2026). Another device is told "You are already playing on
+  another device. Log out there to continue here." Logging out uploads the game and frees the account at once; a
+  device that stops checking in (every 3 minutes while playing) loses it after 10 minutes, so a lost phone never
+  locks a player out for good. Signed-in players can't "Start a new life": one citizen per account, kept for good.
 - Vote counts will live in project 1 for now, as counts per polling unit and party only (no ballots).

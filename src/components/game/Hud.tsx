@@ -35,6 +35,7 @@ import {
 import { nextStep } from "@/sim/explore";
 import { STATES } from "@/data/states";
 import { online, supabase } from "@/net/supabase";
+import { signOutHere } from "@/net/sync";
 import { Button, DISCLAIMER, Glass, Modal, cx, naira, useNow } from "./ui";
 
 const NEED_ICON: Record<NeedKey, LucideIcon> = {
@@ -250,17 +251,20 @@ function GameMenu({ onClose }: { onClose: () => void }) {
             <Button tone="ghost" onClick={() => setView("about")}>
               About and disclaimer
             </Button>
-            <Button tone="danger" onClick={() => setView("reset")}>
-              Start a new life
-            </Button>
+            {/* Signed in, the server keeps one citizen per account for good: no starting over. */}
+            {!online() && (
+              <Button tone="danger" onClick={() => setView("reset")}>
+                Start a new life
+              </Button>
+            )}
             {debugMode() && <ClockJumps onDone={onClose} />}
             {online() && <SignedInAs />}
             {online() && (
               <Button
                 tone="ghost"
                 onClick={() => {
-                  // The sign-in screen comes back as soon as the session ends.
-                  void supabase()?.auth.signOut();
+                  // Upload the game and free the account for another device; the sign-in screen comes back after.
+                  void signOutHere();
                   onClose();
                 }}
               >

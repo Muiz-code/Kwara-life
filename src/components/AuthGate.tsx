@@ -6,10 +6,10 @@
 // A build without Supabase settings skips this screen and plays offline.
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { CalendarCheck, Eye, EyeOff, KeyRound, Loader2, LogIn, Mail, UserPlus } from "lucide-react";
+import { CalendarCheck, Eye, Smartphone, EyeOff, KeyRound, Loader2, LogIn, Mail, UserPlus } from "lucide-react";
 import { online, supabase } from "@/net/supabase";
 import { getGameStore, setAccount } from "@/store";
-import { startSync } from "@/net/sync";
+import { retryHere, signOutHere, startSync, useBlocked } from "@/net/sync";
 import { UNDER_AGE, dobProblem, dobString, lagosToday } from "@/sim/age";
 import Loader from "./game/Loader";
 
@@ -133,6 +133,21 @@ function Account({ id, children }: { id: string; children: ReactNode }) {
   setAccount(id);
   // Keep this account's game in step with the server while it plays.
   useEffect(() => startSync(getGameStore(), id), [id]);
+  const blocked = useBlocked();
+  if (blocked)
+    return (
+      <AuthShell onSubmit={retryHere}>
+        <h1 className="mb-3 flex items-center gap-2 font-bold">
+          <Smartphone aria-hidden className="h-5 w-5 text-[#F2B705]" />
+          Playing on another device
+        </h1>
+        <p className="mb-4 text-sm">{blocked} One person, one citizen, one device at a time.</p>
+        <button type="submit" className="w-full rounded-2xl bg-[#F2B705] py-3 font-bold text-[#141B33]">I have logged out there. Try again</button>
+        <button type="button" onClick={() => void signOutHere()} className="mt-4 text-sm font-semibold underline">
+          Log out here instead
+        </button>
+      </AuthShell>
+    );
   return <Fragment key={id}>{children}</Fragment>;
 }
 
