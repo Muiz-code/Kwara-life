@@ -19,7 +19,7 @@ import { throttledStorage } from "./storage";
 import { findActionAt, placeInfo, tripWorldFor } from "./world";
 import { serviceFor, type Service } from "../data/services";
 import { roomFor } from "../data/rooms";
-import { CAR_HIRE } from "../data/sync";
+import { CAR_HIRE, INSPECT_ACTIONS, tourAction } from "../data/sync";
 import { checkIn, track, type Moment } from "../sim/daily";
 import { watDate } from "../sim/civic";
 import type { Action } from "../data/action";
@@ -47,6 +47,8 @@ export interface GameStore {
   selected: string;
   paused: boolean;
   activity: Activity | null;
+  /** On a house inspection with the agent: the house id, while the scene plays. */
+  touring: string | null;
   /** In a queue or at a counter, before the action itself (src/data/services.ts). */
   service: ServiceRun | null;
   /** Toasts waiting to be shown, oldest first. */
@@ -79,6 +81,10 @@ export interface GameStore {
   /** Sit the booked interview with an answer per question. */
   sitInterview: (answers: number[]) => { hired: boolean; score: number } | string;
   travel: (dest: string, mode: string, now: number) => void;
+  /** Book (and pay for) an inspection from the Sync app. Returns why not, or null. */
+  bookInspection: (houseId: string) => string | null;
+  /** The inspection scene is over: the clock moves on and the home counts as seen. */
+  finishTour: () => void;
   /** Book a Sync car and driver for today from the app. Returns why not, or null. */
   hireCar: () => string | null;
   /** At work: you handled task i of the shift in time. */
@@ -120,7 +126,7 @@ export interface GameStore {
   reset: () => void;
 }
 
-export const isBusy = (s: GameStore) => s.activity !== null || s.service !== null;
+export const isBusy = (s: GameStore) => s.activity !== null || s.service !== null || s.touring !== null;
 
 /** Waiting your turn at a counter, then the steps there, before the action itself runs (src/data/services.ts). */
 export interface ServiceRun {
@@ -215,6 +221,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
           world: null,
           journey: null,
           service: null,
+          touring: null,
           myBallot: null,
 
           tick: () => {
@@ -297,6 +304,8 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             const r = startAction(st.game, a, rng, ctx);
             if ("blocked" in r) return toast(r.blocked);
             if ("flow" in r) return set({ flow: r.flow });
+            // An inspection plays as its own scene: the drive there, the rooms, the drive back.
+            if (a.tour) return set({ touring: a.tour, game: { ...st.game, inside: false } });
             if (service) {
               // Take a number and wait inside. The action itself runs once you are through at the counter.
               // At a roadside stall or in the market there is no queue: straight to the steps.
@@ -314,6 +323,34 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             }
             const ms = st.reducedMotion ? 120 : actionAnimMs(r.plan);
             commit(r.state, { activity: { kind: "action", plan: r.plan, startedAt: now, ms, done: 0 } });
+          },
+
+          bookInspection: (houseId) => {
+            const st = get();
+            if (isBusy(st)) return "You are busy";
+            const a = INSPECT_ACTIONS.find((x) => x.inspect === houseId);
+            if (!a) return "That home is not on Sync";
+            // From the app: pay the fee by transfer, the agent waits at the office.
+            const ctx = { now: realNow(), place: { name: "Sync", open: [0, 24] as [number, number], gen: true } };
+            const r = startAction(st.game, a, rng, ctx);
+            if ("blocked" in r) return r.blocked;
+            if ("flow" in r) return null;
+            commit(finishAction(r.state, { ...r.plan, dur: 0 }, rng, ctx));
+            return null;
+          },
+
+          finishTour: () => {
+            const st = get();
+            const house = st.touring;
+            if (!house) return;
+            const a = tourAction(house);
+            const ctx = { now: realNow(), place: placeInfo(st.world, st.game.loc) ?? { name: "Sync", open: [0, 24] as [number, number], gen: true } };
+            const r = startAction(st.game, a, rng, ctx);
+            if ("blocked" in r || "flow" in r) return set({ touring: null });
+            const g = clone(r.state);
+            advance(g, r.plan.dur, rng);
+            const done = finishAction(g, r.plan, rng, ctx);
+            commit(done, { touring: null, selected: done.loc });
           },
 
           hireCar: () => {
@@ -547,7 +584,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
           shiftToast: () => set({ toasts: get().toasts.slice(1), toastSeq: get().toastSeq + 1 }),
           reset: () => {
             const g = freshState();
-            set({ game: g, selected: g.loc, activity: null, service: null, toasts: [], paused: false, flow: null, journey: null, myBallot: null, world: null });
+            set({ game: g, selected: g.loc, activity: null, service: null, touring: null, toasts: [], paused: false, flow: null, journey: null, myBallot: null, world: null });
           },
         };
       },

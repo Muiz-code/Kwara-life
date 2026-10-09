@@ -77,6 +77,10 @@ export interface Flags {
   stamps?: Record<string, number>;
   /** Real days played in a row (WAT dates). */
   streak?: { last: string; count: number };
+  /** A home with an inspection booked and not yet done (a house id). */
+  inspection?: string;
+  /** Homes you have inspected: you can rent or buy only these. */
+  inspected?: string[];
   /** Game day a car and driver were hired for (Sync). */
   carHireDay?: number;
   /** Take-away packs carried home, by food value, oldest first. */

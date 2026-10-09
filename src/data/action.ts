@@ -39,6 +39,10 @@ export interface Action {
   groc?: number;
   /** Packs this food (its food value) to take home, instead of eating it here. */
   takeaway?: number;
+  /** Books an inspection of this home (a house id from src/data/shops.ts), paying the fee. */
+  inspect?: string;
+  /** Goes on the booked inspection of this home with the agent. */
+  tour?: string;
   /** A car and driver for the rest of the game day (Sync). */
   carHire?: boolean;
   /** Eats the oldest take-away pack at home. */

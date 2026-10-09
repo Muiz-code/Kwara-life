@@ -3,10 +3,10 @@
 // LGA places (src/data/lga.ts) with transport by class (src/data/transport.ts).
 import type { Action } from "../data/action";
 import { ACTIONS as ILORIN_ACTIONS } from "../data/ilorin/actions";
-import { EAT_TAKEAWAY, takeawayPacks } from "../sim/actions";
+import { EAT_TAKEAWAY, inspectedHomes, takeawayPacks } from "../sim/actions";
 import { ILORIN_LGAS, LGA } from "../data/geography";
 import { FURNITURE_ACTIONS } from "../data/furniture";
-import { SYNC_ACTIONS } from "../data/sync";
+import { SYNC_ACTIONS, tourAction } from "../data/sync";
 import { PHONE_ACTIONS } from "../data/phones";
 import { CIVIC_ACTIONS, lgaActions, type LgaPlaceId } from "../data/lga";
 import { STATE } from "../data/states";
@@ -41,8 +41,16 @@ function asTakeaway(a: Action): Action {
   };
 }
 
+/** At Sync: your booked inspection first, rent or buy only what you have seen, book the others. */
+function syncOffice(game: GameState, all: Action[]): Action[] {
+  const seen = inspectedHomes(game);
+  const booked = game.flags.inspection;
+  const list = all.filter((a) => (a.house ? seen.includes(a.house) : a.inspect ? !seen.includes(a.inspect) && a.inspect !== booked : true));
+  return booked ? [tourAction(booked), ...list] : list;
+}
+
 export function actionsAt(game: GameState, map: WorldMap | null, placeId: string): Action[] {
-  const all = placeActions(game, map, placeId);
+  const all = placeId === "sync" ? syncOffice(game, placeActions(game, map, placeId)) : placeActions(game, map, placeId);
   // At home with take-away packs: eat one.
   return placeId === game.homeId && game.loc === game.homeId && takeawayPacks(game).length ? [...all, EAT_TAKEAWAY] : all;
 }

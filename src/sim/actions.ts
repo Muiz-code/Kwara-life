@@ -61,6 +61,9 @@ export const PVC_NOT_READY_CHANCE = 0.3;
 export const actionMinutes = (s: GameState, a: Action) =>
   a.shift && s.citizen ? (CAREERS[s.citizen.career]?.shiftMinutes ?? PAY[s.citizen.cls].shiftMinutes) : a.dur;
 
+/** Homes you have inspected (a bad save's value counts as none). */
+export const inspectedHomes = (s: GameState): string[] => (Array.isArray(s.flags.inspected) ? s.flags.inspected.filter((h) => typeof h === "string") : []);
+
 /** Most take-away packs you can carry home at once. */
 export const MAX_TAKEAWAY = 3;
 
@@ -107,7 +110,13 @@ export function blockReason(s: GameState, a: Action, ctx: ActionContext = {}): s
   if (a.house && s.house === a.house) return HOUSE[a.house]?.rent ? "You already rent this place" : "You already own this house";
   if (a.house && HOUSE[a.house]?.rent && s.house && HOUSE[s.house] && !HOUSE[s.house].rent) return "You own a house already. No need to rent";
   if (a.carHire && s.flags.carHireDay === dayNum(s.t)) return "Your driver is already on standby today";
+  // See it before you pay for it: renting and buying need an inspection first.
+  if (a.inspect && inspectedHomes(s).includes(a.inspect)) return "You've inspected this one already";
+  if (a.inspect && s.flags.inspection === a.inspect) return "Already booked. Your agent is waiting at the Sync office";
+  if (a.inspect && s.flags.inspection) return "Finish the inspection you booked first";
+  if (a.tour && s.flags.inspection !== a.tour) return "Book an inspection first";
   if (a.house && s.house && HOUSE[s.house] && HOUSE[a.house] && HOUSE[a.house].tier < HOUSE[s.house].tier) return "Your house is already bigger than this";
+  if (a.house && !inspectedHomes(s).includes(a.house) && s.house !== a.house) return "Inspect it first. Book an inspection on the Sync app or at the Sync office";
   if (a.outfit && s.outfit === a.outfit) return "You are already wearing this";
   if (a.outfit && s.char && Object.hasOwn(OUTFIT, a.outfit) && !outfitFits(OUTFIT[a.outfit], s.char.g)) return OUTFIT[a.outfit].for === "m" ? "That one is cut for men" : "That one is cut for women";
   if (a.website && s.flags.website) return "Raavon already built your website";
@@ -176,6 +185,7 @@ function spendCat(a: Action): TxnCat {
   if (a.groc || a.fx.food) return "food";
   if (a.phone || a.car || a.outfit || a.buy) return "shopping";
   if (a.carHire) return "transport";
+  if (a.inspect) return "home";
   if (a.house || a.rent || a.furnish || a.sleep) return "home";
   if (a.flyer || a.bribe) return "campaign";
   if (a.fx.fun) return "fun";
@@ -203,6 +213,11 @@ export function finishAction(state: GameState, plan: ActionPlan, rng: Rng, ctx: 
   if (a.job) s.flags.worked = dayNum(s.t);
   if (a.horse) s.horseDay = dayNum(s.t);
   if (a.carHire) s.flags.carHireDay = dayNum(s.t);
+  if (a.inspect) s.flags.inspection = a.inspect;
+  if (a.tour) {
+    s.flags.inspected = [...new Set([...inspectedHomes(s), a.tour])];
+    delete s.flags.inspection;
+  }
   if (a.rent) {
     s.homeId = s.loc;
     note(s, "New home", `Welcome to ${(ctx.place ?? PLACE[s.loc]).name}. This is now where you sleep, bath and cook.`);

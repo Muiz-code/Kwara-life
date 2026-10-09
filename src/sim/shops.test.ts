@@ -43,7 +43,8 @@ describe("shops", () => {
 
   it("sells a house that becomes your home, with light from its generator", () => {
     const flat = HOUSE_ACTIONS.find((a) => a.house === "flat")!;
-    const after = buy(make({}, citizen({ underFlyover: true, home: "Under the flyover" })), flat);
+    // Seen it first: renting and buying need an inspection.
+    const after = buy(make({ flags: { inspected: ["flat"] } }, citizen({ underFlyover: true, home: "Under the flyover" })), flat);
     expect(after.house).toBe("flat");
     expect(after.citizen!.home).toBe("Three-bedroom flat with a generator");
     expect(after.citizen!.underFlyover).toBe(false);

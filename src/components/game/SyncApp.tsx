@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { CalendarDays, Car, Home, MapPin } from "lucide-react";
 import { PLACE as ILORIN_PLACE } from "@/data/ilorin/places";
 import { HOUSES } from "@/data/shops";
-import { CAR_HIRE_PRICE, townEvents } from "@/data/sync";
+import { CAR_HIRE_PRICE, inspectionFee, townEvents } from "@/data/sync";
 import { DAYS, dayNum, dayOfWeek, hourOf, worldT } from "@/sim";
 import { getGameStore, useGame } from "@/store";
 import { Button, cx, naira } from "./ui";
@@ -51,6 +51,9 @@ const goTo = (id: string) => getGameStore().getState().select(id);
 function Homes() {
   const house = useGame((s) => s.game.house);
   const money = useGame((s) => s.game.money);
+  const seen = useGame((s) => (Array.isArray(s.game.flags.inspected) ? s.game.flags.inspected : []));
+  const booked = useGame((s) => s.game.flags.inspection);
+  const [msg, setMsg] = useState<{ id: string; text: string } | null>(null);
   const hasOffice = useGame((s) => !!s.world?.places.some((p) => p.id === "sync") || !!ILORIN_PLACE.sync);
   const section = (rent: boolean) => (
     <>
@@ -66,7 +69,29 @@ function Homes() {
             <div className="mt-1 flex flex-wrap gap-1 text-[11px] font-bold">
               {h.generator && <span className="rounded-full bg-[#0E7A4B]/10 px-2 py-0.5 text-[#0E7A4B]">Generator</span>}
               {house === h.id && <span className="rounded-full bg-[#0E7A4B] px-2 py-0.5 text-white">Your home</span>}
+              {house !== h.id && seen.includes(h.id) && <span className="rounded-full bg-indigo px-2 py-0.5 text-[#F7E7C1]">Inspected</span>}
             </div>
+            {house !== h.id &&
+              (seen.includes(h.id) ? (
+                <Button small tone="ghost" className="mt-1.5 w-full" onClick={() => goTo("sync")}>
+                  {h.rent ? "Pay the rent" : "Buy it"} at the Sync office
+                </Button>
+              ) : booked === h.id ? (
+                <Button small className="mt-1.5 w-full" onClick={() => goTo("sync")}>
+                  Booked. Meet your agent at the Sync office
+                </Button>
+              ) : (
+                <Button
+                  small
+                  tone="ghost"
+                  className="mt-1.5 w-full"
+                  disabled={!!booked || money < inspectionFee(h)}
+                  onClick={() => setMsg({ id: h.id, text: getGameStore().getState().bookInspection(h.id) ?? "Booked! Your agent is waiting at the Sync office." })}
+                >
+                  {booked ? "Finish your other inspection first" : `Book an inspection · ${naira(inspectionFee(h))} fee`}
+                </Button>
+              ))}
+            {msg?.id === h.id && <p className="mt-1 text-xs font-semibold text-ink-soft">{msg.text}</p>}
           </li>
         ))}
       </ul>
@@ -74,10 +99,10 @@ function Homes() {
   );
   return (
     <div>
-      <p className="text-ink-soft">Inspect and sign at the Sync office. We&apos;ll get you there.</p>
-      {hasOffice && (
+      <p className="text-ink-soft">Book an inspection here (the fee is paid now), meet your agent at the Sync office, and see the place before you pay for it.</p>
+      {hasOffice && booked && (
         <Button small className="mt-2 w-full" onClick={() => goTo("sync")}>
-          Book an inspection at the Sync office
+          Go to the Sync office for your inspection
         </Button>
       )}
       {section(true)}

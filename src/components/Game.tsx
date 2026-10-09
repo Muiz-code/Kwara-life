@@ -51,6 +51,7 @@ import TripBar from "./game/TripBar";
 import ServicePanel from "./game/ServicePanel";
 import WorkPanel from "./game/WorkPanel";
 import { Atmosphere, Overheard } from "./game/Vibes";
+import Inspection from "./game/Inspection";
 import { DISCLAIMER, useNow } from "./game/ui";
 import { PRESIDENTIAL_2027 as CAL, seasonClosed } from "@/data/calendar";
 
@@ -345,6 +346,7 @@ export default function Game() {
       {citizen && !revealed && <Reveal onStart={() => setRevealed(true)} />}
       {citizen && revealed && <Notes />}
       <JourneyOverlay />
+      <Inspection />
       {(results || (citizen && revealed && over && !seenResults)) && (
         <Results
           onClose={() => {

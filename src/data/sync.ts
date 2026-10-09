@@ -2,7 +2,62 @@
 // what's on in town; and an employer, from agents and drivers to cleaners and engineers.
 import type { Action } from "./action";
 import type { Education } from "./careers";
-import { HOUSE_ACTIONS } from "./shops";
+import { HOUSE, HOUSES, HOUSE_ACTIONS, type HouseModel } from "./shops";
+
+const naira = (n: number) => `₦${n.toLocaleString("en-NG")}`;
+
+/** The agent's inspection fee, Naija style: paid up front, whether you take the place or not. */
+export const inspectionFee = (h: HouseModel) => (h.rent ? 5_000 : 15_000);
+
+/** Book an inspection of each home: pay the fee, and your agent waits for you at the Sync office. */
+export const INSPECT_ACTIONS: Action[] = HOUSES.map((h) => ({
+  id: `house-inspect-${h.id}`, label: `Book an inspection: ${h.name.toLowerCase()} (${naira(inspectionFee(h))} fee)`, dur: 10,
+  cost: inspectionFee(h), inspect: h.id, fx: {}, bubble: "Booking", done: "Inspection booked. Your agent is waiting for you at the Sync office.",
+}));
+
+/** Go with the agent to see the home you booked. */
+export function tourAction(houseId: string): Action {
+  const h = HOUSE[houseId];
+  return {
+    id: "inspection", label: `Go for the inspection: ${h?.name.toLowerCase() ?? "the house"}`, dur: 120, tour: houseId, fx: { energy: -8 }, bubble: "Inspecting",
+    done: `You inspected the ${h?.name.toLowerCase() ?? "house"}. If you like it, ${h?.rent ? "pay the rent" : "buy it"} here at the Sync office.`,
+  };
+}
+
+export interface TourStop {
+  room: string;
+  /** What the agent says in there. */
+  says: string;
+  /** Something you notice: good, or wahala. */
+  note: string;
+  good: boolean;
+}
+
+/** The rooms you walk through, by how grand the home is, with what the agent says and what you notice. */
+export function tourOf(houseId: string): { area: string; stops: TourStop[] } {
+  const h = HOUSE[houseId];
+  const tier = h?.tier ?? 1;
+  let seed = 0;
+  for (const ch of houseId) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const pick = <T,>(xs: T[], k: number) => xs[(seed + k * 7) % xs.length];
+  const area = pick(["a quiet close off the main road", "a busy street near the market", "a new layout past the junction", "a gated estate on the edge of town"], tier);
+  const stops: TourStop[] = [];
+  const add = (room: string, says: string[], notes: [string, boolean][]) => {
+    const [note, good] = pick(notes, stops.length);
+    stops.push({ room, says: pick(says, stops.length + 1), note, good });
+  };
+  if (houseId === "selfcon") {
+    add("The room", ["See am, e big well well for one person.", "Fresh paint, landlord just did am."], [["Big window, good breeze", true], ["Small crack in the wall", false]]);
+  } else {
+    add(tier >= 3 ? "The living room" : "The parlour", ["This one fit take your visitors, no wahala.", "Tiles everywhere, as you see am."], [["Tiled floor, POP ceiling", true], ["One corner of the ceiling dey leak. Landlord says he will fix it", false]]);
+    add(tier >= 2 ? "The bedrooms" : "The bedroom", ["Wardrobe dey inside already.", "Morning sun no go disturb you here."], [["Built-in wardrobe", true], ["Window net is torn", false]]);
+  }
+  add("The kitchen", ["Plenty space to cook your soup.", "Water runs here, no need to fetch."], [["Running water from a borehole", true], ["No sink yet, just the space for it", false]]);
+  add("The toilet and bathroom", ["Water heater dey, for cold morning.", "Everything flushes, I tested am myself."], [["Water closet and shower", true], ["Tap drips a little", false]]);
+  if (h?.generator) add("The generator house", ["When NEPA take light, this one go carry everything.", "Diesel is shared by all the tenants."], [["Big generator, soundproofed", true], ["Generator is loud at night", false]]);
+  add("The compound", ["Security man dey gate every night.", "Parking for one car, two if you squeeze."], [["Prepaid meter, no estimated bill", true], ["Gutter outside needs clearing before rain", false]]);
+  return { area, stops };
+}
 
 /** A day's car and driver, booked on the app or at the office. */
 export const CAR_HIRE_PRICE = 25_000;
@@ -21,8 +76,8 @@ export const CAR_HIRE: Action = {
   done: "Your Sync driver is on standby for the rest of the day. Every trip today is in the car, free.",
 };
 
-/** What the Sync office offers: homes (to rent or buy) and a car for the day. */
-export const SYNC_ACTIONS: Action[] = [...HOUSE_ACTIONS, CAR_HIRE];
+/** What the Sync office offers: homes (to rent or buy, once inspected), inspections and a car for the day. */
+export const SYNC_ACTIONS: Action[] = [...HOUSE_ACTIONS, ...INSPECT_ACTIONS, CAR_HIRE];
 
 export interface TownEvent {
   /** Days from today: 0 today, 1 tomorrow. */

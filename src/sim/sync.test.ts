@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { lgaActions, lgaPlaces, type LgaContext } from "../data/lga";
 import { STATES } from "../data/states";
-import { CAR_HIRE, CAR_HIRE_PRICE, townEvents } from "../data/sync";
+import { CAR_HIRE, CAR_HIRE_PRICE, INSPECT_ACTIONS, inspectionFee, tourAction, tourOf, townEvents } from "../data/sync";
+import { HOUSE } from "../data/shops";
+import { actionsAt } from "../store/world";
 import { HOUSE_ACTIONS } from "../data/shops";
 import { tasksFor } from "../data/work-tasks";
 import { tripWorldFor } from "../store/world";
@@ -56,10 +58,36 @@ describe("Sync", () => {
       job: "Banker", home: "Family compound", career: "worker" as const, education: "degree" as const, employed: true, monthlyPay: 200_000, underFlyover: false, wasUnder: false,
       ownsTv: false, ownsRadio: true, pvc: "have" as const, createdAt: 0, registeredAt: null,
     };
-    const s = { ...freshState(), citizen, loc: "sync", t: 10 * 60, money: 2_000_000 };
+    const s = { ...freshState(), citizen, loc: "sync", t: 10 * 60, money: 2_000_000, flags: { inspected: ["miniflat"] } };
     const moved = ok(performAction(s, rent, sequence(0.99), { place }));
     expect(moved.house).toBe("miniflat");
     expect(blockReason({ ...s, house: "bungalow" }, rent, { place })).toMatch(/own a house already/);
+  });
+
+  it("you inspect before you rent or buy: book and pay the fee, go with the agent, then sign", () => {
+    const s = { ...freshState(), loc: "sync", t: 10 * 60, money: 2_000_000 };
+    const rent = HOUSE_ACTIONS.find((a) => a.house === "twobed")!;
+    expect(blockReason(s, rent, { place })).toMatch(/Inspect it first/);
+    const book = INSPECT_ACTIONS.find((a) => a.inspect === "twobed")!;
+    const booked = ok(performAction(s, book, sequence(0.99), { place }));
+    expect(booked.money).toBe(2_000_000 - inspectionFee(HOUSE.twobed));
+    expect(booked.flags.inspection).toBe("twobed");
+    expect(blockReason(booked, book, { place })).toMatch(/Already booked/);
+    // The office now offers the inspection, and only bookings for homes not yet seen.
+    const office = actionsAt(booked, null, "sync");
+    expect(office[0].id).toBe("inspection");
+    expect(office.some((a) => a.house === "twobed")).toBe(false);
+    const seen = ok(performAction(booked, tourAction("twobed"), sequence(0.99), { place }));
+    expect(seen.flags.inspected).toContain("twobed");
+    expect(seen.flags.inspection).toBeUndefined();
+    expect(blockReason(seen, rent, { place })).toBeNull();
+    expect(actionsAt(seen, null, "sync").some((a) => a.house === "twobed")).toBe(true);
+  });
+
+  it("every home's tour ends in the compound, with a generator house only where there is one", () => {
+    expect(tourOf("selfcon").stops.at(-1)!.room).toBe("The compound");
+    expect(tourOf("twobed").stops.some((s) => s.room === "The generator house")).toBe(true);
+    expect(tourOf("miniflat").stops.some((s) => s.room === "The generator house")).toBe(false);
   });
 });
 
