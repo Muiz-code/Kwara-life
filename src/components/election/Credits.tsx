@@ -59,7 +59,7 @@ export function Credits({ onClose }: { onClose: () => void }) {
             {BUILDERS.map((b) => (
               <p key={b.name}>
                 <b className="text-lg">{b.name}</b>
-                <span className="block text-sm text-white/60">{b.role}</span>
+                {b.role && <span className="block text-sm text-white/60">{b.role}</span>}
               </p>
             ))}
           </Block>
@@ -86,12 +86,19 @@ export function Credits({ onClose }: { onClose: () => void }) {
 
           {!!credits?.players.length && (
             <Block title="Top players of the season">
+              <p className="mb-1 text-sm text-white/60">The ten who played the most</p>
               <ol className="flex flex-col gap-1">
                 {credits.players.map((p, i) => (
                   <li key={`${p.name}-${i}`}>
                     <span className="mr-2 font-sign text-[#F2B705]">{i + 1}</span>
                     <b>{p.name}</b>
                     {p.place && <span className="text-white/60">, {p.place}</span>}
+                    {p.plays > 0 && (
+                      <span className="text-white/60">
+                        {" "}
+                        · played {p.plays.toLocaleString("en-NG")} {p.plays === 1 ? "time" : "times"}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ol>

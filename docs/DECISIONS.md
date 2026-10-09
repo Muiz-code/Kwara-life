@@ -219,8 +219,10 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   player, the season's top 10 players, special thanks to Raavon, Klario and Sync, a "vote wisely" note (the choice
   made in the real 2027 election lasts until 2031), then the owner's signed message: this is a simulation, not
   real; nothing in the real election comes from it; no affiliation with INEC or any party; your real vote counts;
-  let us make Nigeria great again and pray for our leaders. Signed, Muiz.
+  let us make Nigeria great again and pray for our leaders. Signed, Hizzy.
 - Top brands and top players come from a snapshot the server writes once at polls close, /season/credits.json
-  ({ brands: string[], players: { name, place }[] }). The game only reads it; until it exists those sections hide.
-- Open: how "top player" is measured, whether players opt in to having their name shown, and the full list of
-  builders. To be confirmed by the owner.
+  ({ brands: string[], players: { name, place, plays }[] }). The game only reads it; until it exists those sections hide.
+- Builders are credited by nickname only, never real names: Hizzy (creator), TR7 and Tommy. The message is
+  signed Hizzy. "Let us make Nigeria great again" stays as the owner wrote it.
+- Top 10 players are ranked by how many times they played the game, shown with that count, and only players who
+  agreed to have their name shown are listed.

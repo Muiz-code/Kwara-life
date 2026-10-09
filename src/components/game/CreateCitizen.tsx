@@ -44,7 +44,7 @@ export default function CreateCitizen() {
         <div className="space-y-3">
           <label className="block text-sm font-bold">
             Name
-            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={16} placeholder="e.g. Muiz" className="mt-1 block w-full rounded-xl border border-line bg-panel-2 px-3 py-2.5" />
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={16} placeholder="e.g. Tunde" className="mt-1 block w-full rounded-xl border border-line bg-panel-2 px-3 py-2.5" />
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block text-sm font-bold">

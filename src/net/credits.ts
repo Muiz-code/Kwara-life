@@ -7,8 +7,8 @@ import { useEffect, useState } from "react";
 export interface SeasonCredits {
   /** Brands that paid the most for ads this season, highest first. Names only, never amounts. */
   brands: string[];
-  /** The season's top players, best first, as they chose to be shown. */
-  players: { name: string; place: string }[];
+  /** The season's top 10 players by how many times they played, most first. Only players who agreed to be named. */
+  players: { name: string; place: string; plays: number }[];
 }
 
 export const CREDITS_URL = "/season/credits.json";
@@ -19,8 +19,8 @@ const clean = (raw: unknown): SeasonCredits | null => {
   const brands = Array.isArray(r.brands) ? r.brands.filter((b): b is string => typeof b === "string").slice(0, 20) : [];
   const players = Array.isArray(r.players)
     ? r.players
-        .filter((p): p is { name: string; place: string } => !!p && typeof p === "object" && typeof (p as { name?: unknown }).name === "string")
-        .map((p) => ({ name: p.name, place: typeof p.place === "string" ? p.place : "" }))
+        .filter((p): p is { name: string; place: string; plays: number } => !!p && typeof p === "object" && typeof (p as { name?: unknown }).name === "string")
+        .map((p) => ({ name: p.name, place: typeof p.place === "string" ? p.place : "", plays: Number.isFinite(p.plays) ? Math.max(0, Math.floor(p.plays)) : 0 }))
         .slice(0, 10)
     : [];
   return { brands, players };

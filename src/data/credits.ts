@@ -3,12 +3,13 @@
 // season snapshot the server publishes when polls close (src/net/credits.ts), so nobody can edit them in.
 
 export interface Builder {
+  /** The name they go by in the credits. Never a real name. */
   name: string;
-  role: string;
+  role?: string;
 }
 
-/** Who built Naija Votes. The owner confirms this list before launch. */
-export const BUILDERS: Builder[] = [{ name: "Muiz Owolabi", role: "Creator" }];
+/** Who built Naija Votes, by their nicknames (the owner asked that real names never appear). */
+export const BUILDERS: Builder[] = [{ name: "Hizzy", role: "Creator" }, { name: "TR7" }, { name: "Tommy" }];
 
 /** Partners thanked by name. */
 export const PARTNERS = ["Raavon", "Klario", "Sync"];
@@ -28,4 +29,4 @@ export const CLOSING_MESSAGE = [
   "Thank you.",
 ];
 
-export const SIGNED = "Muiz";
+export const SIGNED = "Hizzy";
