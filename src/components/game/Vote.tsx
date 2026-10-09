@@ -278,7 +278,7 @@ export function Results({ onClose }: { onClose: () => void }) {
     for (const code of order.slice(Math.max(0, uploaded - 9), uploaded)) h[code.slice(0, code.indexOf("/"))] = `${uploaded}`;
     return h;
   }, [order, uploaded]);
-  if (uploaded >= order.length) return <Finale winner={leader(snap.nation)} onClose={onClose} />;
+  if (uploaded >= order.length) return <Finale winner={leader(snap.nation)} votes={snap.nation[leader(snap.nation)]} onClose={onClose} />;
   return (
     <MotionConfig reducedMotion="user">
       <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0F1730] p-4 text-[#F1E8D4] sm:p-6" role="dialog" aria-modal="true" aria-label="Live collation">

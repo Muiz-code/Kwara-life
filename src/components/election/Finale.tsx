@@ -10,11 +10,11 @@ import { Credits } from "./Credits";
 import { LightsOut } from "./LightsOut";
 import { SCENE_VIDEO } from "./scenes";
 
-export function Finale({ winner, onClose }: { winner: number; onClose: () => void }) {
+export function Finale({ winner, votes, onClose }: { winner: number; votes: number; onClose: () => void }) {
   const [stage, setStage] = useState<"winner" | "closing" | "credits" | "lights">("winner");
   return (
     <AnimatePresence mode="wait">
-      {stage === "winner" && <WinnerScene key="winner" winner={winner} onNext={() => setStage("closing")} />}
+      {stage === "winner" && <WinnerScene key="winner" winner={winner} votes={votes} onNext={() => setStage("closing")} />}
       {stage === "closing" && <ClosingScene key="closing" onNext={() => setStage("credits")} />}
       {stage === "credits" && <Credits key="credits" onClose={() => setStage("lights")} />}
       {stage === "lights" && <LightsOut key="lights" onLeave={onClose} />}
@@ -34,7 +34,7 @@ function SceneVideo({ src, loop, onError }: { src: string; loop?: boolean; onErr
   return <video className="absolute inset-0 h-full w-full object-cover" src={src} autoPlay muted playsInline loop={loop} onError={onError} aria-hidden />;
 }
 
-function WinnerScene({ winner, onNext }: { winner: number; onNext: () => void }) {
+function WinnerScene({ winner, votes, onNext }: { winner: number; votes: number; onNext: () => void }) {
   const p = PARTIES[winner];
   const video = useSceneVideo(SCENE_VIDEO.celebration);
   return (
@@ -74,7 +74,15 @@ function WinnerScene({ winner, onNext }: { winner: number; onNext: () => void })
         <motion.p className="text-2xl font-bold" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3 }}>
           {p.name}
         </motion.p>
-        <motion.p className="mt-2 max-w-md text-sm opacity-80" initial={{ opacity: 0 }} animate={{ opacity: 0.8 }} transition={{ delay: 1.8 }}>
+        <motion.p
+          className="mt-3 font-sign text-5xl tabular-nums"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 1.6, type: "spring", stiffness: 200, damping: 15 }}
+        >
+          {votes.toLocaleString("en-NG")} <span className="text-2xl">votes</span>
+        </motion.p>
+        <motion.p className="mt-2 max-w-md text-sm opacity-80" initial={{ opacity: 0 }} animate={{ opacity: 0.8 }} transition={{ delay: 2 }}>
           Most votes in the Naija Votes game election.
         </motion.p>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.4 }}>

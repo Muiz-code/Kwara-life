@@ -10,8 +10,7 @@ import { LGA, LGAS } from "@/data/geography";
 import { PARTIES } from "@/data/parties";
 import { STATE, STATES } from "@/data/states";
 import { ZONES, ZONE_CODES, type ZoneCode } from "@/data/zones";
-import { ELECTION_SEED, useLiveResults } from "@/net/live-results";
-import { liveSchedule, liveSnapshot } from "@/sim/live";
+import { useLiveResults } from "@/net/live-results";
 import { emptyTally, leader, type Tally } from "@/sim/results";
 import { Finale } from "../election/Finale";
 import { DISCLAIMER } from "../game/ui";
@@ -76,9 +75,9 @@ export function ResultsBoard() {
   const key = scopeKey(scope);
   const filter = useMemo(() => feedFilter(scope), [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const { now, phase, snap, lastMinute, timeAt, demo, jump } = useLiveResults(filter, key);
-  // Demo only: the finale (winner, closing, credits, lights out) can be played straight from the board.
+  // After polls close the winner shows with their votes; Continue plays the finale (celebration, closing,
+  // credits, lights out) on this screen too.
   const [finale, setFinale] = useState(false);
-  const finalLeader = useMemo(() => (demo ? leader(liveSnapshot(liveSchedule(ELECTION_SEED), 1, 0).nation) : -1), [demo]);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has("cycle")) setCycling(true); // eslint-disable-line react-hooks/set-state-in-effect
@@ -174,6 +173,16 @@ export function ResultsBoard() {
               <span className="text-[0.9em] font-bold tracking-widest uppercase opacity-80">Naija has a winner</span>
               <span className="font-sign text-[2.2em] leading-none">{PARTIES[winner].code}</span>
               <span className="text-[1.1em] font-bold">{PARTIES[winner].name}</span>
+              <span className="font-sign text-[1.6em] leading-none tabular-nums">
+                {snap.nation[winner].toLocaleString("en-NG")} <span className="text-[0.6em] opacity-80">votes</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setFinale(true)}
+                className="rounded-full bg-[#F2B705] px-[1em] py-[0.3em] font-bold text-[#0F1730] hover:brightness-110"
+              >
+                Continue
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -238,7 +247,7 @@ export function ResultsBoard() {
           </section>
         </div>
 
-        {finale && finalLeader >= 0 && <Finale winner={finalLeader} onClose={() => setFinale(false)} />}
+        {finale && winner >= 0 && <Finale winner={winner} votes={snap.nation[winner]} onClose={() => setFinale(false)} />}
 
         <footer className="mt-[1em] border-t border-white/10 pt-[0.6em] text-center text-[0.8em] text-white/60">
           {DISCLAIMER} Simulated voters vote at random with equal odds for every party. Results are final and cannot be
