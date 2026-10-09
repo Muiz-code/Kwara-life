@@ -2,9 +2,9 @@
 // While you travel: what is happening (the keke pulling up, climbing in, the ride, arriving), how far
 // along you are, and a Skip that jumps to arrival for the same fare and game time.
 import { FastForward } from "lucide-react";
-import { useEffect, useState } from "react";
 import { tripPhase, type TripPhase } from "@/sim/travel";
 import { getGameStore, useGame } from "@/store";
+import { usePerfNow } from "./ui";
 
 const LINES: Record<string, Partial<Record<TripPhase, string>>> = {
   keke: { wait: "Flagging down a keke…", board: "Climbing into the keke", alight: "Paying the keke man" },
@@ -15,18 +15,6 @@ const LINES: Record<string, Partial<Record<TripPhase, string>>> = {
   suv: { wait: "Your driver is bringing the car round…", board: "Getting into your SUV", alight: "Stepping out" },
   horse: { board: "Climbing onto the horse", alight: "Climbing down" },
 };
-
-/** performance.now(), the trip's own clock, ticking four times a second. */
-function usePerfNow() {
-  const [now, setNow] = useState(0);
-  useEffect(() => {
-    const tick = () => setNow(performance.now());
-    tick();
-    const id = setInterval(tick, 250);
-    return () => clearInterval(id);
-  }, []);
-  return now;
-}
 
 export default function TripBar() {
   const a = useGame((s) => s.activity);

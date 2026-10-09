@@ -81,6 +81,42 @@ export function useNow(everyMs = 1000) {
   return now;
 }
 
+/** performance.now(), ticking four times a second: the clock trips, actions and queues run on. */
+export function usePerfNow(everyMs = 250) {
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    const tick = () => setNow(performance.now());
+    tick();
+    const id = setInterval(tick, everyMs);
+    return () => clearInterval(id);
+  }, [everyMs]);
+  return now;
+}
+
+/** A soft two-note chime and a buzz on phones that can: your number is called, your turn. */
+export function chime() {
+  try {
+    navigator.vibrate?.([80, 40, 80]);
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    [660, 880].forEach((f, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + i * 0.18);
+      g.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + i * 0.18 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.18 + 0.35);
+      o.connect(g).connect(ctx.destination);
+      o.start(ctx.currentTime + i * 0.18);
+      o.stop(ctx.currentTime + i * 0.18 + 0.4);
+    });
+    setTimeout(() => void ctx.close(), 1000);
+  } catch {
+    // No sound or vibration here: the screen still says it.
+  }
+}
+
 /** Phone-sized screen (below Tailwind's sm breakpoint). */
 export const isPhone = () => typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches;
 

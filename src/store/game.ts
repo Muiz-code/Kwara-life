@@ -17,6 +17,8 @@ import { answerCall as answerCallSim, sitInterview as sitInterviewSim } from "..
 import { sealedStorage } from "./seal";
 import { throttledStorage } from "./storage";
 import { findActionAt, placeInfo, tripWorldFor } from "./world";
+import { serviceFor, type Service } from "../data/services";
+import { roomFor } from "../data/rooms";
 import type { WorldMap } from "../world";
 import type { Look } from "../data/character";
 import { PRESIDENTIAL_2027, seasonClosed } from "../data/calendar";
@@ -39,6 +41,8 @@ export interface GameStore {
   selected: string;
   paused: boolean;
   activity: Activity | null;
+  /** In a queue or at a counter, before the action itself (src/data/services.ts). */
+  service: ServiceRun | null;
   /** Toasts waiting to be shown, oldest first. */
   toasts: string[];
   /** Counts toasts shown and gone, so two identical toasts in a row each get their own timer. */
@@ -56,7 +60,8 @@ export interface GameStore {
   /** Every animation frame while an activity runs. now is performance.now(). */
   progress: (now: number) => void;
   select: (id: string) => void;
-  doAction: (actionId: string, now: number) => void;
+  /** served: you have already been through the counter for it, so no queue this time. */
+  doAction: (actionId: string, now: number, served?: boolean) => void;
   /** Do a side hustle from the phone's Hustle app, wherever you are. Returns a reason if you can't. */
   doHustle: (id: string, now: number) => string | null;
   /** Restyle your home: walls, floor, sofa and accent colour. Free. */
@@ -68,6 +73,12 @@ export interface GameStore {
   /** Sit the booked interview with an answer per question. */
   sitInterview: (answers: number[]) => { hired: boolean; score: number } | string;
   travel: (dest: string, mode: string, now: number) => void;
+  /** Your turn at the counter: from the queue to the steps. */
+  serviceCalled: (now: number) => void;
+  /** The current step at the counter is done; after the last, the action runs. */
+  serviceStep: (now: number) => void;
+  /** Walk out of the queue. */
+  leaveService: () => void;
   /** Fast-forward a trip or an action: the rest plays out in about two seconds. Same cost, same game time. */
   fastForward: (now: number) => void;
   /**
@@ -99,7 +110,23 @@ export interface GameStore {
   reset: () => void;
 }
 
-export const isBusy = (s: GameStore) => s.activity !== null;
+export const isBusy = (s: GameStore) => s.activity !== null || s.service !== null;
+
+/** Waiting your turn at a counter, then the steps there, before the action itself runs (src/data/services.ts). */
+export interface ServiceRun {
+  actionId: string;
+  placeId: string;
+  service: Service;
+  /** Your number, and how many were ahead of you when you took it. */
+  ticket: number;
+  ahead: number;
+  startedAt: number;
+  waitMs: number;
+  fast?: boolean;
+  stage: "queue" | "steps";
+  step: number;
+  stepAt: number;
+}
 /** A note is open, or the player hasn't made a character yet. */
 export const isModalOpen = (s: GameStore) => s.game.notes.length > 0 || !s.game.char;
 
@@ -162,6 +189,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
           flow: null,
           world: null,
           journey: null,
+          service: null,
           myBallot: null,
 
           tick: () => {
@@ -213,11 +241,13 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             set({ selected: id });
           },
 
-          doAction: (actionId, now) => {
+          doAction: (actionId, now, served = false) => {
             const st = get();
             if (isBusy(st)) return;
             const a = findActionAt(st.game, st.world, st.game.loc, actionId);
             if (!a) return;
+            const kind = st.world?.places.find((p) => p.id === st.game.loc)?.kind ?? PLACE[st.game.loc]?.kind ?? "";
+            const service = served || st.reducedMotion ? null : serviceFor(a, roomFor(kind, st.game.loc));
             // A real journey to another state, through the same rules as the journey screen.
             if (a.journey) {
               const to = a.journey.mode === "flight" ? airportTown(a.journey.state) : undefined;
@@ -231,9 +261,38 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             const r = startAction(st.game, a, rng, ctx);
             if ("blocked" in r) return toast(r.blocked);
             if ("flow" in r) return set({ flow: r.flow });
+            if (service) {
+              // Take a number and wait inside. The action itself runs once you are through at the counter.
+              const ahead = 3 + Math.floor(Math.random() * 6);
+              const [lo, hi] = service.queue;
+              set({
+                service: {
+                  actionId, placeId: st.game.loc, service, ahead, ticket: 10 + Math.floor(Math.random() * 80) + ahead,
+                  startedAt: now, waitMs: (lo + Math.random() * (hi - lo)) * 1000, stage: "queue", step: 0, stepAt: now,
+                },
+                game: { ...st.game, inside: true },
+              });
+              return;
+            }
             const ms = st.reducedMotion ? 120 : actionAnimMs(r.plan);
             commit(r.state, { activity: { kind: "action", plan: r.plan, startedAt: now, ms, done: 0 } });
           },
+
+          serviceCalled: (now) => {
+            const sv = get().service;
+            if (sv?.stage === "queue") set({ service: { ...sv, stage: "steps", step: 0, stepAt: now } });
+          },
+
+          serviceStep: (now) => {
+            const sv = get().service;
+            if (sv?.stage !== "steps") return;
+            if (sv.step + 1 < sv.service.steps.length) return set({ service: { ...sv, step: sv.step + 1, stepAt: now } });
+            set({ service: null });
+            // Re-checked now: still the same place, still allowed.
+            if (get().game.loc === sv.placeId) get().doAction(sv.actionId, now, true);
+          },
+
+          leaveService: () => set({ service: null }),
 
           doHustle: (id, now) => {
             const st = get();
@@ -283,6 +342,14 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
           },
 
           fastForward: (now) => {
+            const sv = get().service;
+            if (sv?.stage === "queue" && !sv.fast) {
+              // The queue moves quickly: the rest of it in a couple of seconds.
+              const p = Math.min(0.999, Math.max(0, (now - sv.startedAt) / sv.waitMs));
+              if (sv.waitMs * (1 - p) <= FAST_FORWARD_MS) return;
+              const waitMs = FAST_FORWARD_MS / (1 - p);
+              return set({ service: { ...sv, waitMs, startedAt: now - p * waitMs, fast: true } });
+            }
             const a = get().activity;
             if (!a || a.fast) return;
             // Stretch time so the rest of the trip plays in FAST_FORWARD_MS: every phase keeps its share,
@@ -417,7 +484,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
           shiftToast: () => set({ toasts: get().toasts.slice(1), toastSeq: get().toastSeq + 1 }),
           reset: () => {
             const g = freshState();
-            set({ game: g, selected: g.loc, activity: null, toasts: [], paused: false, flow: null, journey: null, myBallot: null, world: null });
+            set({ game: g, selected: g.loc, activity: null, service: null, toasts: [], paused: false, flow: null, journey: null, myBallot: null, world: null });
           },
         };
       },
