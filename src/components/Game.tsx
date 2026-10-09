@@ -1,5 +1,16 @@
 "use client";
-import { DoorClosed, DoorOpen, LocateFixed, Minus, Plus, RotateCcw, RotateCw, House } from "lucide-react";
+import {
+  DoorClosed,
+  DoorOpen,
+  Ellipsis,
+  LocateFixed,
+  Minus,
+  Plus,
+  RotateCcw,
+  RotateCw,
+  House,
+  X,
+} from "lucide-react";
 
 import { useEffect, useState } from "react";
 import MapView from "./MapView";
@@ -12,9 +23,25 @@ import { loadMap } from "@/world";
 import { LGA } from "@/data/geography";
 import { STATE } from "@/data/states";
 import { currentLga } from "@/sim";
-import { debugMode, getGameStore, isBusy, startGameLoop, syncClock, useGame } from "@/store";
+import {
+  debugMode,
+  getGameStore,
+  isBusy,
+  startGameLoop,
+  syncClock,
+  useGame,
+} from "@/store";
 import CreateCitizen, { Reveal } from "./game/CreateCitizen";
-import { BottomNav, NeedsDock, NewsTicker, Notes, Objectives, Toasts, TopBar, type Tab } from "./game/Hud";
+import {
+  BottomNav,
+  NeedsDock,
+  NewsTicker,
+  Notes,
+  Objectives,
+  Toasts,
+  TopBar,
+  type Tab,
+} from "./game/Hud";
 import PlaceSheet, { JourneyOverlay, JourneyPicker } from "./game/PlaceSheet";
 import { BribeModal, CampaignPanel, PromoModal } from "./game/Campaign";
 import { BallotFlow, Results, VotePanel } from "./game/Vote";
@@ -32,10 +59,16 @@ function DoorButton({ inside, name }: { inside: boolean; name: string }) {
       type="button"
       disabled={busy}
       onClick={() => getGameStore().getState().setInside(!inside)}
-      className="pointer-events-auto flex max-w-[70vw] items-center gap-2 rounded-2xl border-2 border-ink/25 bg-indigo px-3.5 py-2 font-bold text-white shadow-md hover:brightness-110 disabled:opacity-55"
+      className="pointer-events-auto flex max-w-[70vw] items-center gap-2 rounded-2xl border-2 border-ink/25 bg-indigo px-3 py-1.5 text-sm font-bold sm:px-3.5 sm:py-2 sm:text-base text-white shadow-md hover:brightness-110 disabled:opacity-55"
     >
       <Icon aria-hidden className="h-5 w-5 shrink-0" strokeWidth={2.25} />
-      <span className="truncate">{inside ? "Go outside" : `Go inside ${name}`}</span>
+      {/* The full name is on the place card; a phone gets the short label. */}
+      <span className="truncate sm:hidden">
+        {inside ? "Go outside" : "Go inside"}
+      </span>
+      <span className="hidden truncate sm:inline">
+        {inside ? "Go outside" : `Go inside ${name}`}
+      </span>
     </button>
   );
 }
@@ -52,10 +85,13 @@ function GoHomeButton() {
         type="button"
         disabled={busy}
         onClick={() => setOpen(true)}
-        className="pointer-events-auto flex max-w-[70vw] items-center gap-2 rounded-2xl border-2 border-ink/25 bg-keke px-3.5 py-2 font-bold text-[#2A2000] shadow-md hover:brightness-105 disabled:opacity-55"
+        className="pointer-events-auto flex max-w-[70vw] items-center gap-2 rounded-2xl border-2 border-ink/25 bg-keke px-3 py-1.5 text-sm font-bold sm:px-3.5 sm:py-2 sm:text-base text-[#2A2000] shadow-md hover:brightness-105 disabled:opacity-55"
       >
         <House aria-hidden className="h-5 w-5 shrink-0" strokeWidth={2.25} />
-        <span className="truncate">Go home to {LGA[home].name}</span>
+        <span className="truncate sm:hidden">Go home</span>
+        <span className="hidden truncate sm:inline">
+          Go home to {LGA[home].name}
+        </span>
       </button>
       {open && <JourneyPicker home onClose={() => setOpen(false)} />}
     </>
@@ -68,6 +104,8 @@ export default function Game() {
   /** The billboard being booked, or null. */
   const [adBoard, setAdBoard] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(true);
+  /** Phones: zoom and turn buttons folded away until asked for. */
+  const [moreControls, setMoreControls] = useState(false);
   const [results, setResults] = useState(false);
   // When polls close the results open for everyone, once; the Vote tab can replay them.
   const [seenResults, setSeenResults] = useState(false);
@@ -86,7 +124,11 @@ export default function Game() {
     return p ? { id: p.id, kind: p.kind, name: p.name } : null;
   })();
   // Testers: ?debug&room=church opens any kind of room straight away.
-  const [devRoom] = useState(() => (typeof window !== "undefined" && debugMode() ? new URLSearchParams(window.location.search).get("room") : null));
+  const [devRoom] = useState(() =>
+    typeof window !== "undefined" && debugMode()
+      ? new URLSearchParams(window.location.search).get("room")
+      : null,
+  );
 
   useEffect(() => {
     syncClock();
@@ -135,11 +177,42 @@ export default function Game() {
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-[#D3B67F]">
-      {(world || !citizen) && <MapView key={world?.id ?? "ilorin"} world={world} active={!inside} onReady={setMap} onBillboard={setAdBoard} />}
-      {adBoard && <AdBooking mapId={world?.id ?? ILORIN_MAP_ID} boardId={adBoard} onClose={() => setAdBoard(null)} />}
-      {inside && insideOf && <InteriorView key={insideOf.id} placeId={insideOf.id} kind={insideOf.kind} name={insideOf.name} />}
-      {devRoom && <InteriorView placeId={devRoom === "home" ? "home" : "dev"} kind={devRoom} name={devRoom} />}
-      {citizen && !world && <div className="absolute inset-0 flex items-center justify-center font-sign text-2xl text-indigo">Loading your town…</div>}
+      {(world || !citizen) && (
+        <MapView
+          key={world?.id ?? "ilorin"}
+          world={world}
+          active={!inside}
+          onReady={setMap}
+          onBillboard={setAdBoard}
+        />
+      )}
+      {adBoard && (
+        <AdBooking
+          mapId={world?.id ?? ILORIN_MAP_ID}
+          boardId={adBoard}
+          onClose={() => setAdBoard(null)}
+        />
+      )}
+      {inside && insideOf && (
+        <InteriorView
+          key={insideOf.id}
+          placeId={insideOf.id}
+          kind={insideOf.kind}
+          name={insideOf.name}
+        />
+      )}
+      {devRoom && (
+        <InteriorView
+          placeId={devRoom === "home" ? "home" : "dev"}
+          kind={devRoom}
+          name={devRoom}
+        />
+      )}
+      {citizen && !world && (
+        <div className="absolute inset-0 flex items-center justify-center font-sign text-2xl text-indigo">
+          Loading your town…
+        </div>
+      )}
 
       {/* Above the map and the room view (z-1), below the tabs (z-30) and sheets: the gauges show indoors too. */}
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col">
@@ -150,48 +223,79 @@ export default function Game() {
         <div className="px-3">
           <Objectives />
         </div>
-        <div className="mt-auto flex items-end justify-between gap-2 p-3">
-          <div className="flex flex-col items-start gap-2">
-            {citizen && revealed && insideOf && <DoorButton inside={inside} name={insideOf.id === "home" ? "home" : insideOf.name} />}
-            {citizen && revealed && away && !inside && <GoHomeButton />}
+        <div className="mt-auto flex items-end justify-between gap-2 px-3 pt-3 pb-2 sm:p-3">
+          <div className="flex min-w-0 flex-col items-start gap-2">
+            <div className="flex flex-wrap gap-2 sm:flex-col sm:items-start">
+              {citizen && revealed && insideOf && (
+                <DoorButton
+                  inside={inside}
+                  name={insideOf.id === "home" ? "home" : insideOf.name}
+                />
+              )}
+              {citizen && revealed && away && !inside && <GoHomeButton />}
+            </div>
             <NeedsDock />
           </div>
           <div className="pointer-events-auto flex flex-col gap-1.5">
             <PlacesButton />
-            {(
-              [
-                [Plus, "Zoom in", 1.3],
-                [Minus, "Zoom out", 1 / 1.3],
-              ] as const
-            ).map(([Icon, label, f]) => (
-              <button
-                key={label}
-                type="button"
-                aria-label={label}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink/25 bg-panel text-ink shadow-md hover:bg-panel-2"
-                onClick={() => map?.zoomBy(f)}
-              >
-                <Icon aria-hidden className="h-5 w-5" strokeWidth={2.5} />
-              </button>
-            ))}
-            {map?.rotateBy &&
-              (
+            <div
+              className={`${moreControls ? "flex" : "hidden"} flex-col gap-1.5 sm:flex`}
+            >
+              {(
                 [
-                  [RotateCcw, "Turn left", -Math.PI / 4],
-                  [RotateCw, "Turn right", Math.PI / 4],
+                  [Plus, "Zoom in", 1.3],
+                  [Minus, "Zoom out", 1 / 1.3],
                 ] as const
-              ).map(([Icon, label, r]) => (
+              ).map(([Icon, label, f]) => (
                 <button
                   key={label}
                   type="button"
                   aria-label={label}
                   className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink/25 bg-panel text-ink shadow-md hover:bg-panel-2"
-                  onClick={() => map.rotateBy?.(r)}
+                  onClick={() => map?.zoomBy(f)}
                 >
-                  <Icon aria-hidden className="h-5 w-5" strokeWidth={2.25} />
+                  <Icon aria-hidden className="h-5 w-5" strokeWidth={2.5} />
                 </button>
               ))}
-            <button type="button" aria-label="Find me" className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink/25 bg-panel text-ink shadow-md hover:bg-panel-2" onClick={() => map?.centerOnMe()}>
+              {map?.rotateBy &&
+                (
+                  [
+                    [RotateCcw, "Turn left", -Math.PI / 4],
+                    [RotateCw, "Turn right", Math.PI / 4],
+                  ] as const
+                ).map(([Icon, label, r]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    aria-label={label}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink/25 bg-panel text-ink shadow-md hover:bg-panel-2"
+                    onClick={() => map.rotateBy?.(r)}
+                  >
+                    <Icon aria-hidden className="h-5 w-5" strokeWidth={2.25} />
+                  </button>
+                ))}
+            </div>
+            <button
+              type="button"
+              aria-label={
+                moreControls ? "Fewer map controls" : "More map controls"
+              }
+              aria-expanded={moreControls}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink/25 bg-panel text-ink shadow-md hover:bg-panel-2 sm:hidden"
+              onClick={() => setMoreControls((m) => !m)}
+            >
+              {moreControls ? (
+                <X aria-hidden className="h-5 w-5" strokeWidth={2.5} />
+              ) : (
+                <Ellipsis aria-hidden className="h-5 w-5" strokeWidth={2.5} />
+              )}
+            </button>
+            <button
+              type="button"
+              aria-label="Find me"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink/25 bg-panel text-ink shadow-md hover:bg-panel-2"
+              onClick={() => map?.centerOnMe()}
+            >
               <LocateFixed aria-hidden className="h-5 w-5" strokeWidth={2.25} />
             </button>
           </div>
@@ -204,13 +308,20 @@ export default function Game() {
         {/* A dark pill with light text, so it reads over any part of the map. */}
         <p className="mx-3 rounded-full bg-indigo/90 px-3 py-0.5 text-center text-[11px] font-bold text-[#F7E7C1] shadow">
           {DISCLAIMER}
-          {world?.attribution && <span className="whitespace-nowrap"> Map data {world.attribution}</span>}
+          {world?.attribution && (
+            <span className="whitespace-nowrap">
+              {" "}
+              Map data {world.attribution}
+            </span>
+          )}
         </p>
       </div>
 
       {tab === "life" && selected && <PlaceSheet onClose={close} />}
       {tab === "campaign" && <CampaignPanel onClose={close} />}
-      {tab === "vote" && <VotePanel onClose={close} onResults={() => setResults(true)} />}
+      {tab === "vote" && (
+        <VotePanel onClose={close} onResults={() => setResults(true)} />
+      )}
       {tab === "phone" && <PhonePanel onClose={close} />}
       <IncomingCall />
 

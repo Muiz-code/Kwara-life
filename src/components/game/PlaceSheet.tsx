@@ -11,7 +11,7 @@ import {
   quoteTrip, type JourneyMode, hourOf, worldT } from "@/sim";
 import { actionsAt, placeInfo, tripWorldFor } from "@/store/world";
 import { getGameStore, useGame } from "@/store";
-import { Button, Chip, Modal, Sheet, naira, useNow } from "./ui";
+import { Button, Chip, Modal, Sheet, isPhone, naira, useNow } from "./ui";
 import { BIOMES, LOCAL_FOOD, lookOf } from "@/data/biomes";
 import { BUS_FROM, airportTown, landingTown } from "@/sim/journey";
 import { AIRPORT_NAMES } from "@/data/capitals";
@@ -53,7 +53,11 @@ export default function PlaceSheet({ onClose }: { onClose: () => void }) {
                 key={a.id}
                 type="button"
                 disabled={!!why || busy}
-                onClick={() => getGameStore().getState().doAction(a.id, performance.now())}
+                onClick={() => {
+                  getGameStore().getState().doAction(a.id, performance.now());
+                  // On a phone the sheet would cover the action, so it steps aside.
+                  if (isPhone()) onClose();
+                }}
                 className="rounded-2xl border border-transparent bg-panel-2 px-3 py-2.5 text-left hover:border-indigo disabled:opacity-55"
               >
                 <span className="block font-bold">{a.label}</span>
@@ -84,7 +88,7 @@ export default function PlaceSheet({ onClose }: { onClose: () => void }) {
           )}
         </div>
       ) : (
-        <TripModes />
+        <TripModes onGo={() => isPhone() && onClose()} />
       )}
       {journey && <JourneyPicker onClose={() => setJourney(false)} />}
       {banking && (
@@ -97,7 +101,7 @@ export default function PlaceSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-function TripModes() {
+function TripModes({ onGo }: { onGo: () => void }) {
   const st = useGame((s) => s);
   const { game, world, selected } = st;
   const busy = st.activity !== null;
@@ -119,7 +123,10 @@ function TripModes() {
             key={m}
             type="button"
             disabled={!!why || busy}
-            onClick={() => getGameStore().getState().travel(selected, m, performance.now())}
+            onClick={() => {
+              getGameStore().getState().travel(selected, m, performance.now());
+              onGo();
+            }}
             className="rounded-2xl bg-indigo px-3 py-2.5 text-left text-[#F7E7C1] disabled:opacity-45"
           >
             <b className="block">{w.modes[m].label}</b>

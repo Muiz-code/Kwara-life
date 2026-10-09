@@ -81,6 +81,9 @@ export function useNow(everyMs = 1000) {
   return now;
 }
 
+/** Phone-sized screen (below Tailwind's sm breakpoint). */
+export const isPhone = () => typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches;
+
 export const naira = (n: number) => "₦" + Math.round(n).toLocaleString("en-NG");
 
 export const DISCLAIMER = "A game. Not affiliated with INEC. Not a poll or prediction.";

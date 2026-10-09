@@ -1,13 +1,34 @@
 "use client";
 // Overlays on the map: top bar, news ticker, objectives, needs dock, bottom tabs, toasts and notes.
-import { House, Megaphone, Menu, MessageCircle, PartyPopper, ShowerHead, Smartphone, Utensils, Vote, Zap, type LucideIcon } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  House,
+  Megaphone,
+  Menu,
+  MessageCircle,
+  PartyPopper,
+  ShowerHead,
+  Smartphone,
+  Utensils,
+  Vote,
+  Zap,
+  ZapOff,
+  type LucideIcon,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AVATAR_ART } from "@/data/character";
 import { PRESIDENTIAL_2027 as CAL, civicPhase } from "@/data/calendar";
 import { NEWS } from "@/data/media";
 import { NEEDS, type NeedKey } from "@/data/needs";
 import { DAYS, dayOfWeek, fmtTime, mood, worldT } from "@/sim";
-import { clockJumped, debugMode, getGameStore, jumpClockTo, useGame } from "@/store";
+import {
+  clockJumped,
+  debugMode,
+  getGameStore,
+  jumpClockTo,
+  useGame,
+} from "@/store";
 import { nextStep } from "@/sim/explore";
 import { STATES } from "@/data/states";
 import { online, supabase } from "@/net/supabase";
@@ -27,6 +48,14 @@ const NEED_BAR: Record<NeedKey, string> = {
   social: "bg-[#4F6AAE]",
   hygiene: "bg-[#5FB3AE]",
 };
+
+/** ₦175k, ₦2.4m: money short enough for the top bar on a phone. */
+function nairaShort(n: number) {
+  const a = Math.abs(n);
+  if (a < 10_000) return naira(n);
+  if (a < 1_000_000) return `${n < 0 ? "-" : ""}₦${Math.floor(a / 1000)}k`;
+  return `${n < 0 ? "-" : ""}₦${(Math.floor(a / 100_000) / 10).toFixed(1).replace(/.0$/, "")}m`;
+}
 
 function countdown(ms: number) {
   if (ms <= 0) return null;
@@ -51,7 +80,12 @@ export function TopBar() {
       {/* The menu sits outside the glass: its backdrop blur would trap a fixed dialog. */}
       {menu && <GameMenu onClose={() => setMenu(false)} />}
       <Glass className="pointer-events-auto flex items-center gap-2 px-2 py-2 text-sm font-semibold whitespace-nowrap md:gap-4 md:px-5 md:text-base">
-        <button type="button" aria-label="Menu" onClick={() => setMenu(true)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-panel-2 text-lg leading-none">
+        <button
+          type="button"
+          aria-label="Menu"
+          onClick={() => setMenu(true)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-panel-2 text-lg leading-none"
+        >
           <Menu aria-hidden className="h-4.5 w-4.5" />
         </button>
         <span className="shrink-0">
@@ -66,16 +100,35 @@ export function TopBar() {
           ) : left ? (
             <>
               <span className="hidden min-[440px]:inline">Election in </span>
-              <Vote aria-hidden className="mr-1 inline h-4 w-4 align-[-2px] min-[440px]:hidden" />
+              <Vote
+                aria-hidden
+                className="mr-1 inline h-4 w-4 align-[-2px] min-[440px]:hidden"
+              />
               {left}
             </>
           ) : (
             ""
           )}
         </span>
-        {!light && <span className="rounded-full bg-[#3B2A1A] px-2 py-0.5 text-[#FFD66B]">No light</span>}
-        <span className="ml-auto font-bold">{naira(money)}</span>
-        <button type="button" onClick={() => getGameStore().getState().togglePause()} className="hidden shrink-0 rounded-full min-[380px]:inline-block bg-panel-2 px-3 py-1 text-xs font-bold">
+        {!light && (
+          <span
+            className="flex shrink-0 items-center gap-1 rounded-full bg-[#3B2A1A] px-1.5 py-0.5 text-[#FFD66B] sm:px-2"
+            title="No light"
+          >
+            <ZapOff aria-hidden className="h-4 w-4 sm:hidden" />
+            <span className="sr-only sm:not-sr-only">No light</span>
+          </span>
+        )}
+        <span className="ml-auto font-bold">
+          <span className="sm:hidden">{nairaShort(money)}</span>
+          <span className="hidden sm:inline">{naira(money)}</span>
+        </span>
+        {/* On a phone, pause lives in the menu. */}
+        <button
+          type="button"
+          onClick={() => getGameStore().getState().togglePause()}
+          className="hidden shrink-0 rounded-full bg-panel-2 px-3 py-1 text-xs font-bold sm:inline-block"
+        >
           {paused ? "Play" : "Pause"}
         </button>
       </Glass>
@@ -104,7 +157,9 @@ function ClockJumps({ onDone }: { onDone: () => void }) {
   ];
   return (
     <div className="rounded-2xl border-2 border-dashed border-line p-2">
-      <div className="mb-1.5 text-xs font-bold text-ink-soft">Test: jump the clock{clockJumped() ? " (jumped)" : ""}</div>
+      <div className="mb-1.5 text-xs font-bold text-ink-soft">
+        Test: jump the clock{clockJumped() ? " (jumped)" : ""}
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {jumps.map(([label, t]) => (
           <Button
@@ -130,16 +185,22 @@ function SignedInAs() {
   const [name, setName] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
-    void supabase()?.auth.getUser().then(({ data }) => {
-      const u = data.user?.user_metadata?.username;
-      if (alive && typeof u === "string") setName(u);
-    });
+    void supabase()
+      ?.auth.getUser()
+      .then(({ data }) => {
+        const u = data.user?.user_metadata?.username;
+        if (alive && typeof u === "string") setName(u);
+      });
     return () => {
       alive = false;
     };
   }, []);
   if (!name) return null;
-  return <p className="text-center text-sm text-ink-soft">Signed in as <span className="font-bold text-ink">@{name}</span></p>;
+  return (
+    <p className="text-center text-sm text-ink-soft">
+      Signed in as <span className="font-bold text-ink">@{name}</span>
+    </p>
+  );
 }
 
 function GameMenu({ onClose }: { onClose: () => void }) {
@@ -147,7 +208,17 @@ function GameMenu({ onClose }: { onClose: () => void }) {
   const [view, setView] = useState<"main" | "help" | "about" | "reset">("main");
   const store = getGameStore().getState();
   return (
-    <Modal title={view === "help" ? "How to play" : view === "about" ? "About" : view === "reset" ? "Start a new life?" : "Menu"}>
+    <Modal
+      title={
+        view === "help"
+          ? "How to play"
+          : view === "about"
+            ? "About"
+            : view === "reset"
+              ? "Start a new life?"
+              : "Menu"
+      }
+    >
       <div className="flex flex-col gap-2 whitespace-normal">
         {view === "main" && (
           <>
@@ -196,14 +267,22 @@ function GameMenu({ onClose }: { onClose: () => void }) {
         )}
         {view === "about" && (
           <div className="space-y-2 text-sm">
-            <p>Naija Votes is a free and fair election game. Every citizen lives one life, gets one PVC and casts one vote.</p>
+            <p>
+              Naija Votes is a free and fair election game. Every citizen lives
+              one life, gets one PVC and casts one vote.
+            </p>
             <p className="font-semibold">{DISCLAIMER}</p>
-            <p>Collect your real PVC, vote in real elections and choose wisely.</p>
+            <p>
+              Collect your real PVC, vote in real elections and choose wisely.
+            </p>
           </div>
         )}
         {view === "reset" && (
           <>
-            <p className="text-sm">Your citizen, money and progress on this device will be gone. You cannot undo this.</p>
+            <p className="text-sm">
+              Your citizen, money and progress on this device will be gone. You
+              cannot undo this.
+            </p>
             <Button
               tone="danger"
               onClick={() => {
@@ -228,10 +307,17 @@ function GameMenu({ onClose }: { onClose: () => void }) {
 /** Scrolling headlines: the game's local news, then civic news. */
 export function NewsTicker({ sponsored }: { sponsored?: string }) {
   const local = useGame((s) => s.game.localNews);
-  const items = useMemo(() => [...(sponsored ? [`Sponsored: ${sponsored}`] : []), ...local.slice(0, 6), ...NEWS], [local, sponsored]);
+  const items = useMemo(
+    () => [
+      ...(sponsored ? [`Sponsored: ${sponsored}`] : []),
+      ...local.slice(0, 6),
+      ...NEWS,
+    ],
+    [local, sponsored],
+  );
   return (
     <div className="pointer-events-auto overflow-hidden rounded-full bg-indigo/90 text-[#F7E7C1] shadow">
-      <div className="flex w-max animate-[ticker_60s_linear_infinite] gap-10 px-4 py-1.5 text-sm font-semibold whitespace-nowrap motion-reduce:animate-none">
+      <div className="flex w-max animate-[ticker_60s_linear_infinite] gap-10 px-4 py-1 text-xs font-semibold sm:py-1.5 sm:text-sm whitespace-nowrap motion-reduce:animate-none">
         {[...items, ...items].map((n, i) => (
           <span key={i}>● {n}</span>
         ))}
@@ -251,18 +337,25 @@ export function Objectives() {
   if (!c) return null;
   const phase = civicPhase(CAL, now);
   const goals: { title: string; hint: string }[] = [];
-  if (food < 30) goals.push({ title: "Eat something", hint: "Cook at home or buy food" });
+  if (food < 30)
+    goals.push({ title: "Eat something", hint: "Cook at home or buy food" });
   if (c.pvc === "none" && phase === "registration")
     goals.push({
       title: "Register to vote",
       hint: "Go to the VINEC office in your LGA",
     });
-  if (c.pvc === "registered" && (phase === "pvc-collection" || phase === "blackout"))
+  if (
+    c.pvc === "registered" &&
+    (phase === "pvc-collection" || phase === "blackout")
+  )
     goals.push({
       title: "Collect your PVC",
       hint: "VINEC office, before 7:50am on election day",
     });
-  if (c.pvc === "registered" && (phase === "registration" || phase === "waiting-for-pvc"))
+  if (
+    c.pvc === "registered" &&
+    (phase === "registration" || phase === "waiting-for-pvc")
+  )
     goals.push({
       title: "Wait for PVC collection",
       hint: "Collection opens 31 October",
@@ -283,17 +376,79 @@ export function Objectives() {
       hint: "You cannot vote this election",
     });
   const step = nextStep(visited);
-  if (step) goals.push({ title: `Explorer: ${visited} of ${STATES.length} states`, hint: `Visit ${step[0] - visited} more to become a ${step[1].toLowerCase()}. Travel from the motor park, bus terminal or airport` });
+  if (step)
+    goals.push({
+      title: `Explorer: ${visited} of ${STATES.length} states`,
+      hint: `Visit ${step[0] - visited} more to become a ${step[1].toLowerCase()}. Travel from the motor park, bus terminal or airport`,
+    });
+  return <GoalList goals={goals} />;
+}
+
+const GOALS_OPEN = "nv:goals-open";
+
+/** Folded, the goals are one small chip so they don't cover the map; tap to see them all. */
+function GoalList({ goals }: { goals: { title: string; hint: string }[] }) {
+  // Phones start folded, bigger screens open. The player's last choice wins after that.
+  const [open, setOpen] = useState(() => {
+    try {
+      const v = localStorage.getItem(GOALS_OPEN);
+      if (v !== null) return v === "1";
+    } catch {}
+    return (
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 640px)").matches
+    );
+  });
+  const toggle = () =>
+    setOpen((o) => {
+      try {
+        localStorage.setItem(GOALS_OPEN, o ? "0" : "1");
+      } catch {}
+      return !o;
+    });
   if (!goals.length) return null;
+  const shown = goals.slice(0, 2);
+  if (!open)
+    return (
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={false}
+        className="pointer-events-auto max-w-[70vw]"
+      >
+        <Glass className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold">
+          <span className="truncate">{shown[0].title}</span>
+          {shown.length > 1 && (
+            <span className="shrink-0 rounded-full bg-panel-2 px-1.5 text-xs text-ink-soft">
+              +{shown.length - 1}
+            </span>
+          )}
+          <ChevronDown aria-hidden className="h-4 w-4 shrink-0 text-ink-soft" />
+        </Glass>
+      </button>
+    );
   return (
-    <div className="pointer-events-auto flex max-w-[280px] flex-col gap-2">
-      {goals.slice(0, 2).map((g) => (
-        <Glass key={g.title} className="px-3 py-2">
-          <div className="text-sm font-bold">{g.title}</div>
-          <div className="text-xs text-ink-soft">{g.hint}</div>
+    <button
+      type="button"
+      onClick={toggle}
+      aria-expanded
+      className="pointer-events-auto flex max-w-70 flex-col gap-2 text-left"
+    >
+      {shown.map((g, i) => (
+        <Glass key={g.title} className="flex items-start gap-2 px-3 py-2">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold">{g.title}</div>
+            <div className="text-xs text-ink-soft">{g.hint}</div>
+          </div>
+          {i === 0 && (
+            <ChevronUp
+              aria-label="Fold goals"
+              className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft"
+            />
+          )}
         </Glass>
       ))}
-    </div>
+    </button>
   );
 }
 
@@ -302,19 +457,47 @@ export function NeedsDock() {
   const g = useGame((s) => s.game.citizen?.look.g ?? "m");
   return (
     <div className="pointer-events-auto flex items-center gap-2">
-      <div className="h-16 w-16 overflow-hidden rounded-full border-4 border-[#0E7A4B] bg-[#E9D5AE] shadow">
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-[3px] border-[#0E7A4B] bg-[#E9D5AE] shadow sm:h-16 sm:w-16 sm:border-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={AVATAR_ART[g]} alt="You" className="h-28 w-full object-cover object-top" />
+        <img
+          src={AVATAR_ART[g]}
+          alt="You"
+          className="h-20 w-full object-cover object-top sm:h-28"
+        />
       </div>
-      <Glass className="grid grid-cols-3 gap-x-3 gap-y-1.5 px-3 py-2">
+      {/* One slim row on a phone (icon over bar), a 3-column grid on bigger screens. */}
+      <Glass className="flex gap-2 px-2.5 py-1.5 sm:grid sm:grid-cols-3 sm:gap-x-3 sm:gap-y-1.5 sm:px-3 sm:py-2">
         {NEEDS.map(({ key, label }) => (
-          <div key={key} className="flex items-center gap-1.5" title={`${label} ${Math.round(needs[key])}`}>
+          <div
+            key={key}
+            className="flex flex-col items-center gap-1 sm:flex-row sm:gap-1.5"
+            title={`${label} ${Math.round(needs[key])}`}
+          >
             {(() => {
               const Icon = NEED_ICON[key];
-              return <Icon aria-hidden className="h-4 w-4 shrink-0 text-ink-soft" strokeWidth={2.25} />;
+              return (
+                <Icon
+                  aria-hidden
+                  className="h-4 w-4 shrink-0 text-ink-soft"
+                  strokeWidth={2.25}
+                />
+              );
             })()}
-            <div className="h-2 w-12 overflow-hidden rounded-full bg-panel-2" role="progressbar" aria-label={label} aria-valuenow={Math.round(needs[key])} aria-valuemin={0} aria-valuemax={100}>
-              <div className={cx("h-full rounded-full transition-[width]", needs[key] < 25 ? "bg-danger" : NEED_BAR[key])} style={{ width: `${needs[key]}%` }} />
+            <div
+              className="h-2 w-9 overflow-hidden rounded-full bg-panel-2 sm:w-12"
+              role="progressbar"
+              aria-label={label}
+              aria-valuenow={Math.round(needs[key])}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className={cx(
+                  "h-full rounded-full transition-[width]",
+                  needs[key] < 25 ? "bg-danger" : NEED_BAR[key],
+                )}
+                style={{ width: `${needs[key]}%` }}
+              />
             </div>
           </div>
         ))}
@@ -325,7 +508,13 @@ export function NeedsDock() {
 
 export type Tab = "life" | "campaign" | "vote" | "phone";
 
-export function BottomNav({ tab, onTab }: { tab: Tab | null; onTab: (t: Tab | null) => void }) {
+export function BottomNav({
+  tab,
+  onTab,
+}: {
+  tab: Tab | null;
+  onTab: (t: Tab | null) => void;
+}) {
   const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
     { id: "life", label: "Life", icon: House },
     { id: "campaign", label: "Campaign", icon: Megaphone },
@@ -340,7 +529,10 @@ export function BottomNav({ tab, onTab }: { tab: Tab | null; onTab: (t: Tab | nu
           type="button"
           onClick={() => onTab(tab === t.id ? null : t.id)}
           aria-pressed={tab === t.id}
-          className={cx("flex min-w-16 flex-col items-center rounded-xl px-3 py-1.5 text-xs font-bold md:min-w-24", tab === t.id ? "bg-indigo text-[#F7E7C1]" : "text-ink-soft")}
+          className={cx(
+            "flex min-w-16 flex-col items-center rounded-xl px-3 py-1.5 text-xs font-bold md:min-w-24",
+            tab === t.id ? "bg-indigo text-[#F7E7C1]" : "text-ink-soft",
+          )}
         >
           <t.icon aria-hidden className="mb-0.5 h-5 w-5" strokeWidth={2.25} />
           {t.label}
@@ -363,7 +555,9 @@ export function Toasts() {
   if (!first) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-28 z-50 flex justify-center px-4">
-      <div className="rounded-2xl bg-indigo px-4 py-2.5 text-center font-semibold text-[#F7E7C1] shadow-lg">{first}</div>
+      <div className="rounded-2xl bg-indigo px-4 py-2.5 text-center font-semibold text-[#F7E7C1] shadow-lg">
+        {first}
+      </div>
     </div>
   );
 }
@@ -379,7 +573,11 @@ export function Notes() {
       <p className="mb-4 whitespace-pre-line">{n.body}</p>
       <div className="flex flex-col gap-2">
         {choices.map((c, i) => (
-          <Button key={c.id} tone={i === 0 ? "primary" : "ghost"} onClick={() => getGameStore().getState().answer(c.id)}>
+          <Button
+            key={c.id}
+            tone={i === 0 ? "primary" : "ghost"}
+            onClick={() => getGameStore().getState().answer(c.id)}
+          >
             {c.label}
           </Button>
         ))}
