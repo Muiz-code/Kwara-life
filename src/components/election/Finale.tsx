@@ -24,17 +24,27 @@ export function Finale({
   onViewResults?: () => void;
 }) {
   const [stage, setStage] = useState<"winner" | "closing" | "credits" | "lights">("winner");
+  // One dark backdrop under every scene, so nothing behind (the results board, the frozen game) ever shows
+  // between them: each scene crossfades straight into the next.
   return (
-    <AnimatePresence mode="wait">
-      {stage === "winner" && <WinnerScene key="winner" winner={winner} votes={votes} onNext={() => setStage("closing")} />}
-      {stage === "closing" && <ClosingScene key="closing" onNext={() => setStage("credits")} />}
-      {stage === "credits" && <Credits key="credits" onClose={() => setStage("lights")} onViewResults={onViewResults} />}
-      {stage === "lights" && <LightsOut key="lights" onLeave={onClose} />}
-    </AnimatePresence>
+    <div className="fixed inset-0 z-50 bg-[#0B1022]">
+      <AnimatePresence>
+        {stage === "winner" && <WinnerScene key="winner" winner={winner} votes={votes} onNext={() => setStage("closing")} />}
+        {stage === "closing" && <ClosingScene key="closing" onNext={() => setStage("credits")} />}
+        {stage === "credits" && <Credits key="credits" onClose={() => setStage("lights")} onViewResults={onViewResults} />}
+        {stage === "lights" && <LightsOut key="lights" onLeave={onClose} />}
+      </AnimatePresence>
+      {stage !== "lights" && (
+        <div className="pointer-events-none fixed top-4 left-4 z-[60] flex items-center gap-2 rounded-full bg-black/45 px-3 py-1 text-xs font-bold tracking-wide text-white uppercase backdrop-blur-sm">
+          <span className="h-2 w-2 rounded-full bg-[#7FD3A8]" aria-hidden />
+          Voting closed · 4pm, Sat 14 Nov
+        </div>
+      )}
+    </div>
   );
 }
 
-const fade = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.6 } };
+const fade = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.9 } };
 
 /** The scene's video, or null if there is none or it failed to load (then the drawn scene plays). */
 function useSceneVideo(src: string | null) {

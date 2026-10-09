@@ -15,6 +15,7 @@ import { seasonState } from "@/data/season";
 import { useLiveResults } from "@/net/live-results";
 import { emptyTally, leader, type Tally } from "@/sim/results";
 import { Finale } from "../election/Finale";
+import dynamic from "next/dynamic";
 import { DISCLAIMER } from "../game/ui";
 import { Feed } from "./Feed";
 import { RankedList } from "./RankedList";
@@ -23,6 +24,12 @@ import { Ticker } from "./Ticker";
 import { countdown, watTime } from "./time";
 
 type Scope = { level: "nation" } | { level: "zone"; zone: ZoneCode } | { level: "state"; state: string } | { level: "lga"; lga: string };
+
+// The ballot screens for the demo live in the game; they load only when someone votes in the demo.
+const BallotFlow = dynamic(() => import("../game/Vote").then((m) => m.BallotFlow), { ssr: false });
+const VotedMoment = dynamic(() => import("../election/BallotDrop").then((m) => m.VotedMoment), { ssr: false });
+const DEMO_STATE = "kwara";
+const DEMO_LGA = "kwara/ilorin-west";
 
 const NATION: Scope = { level: "nation" };
 const CYCLE_MS = 12_000;
@@ -76,7 +83,23 @@ export function ResultsBoard() {
   const [cycling, setCycling] = useState(false);
   const key = scopeKey(scope);
   const filter = useMemo(() => feedFilter(scope), [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  const { now, phase, snap, lastMinute, timeAt, demo, jump } = useLiveResults(filter, key);
+  const { now, phase, snap: live, lastMinute, timeAt, demo, jump } = useLiveResults(filter, key);
+  // Demo only: vote yourself (BVAS, ballot, the drop into the box) and watch your vote land on the board.
+  // It counts at a demo polling unit in Ilorin West, Kwara.
+  const [voting, setVoting] = useState(false);
+  const [mine, setMine] = useState<number | null>(null);
+  const [thumb, setThumb] = useState(false);
+  const snap = useMemo(() => {
+    if (mine === null) return live;
+    const plus = (t: Tally) => t.map((v, i) => (i === mine ? v + 1 : v));
+    return {
+      ...live,
+      votesCast: live.votesCast + 1,
+      nation: plus(live.nation),
+      states: { ...live.states, [DEMO_STATE]: plus(live.states[DEMO_STATE]) },
+      lgas: { ...live.lgas, [DEMO_LGA]: plus(live.lgas[DEMO_LGA]) },
+    };
+  }, [live, mine]);
   // When the result goes final the finale plays by itself (celebration with the winner and their votes, closing,
   // credits, lights out); "View results again" in the credits comes back here. Results stay up for three days.
   const [finale, setFinale] = useState(false);
@@ -150,6 +173,8 @@ export function ResultsBoard() {
                   Play the finale
                 </DemoButton>
                 <DemoButton onClick={() => setDemoEnded(true)}>3 days later</DemoButton>
+                {phase === "live" && mine === null && <DemoButton onClick={() => setVoting(true)}>Vote now</DemoButton>}
+                {mine !== null && <span className="rounded-full bg-[#5B2C83] px-[0.7em] py-[0.15em] font-semibold">You voted. Your vote is in the count</span>}
               </p>
             )}
           </div>
@@ -263,6 +288,17 @@ export function ResultsBoard() {
           </section>
         </div>
 
+        {voting && (
+          <BallotFlow
+            onClose={() => setVoting(false)}
+            cast={async (party) => {
+              setMine(PARTIES.findIndex((p) => p.code === party));
+              setThumb(true);
+              return null;
+            }}
+          />
+        )}
+        <VotedMoment show={thumb} onHide={() => setThumb(false)} />
         {finale && winner >= 0 && (
           <Finale
             winner={winner}

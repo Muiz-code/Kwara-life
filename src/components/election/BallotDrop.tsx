@@ -1,7 +1,7 @@
 "use client";
 // The ballot folding and dropping into the box, and the inked thumb once the vote is counted.
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGame } from "@/store";
 
 /** A folded ballot slides down into the box's slot. Plays once, about 1.5 seconds. */
@@ -36,9 +36,18 @@ export function VotedCelebration() {
     setSeen(ballot);
     if (ballot && !seen) setShow(true);
   }
+  return <VotedMoment show={show} onHide={() => setShow(false)} />;
+}
+
+/** The inked thumb and "You voted", for a few seconds. Also used by the results demo. */
+export function VotedMoment({ show, onHide }: { show: boolean; onHide: () => void }) {
+  const hide = useRef(onHide);
+  useEffect(() => {
+    hide.current = onHide;
+  }, [onHide]);
   useEffect(() => {
     if (!show) return;
-    const id = setTimeout(() => setShow(false), 3200);
+    const id = setTimeout(() => hide.current(), 3200);
     return () => clearTimeout(id);
   }, [show]);
   return (
@@ -49,7 +58,7 @@ export function VotedCelebration() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={() => setShow(false)}
+          onClick={onHide}
           role="status"
         >
           <motion.div

@@ -1,12 +1,17 @@
 "use client";
 // A house inspection with the Sync agent: the drive there, a walk through the rooms (what the agent says,
-// what you notice: the good and the wahala), and the drive back to the office.
+// what you notice: the good and the wahala), and the drive back to the office. The walk through is the real
+// house in 3D (HouseView3D), the camera moving room to room and out into the compound; phones that can't draw
+// 3D get the rooms as cards.
 import { AlertTriangle, Car, Check, ChevronRight, FastForward, Home } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { HOUSE } from "@/data/shops";
 import { tourOf } from "@/data/sync";
 import { getGameStore, useGame } from "@/store";
 import { cx, naira, usePerfNow } from "./ui";
+
+const HouseView3D = dynamic(() => import("./HouseView3D"), { ssr: false });
 
 /** How long each drive takes on screen. */
 const DRIVE_MS = 6000;
@@ -24,6 +29,8 @@ function Tour({ house }: { house: string }) {
   const [stop, setStop] = useState(0);
   const [t0, setT0] = useState(() => performance.now());
   const [fast, setFast] = useState(false);
+  /** The phone could not draw the house in 3D: show the rooms as cards. */
+  const [flat, setFlat] = useState(false);
   const now = usePerfNow(100);
   const driveMs = fast ? 800 : DRIVE_MS;
   const p = now ? Math.min(1, (now - t0) / driveMs) : 0;
@@ -41,6 +48,52 @@ function Tour({ house }: { house: string }) {
   }, [driving, stage, t0, driveMs]);
   if (!h) return null;
   const s = tour.stops[stop];
+  const next = () => {
+    if (stop + 1 < tour.stops.length) setStop(stop + 1);
+    else {
+      setStage("back");
+      setT0(performance.now());
+    }
+  };
+  const card = (
+    <div className="w-full max-w-sm rounded-2xl bg-panel p-4 text-ink shadow-2xl">
+      <div className="mb-2 flex items-center justify-between text-xs font-bold text-ink-soft">
+        <span className="flex items-center gap-1">
+          <Home aria-hidden className="h-3.5 w-3.5" /> {s.room}
+        </span>
+        <span>
+          {stop + 1} of {tour.stops.length}
+        </span>
+      </div>
+      <p className="mb-3 text-sm">
+        <span className="font-bold">Agent: </span>&ldquo;{s.says}&rdquo;
+      </p>
+      <p className={cx("mb-4 flex items-start gap-2 rounded-xl p-2 text-sm font-semibold", s.good ? "bg-[#0E7A4B]/10 text-[#0E7A4B]" : "bg-[#E0884F]/15 text-[#9A4A12]")}>
+        {s.good ? <Check aria-hidden className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />}
+        {s.note}
+      </p>
+      <button type="button" onClick={next} className="flex w-full items-center justify-center gap-1 rounded-xl bg-indigo px-3 py-2.5 font-bold text-[#F7E7C1]">
+        {stop + 1 < tour.stops.length ? "Next room" : "That's everything. Back to Sync"}
+        <ChevronRight aria-hidden className="h-4 w-4" />
+      </button>
+    </div>
+  );
+  if (stage === "rooms" && !flat) {
+    return (
+      <div className="fixed inset-0 z-50 bg-[#0F1730] text-[#F7E7C1]" role="dialog" aria-label="House inspection">
+        <HouseView3D house={h} stops={tour.stops} stop={stop} onFail={() => setFlat(true)} />
+        <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-[#0F1730]/85 to-transparent p-4 pb-10 text-center">
+          <div className="text-xs font-bold uppercase tracking-wide opacity-70">Inspection with your Sync agent</div>
+          <h2 className="font-sign text-2xl leading-tight">{h.name}</h2>
+          <div className="text-sm opacity-80">
+            {naira(h.price)}
+            {h.rent ? " a year" : ""} · {tour.area}
+          </div>
+        </div>
+        <div className="absolute inset-x-0 bottom-0 flex justify-center p-4">{card}</div>
+      </div>
+    );
+  }
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-[#26355E] to-[#0F1730] p-5 text-[#F7E7C1]" role="dialog" aria-label="House inspection">
       <div className="text-center">
@@ -71,37 +124,7 @@ function Tour({ house }: { house: string }) {
           )}
         </div>
       ) : (
-        <div className="w-full max-w-sm rounded-2xl bg-panel p-4 text-ink shadow-2xl">
-          <div className="mb-2 flex items-center justify-between text-xs font-bold text-ink-soft">
-            <span className="flex items-center gap-1">
-              <Home aria-hidden className="h-3.5 w-3.5" /> {s.room}
-            </span>
-            <span>
-              {stop + 1} of {tour.stops.length}
-            </span>
-          </div>
-          <p className="mb-3 text-sm">
-            <span className="font-bold">Agent: </span>&ldquo;{s.says}&rdquo;
-          </p>
-          <p className={cx("mb-4 flex items-start gap-2 rounded-xl p-2 text-sm font-semibold", s.good ? "bg-[#0E7A4B]/10 text-[#0E7A4B]" : "bg-[#E0884F]/15 text-[#9A4A12]")}>
-            {s.good ? <Check aria-hidden className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />}
-            {s.note}
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              if (stop + 1 < tour.stops.length) setStop(stop + 1);
-              else {
-                setStage("back");
-                setT0(performance.now());
-              }
-            }}
-            className="flex w-full items-center justify-center gap-1 rounded-xl bg-indigo px-3 py-2.5 font-bold text-[#F7E7C1]"
-          >
-            {stop + 1 < tour.stops.length ? "Next room" : "That's everything. Back to Sync"}
-            <ChevronRight aria-hidden className="h-4 w-4" />
-          </button>
-        </div>
+        card
       )}
     </div>
   );

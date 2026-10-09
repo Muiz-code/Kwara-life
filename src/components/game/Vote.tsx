@@ -3,7 +3,7 @@
 import { Check, Fingerprint } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PRESIDENTIAL_2027 as CAL, civicPhase, seasonClosed } from "@/data/calendar";
 import { LGA, POLLING_UNITS } from "@/data/geography";
 import { submitVote } from "@/net/sync";
@@ -103,7 +103,14 @@ function TurnoutCounter() {
 }
 
 /** BVAS accreditation, then the ballot, then the drop into the box. */
-export function BallotFlow({ onClose }: { onClose: () => void }) {
+export function BallotFlow({
+  onClose,
+  cast = submitVote,
+}: {
+  onClose: () => void;
+  /** Sends the vote; null when it counted. The results demo passes its own, which counts it on the board. */
+  cast?: (party: string) => Promise<string | null>;
+}) {
   const [stage, setStage] = useState<"bvas" | "ballot" | "drop">("bvas");
   const [tries, setTries] = useState(0);
   const [scan, setScan] = useState<"idle" | "scanning" | "failed" | "ok">("idle");
@@ -112,13 +119,22 @@ export function BallotFlow({ onClose }: { onClose: () => void }) {
   const [err, setErr] = useState<string | null>(null);
 
   // The ballot goes into the box first, then the vote is sent. Once it counts, the store closes this flow and
-  // VotedCelebration shows the inked thumb. If it is refused, back to the ballot with the reason.
+  // VotedCelebration shows the inked thumb (a custom cast closes it here). If it is refused, back to the ballot
+  // with the reason.
+  const sent = useRef({ cast, onClose });
+  useEffect(() => {
+    sent.current = { cast, onClose };
+  }, [cast, onClose]);
   useEffect(() => {
     if (stage !== "drop" || !choice) return;
     let live = true;
     const id = setTimeout(async () => {
-      const e = await submitVote(choice);
-      if (!live || !e) return;
+      const e = await sent.current.cast(choice);
+      if (!live) return;
+      if (!e) {
+        if (sent.current.cast !== submitVote) sent.current.onClose();
+        return;
+      }
       setErr(e);
       setStage("ballot");
     }, 1500);
