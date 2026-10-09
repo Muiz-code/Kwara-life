@@ -109,7 +109,8 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - No SMS or WhatsApp OTP. Voting happens in the game: walk to your polling unit, queue, BVAS, ballot. One citizen
   per account, with email and password sign-in plus device and rate limits against multiple accounts and bots
   (Google sign-in was dropped on 8 Oct 2026, see below).
-- While polls are open players see a live turnout counter only (votes cast), never party standings.
+- While polls are open players see a live turnout counter only (votes cast), never party standings. (Replaced on
+  9 Oct 2026, see "Live results from 8am" below.)
 - At polls close (4pm Saturday 14 November) the game freezes for every player: no more actions or travel. Live
   collation runs, the winning party is announced over a generic celebration video (no party marks; the party name
   and colour are overlaid), then a closing screen thanks everyone, urges them to vote in real elections and choose
@@ -138,3 +139,14 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - Accounts made before this confirm once on their next sign-in (confirm_age). Anyone who says they are under 18
   is locked out, so they can't just try an older date.
 - The age is what the player says. It is not verified.
+
+### Live results from 8am (9 Oct 2026)
+- The owner's choice: every vote counts and shows live. From polls open (8am) party standings update as votes are
+  cast, nationally and by zone, state and LGA, alongside turnout. This replaces "turnout only while polls are
+  open". The owner accepted the bandwagon risk.
+- The disclaimer stays on every results view: a game, not a poll or prediction, not affiliated with INEC.
+- Players still never query the vote tables. Each vote updates running totals in the same transaction as the
+  vote; the server pushes the new totals about once a second (batched, so it feels like every vote while the load
+  stays flat at a million players), and a CDN snapshot backs anyone who joins late or loses connection.
+- At 4pm the game freezes and the final collation (unit, LGA, state, nation) plays out on the result sheet, then
+  the winner and the closing screen, as above.
