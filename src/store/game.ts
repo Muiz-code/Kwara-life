@@ -20,6 +20,9 @@ import { findActionAt, placeInfo, tripWorldFor } from "./world";
 import { serviceFor, type Service } from "../data/services";
 import { roomFor } from "../data/rooms";
 import { CAR_HIRE } from "../data/sync";
+import { checkIn, track, type Moment } from "../sim/daily";
+import { watDate } from "../sim/civic";
+import type { Action } from "../data/action";
 import { tasksFor, taskAt, taskPay } from "../data/work-tasks";
 import { naira } from "../sim/state";
 import type { WorldMap } from "../world";
@@ -138,6 +141,16 @@ export interface ServiceRun {
 export const isModalOpen = (s: GameStore) => s.game.notes.length > 0 || !s.game.char;
 
 /** Real-time length of an action's animation, as in the prototype. */
+/** What an action amounted to, for missions and stamps: PVC steps only count if they went through. */
+function momentOf(a: Action, before: GameState, after: GameState): Moment {
+  const pvc = a.pvcAct && after.citizen?.pvc !== before.citizen?.pvc ? a.pvcAct : undefined;
+  return {
+    kind: "action", id: a.id, place: before.loc, food: (a.fx.food ?? 0) > 0 || !!a.takeaway, social: (a.fx.social ?? 0) > 0, fun: a.fx.fun,
+    shift: !!a.shift, media: !!a.media, pvc: pvc === "register" || pvc === "collect" ? pvc : undefined, takeaway: !!a.takeaway,
+    house: !!a.house && after.house !== before.house, carHire: !!a.carHire,
+  };
+}
+
 /** How long the rest of a fast-forwarded trip takes on screen. */
 export const FAST_FORWARD_MS = 2200;
 
@@ -205,6 +218,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             // The season is over: the game is frozen for everyone.
             if (st.game.citizen && seasonClosed(PRESIDENTIAL_2027, realNow())) return;
             const g = clone(st.game);
+            if (g.citizen) checkIn(g, watDate(realNow()));
             advance(g, MINUTES_PER_TICK, rng);
             checkCritical(g, rng);
             pvcReminders(g, realNow());
@@ -229,6 +243,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             }
             if (a.kind === "action") {
               const done = finishAction(g, a.plan, rng, { now: realNow(), place: placeInfo(st.world, g.loc) });
+              track(done, momentOf(a.plan.action, g, done), watDate(realNow()));
               // A shift where you handled what came up: a bonus on top of the pay.
               const c = done.citizen;
               const handled = a.tasks?.length ?? 0;
@@ -240,6 +255,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
               commit(done, { activity: null, selected: done.loc });
             } else {
               const done = finishTrip(g, a.trip, rng);
+              track(done, { kind: "trip", mode: a.trip.mode }, watDate(realNow()));
               commit(done, { activity: null, selected: done.loc });
             }
           },
@@ -301,7 +317,9 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             const r = startAction(st.game, CAR_HIRE, rng, ctx);
             if ("blocked" in r) return r.blocked;
             if ("flow" in r) return null;
-            commit(finishAction(r.state, { ...r.plan, dur: 0 }, rng, ctx));
+            const done = finishAction(r.state, { ...r.plan, dur: 0 }, rng, ctx);
+            track(done, momentOf(CAR_HIRE, st.game, done), watDate(realNow()));
+            commit(done);
             return null;
           },
 
@@ -321,7 +339,9 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             const sv = get().service;
             if (sv?.stage !== "steps") return;
             if (sv.step + 1 < sv.service.steps.length) return set({ service: { ...sv, step: sv.step + 1, stepAt: now } });
-            set({ service: null });
+            const g = clone(get().game);
+            track(g, { kind: "served" }, watDate(realNow()));
+            commit(g, { service: null });
             // Re-checked now: still the same place, still allowed.
             if (get().game.loc === sv.placeId) get().doAction(sv.actionId, now, true);
           },
@@ -488,7 +508,9 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             const st = get();
             const r = castVote(st.game, party, { now: realNow(), atPollingUnit: st.game.loc === "pu" }, rng);
             if ("blocked" in r) return r.blocked;
-            commit(r.state, { myBallot: r.ballot, flow: null });
+            const g = clone(r.state);
+            track(g, { kind: "action", id: "vote", place: g.loc, vote: true }, watDate(realNow()));
+            commit(g, { myBallot: r.ballot, flow: null });
             return null;
           },
           postCard: (input) => {

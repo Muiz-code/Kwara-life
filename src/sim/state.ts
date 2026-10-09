@@ -71,6 +71,12 @@ export interface Flags {
   smelly?: boolean;
   /** Went too long without fun or company: feeling low until both pick up. */
   low?: boolean;
+  /** Today's three missions and how far along they are (src/sim/daily.ts). */
+  daily?: import("./daily").Daily;
+  /** Stamps for firsts: id to the game minute it was earned. */
+  stamps?: Record<string, number>;
+  /** Real days played in a row (WAT dates). */
+  streak?: { last: string; count: number };
   /** Game day a car and driver were hired for (Sync). */
   carHireDay?: number;
   /** Take-away packs carried home, by food value, oldest first. */

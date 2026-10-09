@@ -8,6 +8,7 @@ export * from "./friends";
 export * from "./critical";
 export * from "./actions";
 export * from "./travel";
+export { checkIn, track, dailyOf, missionsFor, MISSIONS, STAMPS, streakReward, type Moment } from "./daily";
 export * from "./goals";
 export * from "./explore";
 export * from "./roll";
