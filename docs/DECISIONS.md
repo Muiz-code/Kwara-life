@@ -3,6 +3,20 @@ Newest first. These win where they differ from DESIGN.md or the prototype.
 
 ## October 2026
 
+### Pace and feel (9 October 2026)
+- Needs: a bar at empty warns you and gives 2 real minutes (240 game minutes). Then hunger means hospital,
+  tiredness a collapse, no bath "Smelling" (social drains twice as fast) and no fun or company "Feeling low".
+- Rides and actions take real time, always skippable (Skip fast-forwards, never jumps): a keke about 15
+  seconds across town at its speed, eating 20, sleep 30, a work shift 60 to 90. Vehicles stay on the roads.
+- Counters: VINEC, the bank officer, food places and the Supermart give you a ticket, a real 30 to 90 second
+  wait, then steps you tap or hold. Every business has a person at a counter you can tap or talk to.
+- Item 7 is take-away only: meals are packed and eaten at home.
+- Work shifts have tasks for your job, each handled pays a small bonus. Crime careers get no bonus tasks.
+
+### Sync (9 October 2026)
+Sync is an in-game company: an office in every town, a phone app (ride, homes to rent or buy, what's on, car
+hire with a driver for the day) and an employer on the jobs board every week (cleaner to engineer).
+
 ### Name
 The game is called Naija Votes (9 October 2026). It replaces "Naija Votes 2027" and the short in-game "Naija".
 The prototype file keeps its old name, reference/naija-votes-2027.html.
