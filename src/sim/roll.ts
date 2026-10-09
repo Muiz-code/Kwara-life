@@ -7,6 +7,7 @@ import { HOMES, START_MONEY, type ClassId } from "../data/jobs";
 import { STATE } from "../data/states";
 import { CAREERS, CAREER_ODDS, EDUCATION_ODDS, careerFits, type CareerId, type Education } from "../data/careers";
 import { pick, type Rng } from "./rng";
+import type { Promo } from "./promotion";
 
 export type PvcStatus = "none" | "registered" | "have" | "seized";
 
@@ -34,6 +35,8 @@ export interface Citizen {
   pvc: PvcStatus;
   /** Real time (ms) the citizen was created. Registration opens 2 minutes later. */
   createdAt: number;
+  /** Getting on at the current job: level, days worked, tasks handled (src/sim/promotion.ts). */
+  promo?: Promo;
   /** Real time (ms) they registered in game, if they did. */
   registeredAt: number | null;
 }

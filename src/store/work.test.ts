@@ -17,10 +17,10 @@ describe("work tasks", () => {
     expect(taskAt(TASK_FIRST + 2 * TASK_EVERY + 100)).toBe(2);
   });
 
-  it("pay about 4% of a day's pay, within limits", () => {
-    expect(taskPay(220_000)).toBe(400);
-    expect(taskPay(0)).toBe(100);
-    expect(taskPay(50_000_000)).toBe(5000);
+  it("pay about 4% of a day's pay (a month's salary), within limits", () => {
+    expect(taskPay(220_000)).toBe(8800);
+    expect(taskPay(0)).toBe(500);
+    expect(taskPay(50_000_000)).toBe(50000);
   });
 
   it("a shift where you handled things pays a bonus on top", () => {

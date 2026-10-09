@@ -55,11 +55,12 @@ describe("careers", () => {
     const s = make(citizen(), { events: { owedUntil: 1 } });
     const w = doWork(s, never);
     expect(w.earned).toBe(0);
-    expect(s.payOwed).toBe(7000);
+    const month = s.citizen!.monthlyPay;
+    expect(s.payOwed).toBe(month);
     s.t = 1440 + 7 * 60; // day 2, 7am
     dailyLife(s, never);
     expect(s.payOwed).toBe(0);
-    expect(s.money).toBe(107000);
+    expect(s.money).toBe(100000 + month);
   });
 });
 

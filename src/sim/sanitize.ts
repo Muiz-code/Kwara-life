@@ -10,6 +10,7 @@ import { LGA } from "../data/geography";
 import { PARTY } from "../data/parties";
 import { CAR, HOUSE, OUTFIT } from "../data/shops";
 import { maxMonthly, openingById } from "./jobs";
+import { MAX_LEVEL } from "./promotion";
 import { clamp } from "./needs";
 import { cleanBank } from "./bank";
 import { STATE } from "../data/states";
@@ -90,7 +91,13 @@ export function sanitizeGame(raw: unknown): GameState | null {
     if (!Object.hasOwn(CAREERS, c.career) || !Object.hasOwn(EDUCATION_RANK, c.education)) return null;
     if (!["poor", "middle", "rich"].includes(c.cls) || !["none", "registered", "have", "seized"].includes(c.pvc)) return null;
     if (typeof c.name !== "string" || !c.name.trim() || c.name.length > 16) return null;
-    if (!num(c.monthlyPay) || c.monthlyPay < 0 || c.monthlyPay > maxMonthly(c.career)) return null;
+    // Promotions raise pay up to four times, 20% at most each: allow a little over double the career's top pay.
+    if (!num(c.monthlyPay) || c.monthlyPay < 0 || c.monthlyPay > maxMonthly(c.career) * 2.1) return null;
+    if (c.promo !== undefined) {
+      const p = c.promo;
+      if (!obj(p) || typeof p.job !== "string" || typeof p.base !== "string" || ![p.level, p.days, p.tasks, p.since].every(num)) return null;
+      if (p.level < 0 || p.level > MAX_LEVEL || p.days < 0 || p.tasks < 0) return null;
+    }
     if (!num(c.createdAt) || typeof c.puCode !== "string" || !c.puCode.startsWith(`${c.lgaCode}/`)) return null;
   }
   return g;

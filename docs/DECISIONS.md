@@ -226,3 +226,18 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   signed Hizzy. "Let us make Nigeria great again" stays as the owner wrote it.
 - Top 10 players are ranked by how many times they played the game, shown with that count, and only players who
   agreed to have their name shown are listed.
+
+### Pay, promotions and vote buying (9 Oct 2026)
+- One day in the game pays like a month: a day on a salary pays the month's salary; a day's trade or deals (daily and
+  commission careers) are worth 22 days of them. Bonuses for tasks handled on shift are 4% of a day's pay, up to
+  N50,000. Hustles and one-off action earnings are unchanged.
+- Promotions: every 5 days worked, a review (50% chance, plus 5 points a task handled since the last review, minus
+  10 a day missed; between 10% and 95%). Salaried: a new title (Senior, Lead, Head, Chief) and a 10 to 20% raise.
+  Paid by the day or the deal: 15% more takings a level. Four levels at most; a new job starts again at the bottom;
+  students and corps members are not promoted.
+- Vote buying: police go after the people paying, not the people paid. Taking an offer is never punished and the
+  player is told their vote is still theirs, because the ballot is secret.
+- Real players buying votes from real players: agreed in principle, but how they reach each other is not designed
+  yet. Not built. Whatever the design, sellers still vote freely on election day.
+- Big-ticket prices (houses, cars, rent): the owner agreed to raise them. They are unchanged until the owner sees how
+  the new pay lines up with today's real Nigerian prices, then picks how much to raise them.

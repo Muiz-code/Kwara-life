@@ -31,6 +31,7 @@ import { PRESIDENTIAL_2027, seasonClosed } from "../data/calendar";
 import { LGA } from "../data/geography";
 import { bankOp, book, reconcile, type BankOp } from "../sim/bank";
 import { startLife } from "../sim/start";
+import { noteTasks } from "../sim/promotion";
 
 export const SAVE_KEY = "kwara-life-v4";
 /** Game minutes that pass each real second while idle. */
@@ -265,6 +266,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
                 const bonus = handled * taskPay(c.monthlyPay);
                 book(done, bonus, "Bonus for good work", "salary");
                 done.toasts.push(`Good shift: ${handled} handled. Bonus ${naira(bonus)}`);
+                noteTasks(done, handled);
               }
               commit(done, { activity: null, selected: done.loc });
             } else {

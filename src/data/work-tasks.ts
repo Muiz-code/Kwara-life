@@ -127,6 +127,7 @@ export function taskAt(elapsed: number): number | null {
 
 /** Bonus for each task handled: about 4% of a day's pay, in round fifties, between ₦100 and ₦5,000. */
 export function taskPay(monthlyPay: number): number {
-  const day = monthlyPay / 22;
-  return Math.min(5000, Math.max(100, Math.round((day * 0.04) / 50) * 50));
+  // A day pays a month's salary in the game (src/sim/work.ts).
+  const day = monthlyPay;
+  return Math.min(50000, Math.max(500, Math.round((day * 0.04) / 50) * 50));
 }

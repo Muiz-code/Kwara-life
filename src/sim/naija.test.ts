@@ -106,12 +106,12 @@ describe("civic actions on an LGA map", () => {
     expect(why(onMap("inec", citizen({ pvc: "registered" })), "collect", at("2026-11-14T07:51:00+01:00"))).toBe("PVC collection has closed");
   });
 
-  it("pays a day's share of a monthly salary, once a game day", () => {
+  it("pays a month's salary for a day's work, once a game day (a game day is a month)", () => {
     const nurse = citizen({ cls: "middle", job: "Nurse", career: "worker", monthlyPay: 220000 });
     const s = run(onMap("work", nurse), "work", EARLY, sequence(0.5));
-    expect(s.money).toBe(50000 + 10000);
+    expect(s.money).toBe(50000 + 220000);
     expect(s.t).toBe(10 * 60 + 480);
-    expect(s.log[0].msg).toBe("A full day as a nurse. You earned ₦10,000.");
+    expect(s.log[0].msg).toBe("A full day as a nurse. You earned ₦220,000.");
     expect(why({ ...s, loc: "work" }, "work", EARLY)).toBe("You already worked today");
   });
 
@@ -238,9 +238,14 @@ describe("vote buying", () => {
     expect(offerDue(s, PVC_TIME)).toBeNull();
     resolveChoice(s, "door-report", never);
     expect(s.civic).toBe(3);
+    // Taking the money is not punished: the police go after the people paying, and the vote stays free.
     const t = onMap("pu");
+    const pvc = t.citizen!.pvc;
+    const money = t.money;
     resolveChoice(t, "pu-take", always);
-    expect(t.citizen!.pvc).toBe("seized");
+    expect(t.citizen!.pvc).toBe(pvc);
+    expect(t.money).toBe(money + 5000);
+    expect(t.notes.at(-1)?.title).toBe("Your vote is still yours");
   });
 });
 

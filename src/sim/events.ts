@@ -128,7 +128,7 @@ export function resolveChoice(s: GameState, id: ChoiceId, rng: Rng) {
     default: {
       if (id.startsWith("stock-")) return resolveStock(s, id);
       const [kind, answer] = id.split("-") as [OfferKind, "report" | "refuse" | "take"];
-      resolveOffer(s, kind, answer, rng);
+      resolveOffer(s, kind, answer);
     }
   }
 }

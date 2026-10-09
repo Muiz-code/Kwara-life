@@ -1,9 +1,11 @@
-// Working for money, by career (src/data/careers.ts).
+// Working for money, by career (src/data/careers.ts). One day in the game pays like a month (owner, 9 Oct 2026):
+// a day on a salary pays the month's salary, and a day's trade or deals are worth a month of them.
 import { CAREERS, WORKDAYS_PER_MONTH } from "../data/careers";
 import type { Rng } from "./rng";
 import { naira, type GameState } from "./state";
 import { book } from "./bank";
 import { dayNum } from "./time";
+import { takingsBoost, workedDay } from "./promotion";
 
 export const HEAT_MAX = 100;
 
@@ -38,13 +40,13 @@ export function doWork(s: GameState, rng: Rng): WorkResult {
   let earned = 0;
   let msg: string;
   if (career.pay === "salary") {
-    earned = Math.round(c.monthlyPay / WORKDAYS_PER_MONTH);
+    earned = c.monthlyPay;
     msg = c.career === "student" ? "You sat through lectures. Your allowance from home came in." : `A full day as a ${job}.`;
   } else if (career.pay === "daily") {
-    earned = Math.round((career.min + rng() * (career.max - career.min)) / 50) * 50;
+    earned = Math.round(((career.min + rng() * (career.max - career.min)) * WORKDAYS_PER_MONTH * takingsBoost(s)) / 50) * 50;
     msg = earned < (career.min + career.max) / 3 ? `Slow day as a ${job}. Customers no dey.` : `Good day as a ${job}.`;
   } else if (rng() < (career.hitChance ?? 0)) {
-    earned = Math.round((career.min + Math.pow(rng(), 2) * (career.max - career.min)) / 1000) * 1000;
+    earned = Math.round(((career.min + Math.pow(rng(), 2) * (career.max - career.min)) * WORKDAYS_PER_MONTH * takingsBoost(s)) / 1000) * 1000;
     msg = c.career === "creator" ? "Your video went viral and a brand paid you." : c.career === "founder" ? "An investor wired money." : "It landed.";
   } else {
     msg = c.career === "creator" ? "You posted. Small views today." : c.career === "founder" ? "Long day building. No money yet." : "Nothing landed today.";
@@ -59,5 +61,7 @@ export function doWork(s: GameState, rng: Rng): WorkResult {
   }
   book(s, earned, "Pay for today's work", "salary");
   if (earned) msg += ` You earned ${naira(earned)}.`;
-  return { earned, owed, msg, toast: earned ? "+" + naira(earned) : owed ? "Salary owed" : "No money today" };
+  const promoted = workedDay(s, career.pay === "salary", rng);
+  const toast = earned ? "+" + naira(earned) : owed ? "Salary owed" : "No money today";
+  return { earned, owed, msg, toast: promoted ? `${toast}. ${promoted}` : toast };
 }

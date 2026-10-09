@@ -1,5 +1,7 @@
 // Vote buying: a crime, risky, unverifiable, and limited to the buyer's own LGA (docs/DESIGN.md).
 // Arrest news never names a party. The buyer never learns how anyone voted.
+// Police go after the people paying, not the people paid (owner, 9 Oct 2026): taking an offer costs nothing, and
+// the ballot is secret, so whoever took the money still votes for whoever they choose.
 import { PRESIDENTIAL_2027, civicPhase, pollsAreOpen } from "../data/calendar";
 import { LGA } from "../data/geography";
 import { PARTY } from "../data/parties";
@@ -81,16 +83,14 @@ export function buyVotes(state: GameState, input: BribeInput, ctx: CivicContext,
 
 export type OfferKind = "door" | "pu";
 
-export const OFFERS: Record<OfferKind, { amount: number; catchChance: number; title: string; body: string }> = {
+export const OFFERS: Record<OfferKind, { amount: number; title: string; body: string }> = {
   door: {
     amount: 10000,
-    catchChance: 0.6,
     title: "A stranger at your door",
     body: "A man you don't know offers you ₦10,000 to vote his way.",
   },
   pu: {
     amount: 5000,
-    catchChance: 0.5,
     title: "Someone near the polling unit",
     body: "A woman by the queue whispers that she will give you ₦5,000 if you vote her way.",
   },
@@ -118,7 +118,7 @@ export function showOffer(s: GameState, kind: OfferKind) {
 }
 
 /** Mutates s: the player's answer to an offer. Reporting earns civic points. */
-export function resolveOffer(s: GameState, kind: OfferKind, answer: "report" | "refuse" | "take", rng: Rng) {
+export function resolveOffer(s: GameState, kind: OfferKind, answer: "report" | "refuse" | "take") {
   const o = OFFERS[kind];
   if (answer === "report") {
     s.civic += 3;
@@ -132,11 +132,6 @@ export function resolveOffer(s: GameState, kind: OfferKind, answer: "report" | "
     return;
   }
   book(s, o.amount, "Cash from a politician", "gift");
-  if (rng() < o.catchChance && s.citizen) {
-    s.citizen.pvc = "seized";
-    log(s, `You took ${naira(o.amount)} for your vote. Investigators traced the ring and seized your PVC.`);
-    note(s, "PVC confiscated", "Investigators traced the vote-buying ring and everyone it paid. You cannot vote this election. Selling your vote is a crime.");
-  } else {
-    log(s, `You took ${naira(o.amount)} from a vote buyer. Nobody found out, this time.`);
-  }
+  log(s, `You took ${naira(o.amount)} from a vote buyer.`);
+  note(s, "Your vote is still yours", "The ballot is secret. Nobody can see who you vote for, so vote for whoever you choose. Buying votes is a crime in real life: report it to INEC.");
 }
