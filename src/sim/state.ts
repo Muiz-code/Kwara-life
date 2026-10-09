@@ -65,6 +65,12 @@ export interface Flags {
   pvcTurnedAway?: string;
   /** Amount a relative asked for (black tax), waiting for an answer. */
   familyAsk?: number;
+  /** Game minute each need hit empty; cleared when it rises again (src/sim/critical.ts). */
+  emptyAt?: Partial<Record<NeedKey, number>>;
+  /** Went too long without a bath: people notice until you wash. */
+  smelly?: boolean;
+  /** Went too long without fun or company: feeling low until both pick up. */
+  low?: boolean;
 }
 
 /** A paid promotion: flyers on notice boards or a sponsored news line. */

@@ -29,3 +29,9 @@ export const NEED_PACE = 0.5;
 export const SLEEP_DECAY_FACTOR = 0.4;
 
 export const LOW_NEED = 25;
+
+/**
+ * Game minutes a need can sit at empty before it catches up with you: 240 is two real minutes at the
+ * normal clock (2 game minutes a second). A long action on an empty need lands at its end.
+ */
+export const EMPTY_GRACE = 240;

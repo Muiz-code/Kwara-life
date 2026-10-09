@@ -455,8 +455,16 @@ function GoalList({ goals }: { goals: { title: string; hint: string }[] }) {
 export function NeedsDock() {
   const needs = useGame((s) => s.game.needs);
   const g = useGame((s) => s.game.citizen?.look.g ?? "m");
+  const smelly = useGame((s) => !!s.game.flags.smelly);
+  const low = useGame((s) => !!s.game.flags.low);
   return (
-    <div className="pointer-events-auto flex items-center gap-2">
+    <div className="pointer-events-auto relative flex items-center gap-2">
+      {(smelly || low) && (
+        <div className="absolute -top-6 left-0 flex gap-1">
+          {smelly && <span className="rounded-full bg-[#6B5B2A] px-2 py-0.5 text-[11px] font-bold text-[#F7E7C1] shadow">Smelling</span>}
+          {low && <span className="rounded-full bg-[#4F6AAE] px-2 py-0.5 text-[11px] font-bold text-white shadow">Feeling low</span>}
+        </div>
+      )}
       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-[3px] border-[#0E7A4B] bg-[#E9D5AE] shadow sm:h-16 sm:w-16 sm:border-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -484,7 +492,11 @@ export function NeedsDock() {
               );
             })()}
             <div
-              className="h-2 w-9 overflow-hidden rounded-full bg-panel-2 sm:w-12"
+              className={cx(
+                "h-2 w-9 overflow-hidden rounded-full bg-panel-2 sm:w-12",
+                // Empty: two minutes before it catches up with you.
+                needs[key] <= 0 && "animate-pulse bg-danger/60 motion-reduce:animate-none",
+              )}
               role="progressbar"
               aria-label={label}
               aria-valuenow={Math.round(needs[key])}

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { NEED_PACE } from "../data/needs";
+import { EMPTY_GRACE, NEED_PACE } from "../data/needs";
 import { findAction, type Action } from "../data/ilorin/actions";
 import {
-  advance, blockReason, checkCritical, finishTrip, freshState, hourly, mood, performAction, performTrip,
+  advance, applyFx, blockReason, checkCritical, finishTrip, freshState, hourly, mood, performAction, performTrip,
   quoteTrip, resolveChoice, sequence, startAction, startTrip, type GameState,
 } from ".";
 
@@ -159,9 +159,31 @@ describe("action rules", () => {
 });
 
 describe("critical needs", () => {
-  it("fainting from hunger sends you home with a clinic bill", () => {
+  it("an empty need only warns you at first", () => {
     const s = at("po", 1, 10);
     s.needs.food = 0;
+    checkCritical(s, never);
+    expect(s.loc).toBe("po");
+    expect(s.notes).toHaveLength(0);
+    expect(s.toasts[0]).toMatch(/starving/);
+    expect(s.flags.emptyAt?.food).toBe(s.t);
+  });
+
+  it("eating in time stops the clock", () => {
+    const s = at("po", 1, 10);
+    s.needs.food = 0;
+    checkCritical(s, never);
+    s.needs.food = 30;
+    s.t += EMPTY_GRACE;
+    checkCritical(s, never);
+    expect(s.notes).toHaveLength(0);
+    expect(s.flags.emptyAt?.food).toBeUndefined();
+  });
+
+  it("fainting from hunger after the grace sends you home with a hospital bill", () => {
+    const s = at("po", 1, 10);
+    s.needs.food = 0;
+    s.flags.emptyAt = { food: s.t - EMPTY_GRACE };
     checkCritical(s, never);
     expect(s.loc).toBe("home");
     expect(s.money).toBe(17000);
@@ -172,10 +194,39 @@ describe("critical needs", () => {
   it("sleeping off where you are", () => {
     const s = at("po", 1, 10);
     s.needs.energy = 0;
+    s.flags.emptyAt = { energy: s.t - EMPTY_GRACE };
     checkCritical(s, never);
     expect(s.loc).toBe("po");
     expect(s.needs.energy).toBe(45);
     expect(s.t).toBe(14 * 60);
+  });
+
+  it("no bath for too long: you smell until you wash, and gisting does half as much", () => {
+    const s = at("po", 1, 10);
+    s.needs.hygiene = 0;
+    s.needs.social = 60;
+    s.flags.emptyAt = { hygiene: s.t - EMPTY_GRACE };
+    checkCritical(s, never);
+    expect(s.flags.smelly).toBe(true);
+    expect(s.notes[0].title).toBe("You're smelling");
+    expect(s.needs.social).toBe(45);
+    applyFx(s, { social: 20 });
+    expect(s.needs.social).toBe(55);
+    s.needs.hygiene = 70;
+    checkCritical(s, never);
+    expect(s.flags.smelly).toBe(false);
+  });
+
+  it("no fun or company for too long: you feel low until both pick up", () => {
+    const s = at("po", 1, 10);
+    s.needs.fun = 0;
+    s.flags.emptyAt = { fun: s.t - EMPTY_GRACE };
+    checkCritical(s, never);
+    expect(s.flags.low).toBe(true);
+    s.needs.fun = 50;
+    s.needs.social = 50;
+    checkCritical(s, never);
+    expect(s.flags.low).toBe(false);
   });
 });
 
