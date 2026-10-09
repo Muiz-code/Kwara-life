@@ -35,6 +35,10 @@ import { buildScene, type BuiltScene } from "./scene";
 import { buildRoadside } from "./roadside";
 
 const SKY = new Color("#BFD3DE");
+/** How close the camera rides along with you. */
+const RIDE_CAM_DIST = 42;
+/** How far back down the street a vehicle starts when it comes to pick you up, in map pixels. */
+const APPROACH_PX = 300;
 const NIGHT_SKY = new Color("#1A2340");
 const SIGN_BG = "#26355e";
 const SIGN_TEXT = "#f7e7c1";
@@ -120,7 +124,9 @@ export class Town3D {
   private ring = new Mesh(new RingGeometry(4.0, 4.6, 40), new MeshBasicMaterial({ color: "#F2B705", transparent: true, side: DoubleSide }));
   private ray = new Raycaster();
   private route: ReturnType<typeof router> | null = null;
-  private tripPath: { key: number; pts: Point[] } | null = null;
+  private tripPath: { key: number; pts: Point[]; from?: Point } | null = null;
+  /** The camera distance before a ride zoomed in, to ease back to after; null when not riding. */
+  private rideCam: number | null = null;
   private following = false;
   /** The camera is being dragged: do not pull it back to the player meanwhile. */
   private dragging = false;
@@ -366,6 +372,36 @@ export class Town3D {
     this.player.add(this.figure.root);
   }
 
+  /**
+   * Where the vehicle comes from to pick you up: back along a real street that joins your gate, the one
+   * most nearly straight behind the way you are going. Map pixels.
+   */
+  private approachFrom(path: Point[]): Point {
+    if (this.tripPath?.from) return this.tripPath.from;
+    const g = this.route?.graph;
+    const at = path[1];
+    const next = path[2];
+    let best: Point = at;
+    const v = g?.verts.find((q) => q.x === at.x && q.y === at.y);
+    if (g && v) {
+      const dl = Math.hypot(next.x - at.x, next.y - at.y) || 1;
+      let score = -Infinity;
+      for (const e of v.edges) {
+        const n = g.verts[e.to];
+        if (n.inside || (n.x === next.x && n.y === next.y)) continue;
+        const el = Math.hypot(n.x - at.x, n.y - at.y) || 1;
+        const behind = -((n.x - at.x) * (next.x - at.x) + (n.y - at.y) * (next.y - at.y)) / (el * dl);
+        if (behind > score) {
+          score = behind;
+          const k = Math.min(1, APPROACH_PX / el);
+          best = { x: at.x + (n.x - at.x) * k, y: at.y + (n.y - at.y) * k };
+        }
+      }
+    }
+    if (this.tripPath) this.tripPath.from = best;
+    return best;
+  }
+
   /** The trip's path along this town's streets. */
   private pathFor(from: string, to: string, key: number, fallback: Point[]): Point[] {
     if (this.tripPath?.key === key) return this.tripPath.pts;
@@ -429,12 +465,12 @@ export class Town3D {
         const roadB = this.ground(path[path.length - 2]);
         const kerbB = this.ground(path[path.length - 1]);
         const prevB = this.ground(path[path.length - 3]);
-        const back = Math.hypot(roadA.x - next.x, roadA.z - next.z) || 1;
-        // It comes down the same street from behind, so it pulls up already facing the way you go.
-        const from = { x: roadA.x + ((roadA.x - next.x) / back) * CELL * 5, z: roadA.z + ((roadA.z - next.z) / back) * CELL * 5 };
+        // It comes down a real street into your gate, never out of a building.
+        const from = this.ground(this.approachFrom(path));
+        const coming = Math.hypot(from.x - roadA.x, from.z - roadA.z) > 0.1;
         if (phase === "wait") {
           const k = 1 - Math.pow(1 - q, 2);
-          car = { ...lerp(from, roadA, k), h: face(roadA, next) };
+          car = { ...lerp(from, roadA, k), h: coming && q < 0.95 ? face(from, roadA) : face(roadA, next) };
           placed = kerbA;
           heading = face(kerbA, car);
           speed = 0;
@@ -472,9 +508,26 @@ export class Town3D {
     this.player.visible = !(a?.kind === "action" && a.plan.action.goal === "fly");
     this.marker.position.y = 2.7 + (st.reducedMotion ? 0 : Math.sin(now / 200) * 0.25);
 
-    // Camera follows trips until you drag away, and glides when asked to centre.
-    if (this.following && a?.kind === "trip") this.panTo(g.x, g.z, 0.08);
+    // Camera follows trips until you drag away, and glides when asked to centre. On a ride it also
+    // zooms in close, and eases back out to where it was once you arrive.
+    if (this.following && a?.kind === "trip") this.panTo(g.x, g.z, 0.12);
     else if (!a) this.following = false;
+    {
+      const off = this.camera.position.clone().sub(c.target);
+      const dist = off.length();
+      let want: number | null = null;
+      if (a?.kind === "trip" && this.following) {
+        if (this.rideCam === null) this.rideCam = dist;
+        want = Math.min(this.rideCam, RIDE_CAM_DIST);
+      } else if (!a && this.rideCam !== null) {
+        want = this.rideCam;
+        if (Math.abs(dist - want) < 0.5 || this.dragging) this.rideCam = null;
+      }
+      if (want !== null && !this.dragging && Math.abs(dist - want) > 0.05) {
+        off.setLength(dist + (want - dist) * 0.06);
+        this.camera.position.copy(c.target).add(off);
+      }
+    }
     // Follow the player while they walk; once they stop, the camera stays where you leave it.
     if (this.roam && speed > 0 && !this.dragging) this.panTo(g.x, g.z, 0.3);
     if (this.glide) {

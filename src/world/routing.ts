@@ -42,6 +42,8 @@ interface Vertex {
   x: number;
   y: number;
   edges: { to: number; w: number; road: number }[];
+  /** A place's own centre, joined to its gates: you start or end a trip here, never pass through. */
+  inside?: boolean;
 }
 
 export interface RoadGraph {
@@ -202,7 +204,7 @@ export function buildGraph(map: WorldMap): RoadGraph {
   for (const pl of map.places) {
     if (pl.gates?.length) {
       const id = verts.length;
-      verts.push({ id, x: pl.x, y: pl.y, edges: [] });
+      verts.push({ id, x: pl.x, y: pl.y, edges: [], inside: true });
       for (const gp of pl.gates) {
         const hit = nearest(gp);
         if (!hit) continue;
@@ -321,6 +323,8 @@ export function routeOn(map: WorldMap, graph: RoadGraph, from: string, to: strin
     done[u] = 1;
     if (u === B.v) break;
     for (const e of graph.verts[u].edges) {
+      // No short cuts through a building: in one gate and out the other.
+      if (graph.verts[e.to].inside && e.to !== B.v) continue;
       const alt = du + e.w;
       if (alt < d[e.to]) {
         d[e.to] = alt;
