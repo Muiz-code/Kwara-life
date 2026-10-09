@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { PRESIDENTIAL_2027 as CAL, campaigningAllowed } from "@/data/calendar";
 import { DAILY_PROMO_CAP, ISSUES, MAX_ISSUES, NOTE_MAX, PROMO } from "@/data/campaign";
 import { PARTIES, PARTY } from "@/data/parties";
-import { AMOUNTS, GROUPS, catchRisk, simulatedCards, spentToday, watDate } from "@/sim";
+import { AMOUNTS, CIVIC_PROMO, GROUPS, catchRisk, simulatedCards, sponsoredLine, spentToday, watDate } from "@/sim";
+import { useCampaignFeed } from "@/net/feed";
 import { getGameStore, useGame } from "@/store";
 import { Button, Modal, Sheet, cx, naira, useNow } from "./ui";
 
@@ -31,7 +32,17 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
   const [note, setNote] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [promo, setPromo] = useState(false);
-  const feed = useMemo(() => [...game.supportCards.map((c) => ({ ...c, by: game.citizen?.name ?? "You", place: "", simulated: false })).reverse(), ...simulatedCards(7, 8)], [game.supportCards, game.citizen]);
+  // Real players in your LGA from the server (your own cards show once, from your game); simulated supporters
+  // only while the server feed is empty or out of reach.
+  const server = useCampaignFeed(game.citizen?.lgaCode);
+  const feed = useMemo(() => {
+    const me = game.citizen?.name ?? "You";
+    const mine = game.supportCards.map((c) => ({ ...c, by: me, place: "", simulated: false })).reverse();
+    const others = (server?.cards ?? [])
+      .filter((c) => Object.hasOwn(PARTY, c.party) && !(c.by === me && game.supportCards.some((m) => m.day === c.day)))
+      .map((c) => ({ ...c, place: "", simulated: false }));
+    return [...mine, ...others, ...(others.length ? [] : simulatedCards(7, 8))];
+  }, [game.supportCards, game.citizen, server]);
 
   return (
     <Sheet title="Campaign" onClose={onClose}>
@@ -84,6 +95,21 @@ export function CampaignPanel({ onClose }: { onClose: () => void }) {
         </Button>
       </div>
       {promo && <PromoModal kind="news" onClose={() => setPromo(false)} />}
+
+      {!!server?.sponsored.length && (
+        <>
+          <h3 className="mt-5 mb-2 font-sign text-xl">Sponsored today</h3>
+          <ul className="space-y-1 text-sm">
+            {server.sponsored
+              .filter((p) => p.party === CIVIC_PROMO || Object.hasOwn(PARTY, p.party))
+              .map((p, i) => (
+                <li key={i} className="rounded-lg bg-panel-2 px-2 py-1">
+                  {sponsoredLine({ kind: p.kind, option: p.option, party: p.party, price: 0, day: "", lgaCode: "" }, p.by)}
+                </li>
+              ))}
+          </ul>
+        </>
+      )}
 
       <h3 className="mt-5 mb-2 font-sign text-xl">Support cards</h3>
       <ul className="divide-y divide-line text-sm">

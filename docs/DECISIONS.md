@@ -289,3 +289,13 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   at 4pm WAT only counts what would go (season_purge_log); a kill switch (season_control.enabled = false) stops both
   if the election moves. Sign-up and sign-in are refused from the same moment.
 - Supabase backups may still hold data for up to their retention period (about a week on Pro) after the clean-up.
+
+### Campaigning on the server (Phase E3, 9 Oct 2026)
+- Support cards, flyers and sponsored news, and votes bought are checked by the server when a save uploads
+  (src/server/campaign.ts) and recorded in support_cards, promos and bribe_log. One card a day from the lists with
+  a clean note; promos only at their listed price, in your own LGA, under the daily cap; nothing during the
+  blackout (15 minutes of grace for the upload). Votes bought can't go down and are capped at 100 a citizen a
+  day (two of the biggest groups, all voting as paid), until polls close. Anything that breaks a rule is left
+  out of the save and the corrected copy goes back to the phone. These upload at once, not on the 3-minute round.
+- The feed (GET /api/feed?lga=) shows real players' support cards in the LGA and today's sponsored news, by game
+  name, cached on the CDN for a minute. Simulated supporters show only while the real feed is empty.

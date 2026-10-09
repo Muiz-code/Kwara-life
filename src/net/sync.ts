@@ -101,11 +101,27 @@ function take(store: GameStoreApi, user: string, body: Record<string, unknown>) 
   if (typeof body.version === "number" && store.getState().loadSave(body.game)) setVersion(user, body.version);
 }
 
-/** The server corrected the save (a PVC step out of its window, a vote not on the roll): take its PVC and votes. */
+/**
+ * The server corrected the save (a PVC step out of its window, a vote not on the roll, a support card, promo or
+ * bought vote that breaks a rule): take its PVC, votes and campaign entries.
+ */
 function patch(store: GameStoreApi, server: unknown) {
   const g = server as Partial<GameState> | null;
   if (!g || !Array.isArray(g.voted) || !g.citizen) return;
-  store.setState((s) => (s.game.citizen ? { game: { ...s.game, voted: g.voted!, citizen: { ...s.game.citizen, pvc: g.citizen!.pvc } } } : {}));
+  store.setState((s) =>
+    s.game.citizen
+      ? {
+          game: {
+            ...s.game,
+            voted: g.voted!,
+            citizen: { ...s.game.citizen, pvc: g.citizen!.pvc },
+            supportCards: Array.isArray(g.supportCards) ? g.supportCards : s.game.supportCards,
+            promos: Array.isArray(g.promos) ? g.promos : s.game.promos,
+            bribeEffects: g.bribeEffects && typeof g.bribeEffects === "object" ? g.bribeEffects : s.game.bribeEffects,
+          },
+        }
+      : {},
+  );
 }
 
 let dirty = false;
@@ -167,8 +183,12 @@ export function startSync(store: GameStoreApi, user: string): () => void {
   const unsub = store.subscribe((s, prev) => {
     if (s.game === prev.game) return;
     dirty = true;
-    // Registering or collecting a PVC goes up at once, so a step taken just before a window closes counts.
-    if (s.game.citizen?.pvc !== prev.game.citizen?.pvc) setTimeout(() => void push(), 0);
+    // Registering or collecting a PVC, and campaigning, go up at once: a step taken just before a window closes
+    // counts, and the feed shows a new support card within a minute.
+    const g = s.game;
+    const p = prev.game;
+    if (g.citizen?.pvc !== p.citizen?.pvc || g.supportCards !== p.supportCards || g.promos !== p.promos || g.bribeEffects !== p.bribeEffects)
+      setTimeout(() => void push(), 0);
   });
   void begin(c);
   const every = setInterval(() => void push(), UPLOAD_EVERY_MS);

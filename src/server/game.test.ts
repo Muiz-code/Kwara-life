@@ -10,15 +10,17 @@ type Row = { citizen: CitizenRow; game: unknown; version: number; voted: string[
  * The database in memory, with the same rules as save_game, claim_device and cast_vote (minutes on a fake clock;
  * pollsOpen says whether the vote clock is inside polling hours).
  */
-function memoryDb(): GameDb & { rows: Map<string, Row>; clock: { min: number; pollsOpen: boolean }; tallies: Map<string, number> } {
+function memoryDb(): GameDb & { rows: Map<string, Row>; clock: { min: number; pollsOpen: boolean }; tallies: Map<string, number>; campaign: { u: string; day: string; adds: import("./campaign").CampaignAdds }[] } {
   const rows = new Map<string, Row>();
   const tallies = new Map<string, number>();
+  const campaign: { u: string; day: string; adds: import("./campaign").CampaignAdds }[] = [];
   const held = new Map<string, { device: string; at: number }>();
   const clock = { min: 0, pollsOpen: false };
   return {
     rows,
     clock,
     tallies,
+    campaign,
     setPvc: async (u, from, to) => {
       const r = rows.get(u);
       if (r && (r.citizen.pvc ?? "none") === from) r.citizen.pvc = to;
@@ -35,6 +37,10 @@ function memoryDb(): GameDb & { rows: Map<string, Row>; clock: { min: number; po
       return "ok";
     },
     turnout: async () => [...tallies.values()].reduce((a, b) => a + b, 0),
+    bribedToday: async () => 0,
+    recordCampaign: async (u, day, adds) => {
+      campaign.push({ u, day, adds });
+    },
     notePlay: async (u, day) => {
       const r = rows.get(u);
       if (r && r.citizen.last_play !== day) Object.assign(r.citizen, { last_play: day, plays: ((r.citizen as { plays?: number }).plays ?? 0) + 1 });
@@ -221,5 +227,28 @@ describe("the game on the server", () => {
     expect(credits?.players).toEqual([{ name: "Tunde", place: "Ilorin West, Kwara", plays: 2 }]);
     await save(5, false, 5, day("2026-10-22T09:00:00+01:00"));
     expect((await seasonCredits(db, day("2026-11-14T17:00:00+01:00")))?.players).toEqual([]);
+  });
+
+  it("records a save's new support card, checked, once", async () => {
+    const db = memoryDb();
+    const g = (await roll(db)).body.game as GameState;
+    const now = Date.parse("2026-10-20T12:00:00+01:00");
+    const card = { party: "APC", issues: ["Jobs"], note: "Light first", day: "2026-10-20" };
+    await putSave(db, "u1", { game: { ...g, supportCards: [card] }, version: 1, device: PHONE }, now);
+    expect(db.campaign.map((c) => c.adds.cards)).toEqual([[card]]);
+    // The same card again adds nothing.
+    await putSave(db, "u1", { game: { ...g, supportCards: [card] }, version: 2, device: PHONE }, now + 60_000);
+    expect(db.campaign).toHaveLength(1);
+  });
+
+  it("still saves if the campaign tables can't be reached", async () => {
+    const db = memoryDb();
+    const g = (await roll(db)).body.game as GameState;
+    db.bribedToday = async () => {
+      throw new Error("function public.bribed_today does not exist");
+    };
+    const r = await putSave(db, "u1", { game: { ...g, money: 777 }, version: 1, device: PHONE }, Date.parse("2026-10-20T12:00:00+01:00"));
+    expect(r.status).toBe(200);
+    expect((db.rows.get("u1")!.game as GameState).money).toBe(777);
   });
 });

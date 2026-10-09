@@ -16,6 +16,7 @@ import { PRESIDENTIAL_2027, type ElectionCalendar } from "../data/calendar";
 import { PARTY } from "../data/parties";
 import { VOTE_REASON, reachPvc, type VoteAnswer } from "./civic";
 import { playedOn } from "../sim/daily";
+import { reconcileCampaign, type CampaignAdds } from "./campaign";
 import { watDate } from "../sim/civic";
 
 export interface CitizenRow {
@@ -52,6 +53,10 @@ export interface GameDb {
   notePlay(user: string, day: string): Promise<void>;
   /** Agree (or stop agreeing) to be named in the closing credits. */
   setCredits(user: string, ok: boolean): Promise<void>;
+  /** Votes this citizen has bought on a day (vote-buying effects recorded so far). */
+  bribedToday(user: string, day: string): Promise<number>;
+  /** Record what a save added, already checked: support cards, flyers and sponsored news, votes bought today. */
+  recordCampaign(user: string, day: string, adds: CampaignAdds): Promise<void>;
   /** The most-played citizens who agreed to be named. */
   topPlayers(limit: number): Promise<{ name: string; state_code: string; lga_code: string; plays: number }[]>;
 }
@@ -160,16 +165,22 @@ export async function putSave(db: GameDb, user: string, body: unknown, now = Dat
   const pvc = reachPvc(had, game.citizen!.pvc, before?.citizen?.createdAt ?? game.citizen!.createdAt, now);
   game.citizen!.pvc = pvc;
   if (pvc !== had) await db.setPvc(user, had, pvc);
+  // Support cards, flyers and sponsored news, and votes bought: only what the rules allow counts.
+  const today = watDate(now);
+  // If the campaign tables aren't reachable, the save still goes through; its campaign entries just don't count.
+  const bribed = await db.bribedToday(user, today).catch(() => null);
+  const campaign: CampaignAdds = bribed === null ? { cards: [], promos: [], bribes: {}, changed: false } : reconcileCampaign(before, game, now, bribed);
   const saved = stored(game);
   const version = await db.save(user, saved, b.version);
   if (version === null) return { status: 409, body: { error: "Your game was saved on another phone", game: have.game, version: have.version } };
+  if (campaign.cards.length || campaign.promos.length || Object.keys(campaign.bribes).length) await db.recordCampaign(user, today, campaign).catch(() => {});
   // A real day signed in with enough done counts as a play (once a day), and the credits choice is kept.
-  const today = watDate(now);
   if (playedOn(game, today) && c.last_play !== today) await db.notePlay(user, today);
   const credits = game.flags.credits === true;
   if (credits !== (c.credits_ok ?? false)) await db.setCredits(user, credits);
-  // The server changed something (a PVC step out of time, a vote that isn't on the roll): send its copy back.
-  const changed = sent.pvc !== pvc || sent.voted !== [...game.voted].sort().join();
+  // The server changed something (a PVC step out of time, a vote that isn't on the roll, a campaign entry that
+  // breaks a rule): send its copy back.
+  const changed = campaign.changed || sent.pvc !== pvc || sent.voted !== [...game.voted].sort().join();
   return ok(changed ? { version, game: saved } : { version });
 }
 

@@ -62,6 +62,15 @@ export function supabaseGameDb(sb: SupabaseClient): GameDb {
       const { error } = await sb.from("citizens").update({ credits_ok: ok }).eq("user_id", user);
       if (error) throw error;
     },
+    async bribedToday(user, day) {
+      const { data, error } = await sb.rpc("bribed_today", { p_user: user, p_day: day });
+      if (error) throw error;
+      return Number(data) || 0;
+    },
+    async recordCampaign(user, day, adds) {
+      const { error } = await sb.rpc("record_campaign", { p_user: user, p_day: day, p_cards: adds.cards, p_promos: adds.promos, p_bribes: adds.bribes });
+      if (error) throw error;
+    },
     async topPlayers(limit) {
       const { data, error } = await sb.rpc("credits_top", { p_limit: limit });
       if (error) throw error;
