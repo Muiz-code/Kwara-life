@@ -2,6 +2,18 @@
 // The loading screen while a town is built: the title zooming in, a ballot box filling, a tip.
 // Only transforms and opacity animate, so it keeps moving even while the town is being built.
 import { useEffect, useState } from "react";
+import { adsStore } from "@/store/ads";
+
+/** Ads running now, shuffled: the loading screen shows them behind the title. */
+function liveAds(): { title: string; image: string }[] {
+  const now = Date.now();
+  const ads = Object.values(adsStore.getState().queue).filter((b) => b.image && (b.until ?? Infinity) > now);
+  for (let i = ads.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ads[i], ads[j]] = [ads[j], ads[i]];
+  }
+  return ads.map((b) => ({ title: b.title, image: b.image }));
+}
 
 const TIPS = [
   "Walk with W A S D or the arrows. Hold Shift to run.",
@@ -15,6 +27,13 @@ const TIPS = [
 export default function Loader({ done, label = "Building your town…" }: { done: boolean; label?: string }) {
   const [tip, setTip] = useState(0);
   const [gone, setGone] = useState(false);
+  const [ads] = useState(liveAds);
+  const [ad, setAd] = useState(0);
+  useEffect(() => {
+    if (ads.length < 2) return;
+    const t = setInterval(() => setAd((i) => (i + 1) % ads.length), 5000);
+    return () => clearInterval(t);
+  }, [ads.length]);
   useEffect(() => {
     const t = setInterval(() => setTip((i) => (i + 1) % TIPS.length), 2600);
     return () => clearInterval(t);
@@ -31,6 +50,14 @@ export default function Loader({ done, label = "Building your town…" }: { done
       role="status"
       aria-live="polite"
     >
+      {/* A business's ad behind it all, dimmed so the title still reads. */}
+      {ads[ad] && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img key={ad} src={ads[ad].image} alt="" className="pointer-events-none absolute inset-0 h-full w-full animate-[fadeIn_.8s_ease-out] object-cover opacity-30 blur-[2px]" />
+          <span className="absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 text-[11px] font-semibold">Ad · {ads[ad].title}</span>
+        </>
+      )}
       {/* Green, white, green rays turning slowly behind the title. */}
       <div className="pointer-events-none absolute h-[160vmax] w-[160vmax] animate-[spin_40s_linear_infinite] bg-[repeating-conic-gradient(rgba(17,138,79,0.18)_0deg_10deg,transparent_10deg_20deg)] motion-reduce:animate-none" />
       <div className="relative flex flex-col items-center gap-6 px-6 text-center">
