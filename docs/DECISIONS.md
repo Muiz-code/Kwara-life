@@ -299,3 +299,10 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   out of the save and the corrected copy goes back to the phone. These upload at once, not on the 3-minute round.
 - The feed (GET /api/feed?lga=) shows real players' support cards in the LGA and today's sponsored news, by game
   name, cached on the CDN for a minute. Simulated supporters show only while the real feed is empty.
+
+### Email verification stays (9 Oct 2026)
+- Players still confirm their email at sign-up. The owner weighed dropping it to save sending costs and kept it:
+  email is one of the cheapest parts of the season (about $100 per million emails on Amazon SES, against about
+  $2,900 a month for Supabase at a million players), and without it one person could run many voters.
+- Emails go through Resend from no-reply@naija-vote.raavon.com (100 an hour). Move to Amazon SES before a
+  big launch; start AWS's sending approval a week ahead.
