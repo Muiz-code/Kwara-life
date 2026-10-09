@@ -3,7 +3,7 @@
 // time for a bonus. Skip still fast-forwards the shift; no tasks come while it does.
 import { Briefcase, FastForward } from "lucide-react";
 import { CAREERS } from "@/data/careers";
-import { TASK_EVERY, TASK_FIRST, TASK_WINDOW, WORK_TASKS, taskAt, taskPay } from "@/data/work-tasks";
+import { TASK_EVERY, TASK_FIRST, TASK_WINDOW, taskAt, taskPay, tasksFor } from "@/data/work-tasks";
 import { getGameStore, useGame } from "@/store";
 import { cx, naira, usePerfNow } from "./ui";
 
@@ -15,7 +15,7 @@ export default function WorkPanel() {
   const elapsed = now - a.startedAt;
   const left = Math.max(0, Math.ceil((a.ms - elapsed) / 1000));
   const p = Math.min(1, Math.max(0, elapsed / a.ms));
-  const tasks = c ? WORK_TASKS[c.career] : undefined;
+  const tasks = c ? tasksFor(c.career, c.job) : undefined;
   const i = a.fast || !tasks ? null : taskAt(elapsed);
   const task = i !== null && tasks && !a.tasks?.includes(i) ? tasks[i % tasks.length] : null;
   // How much of this task's window is left, for its shrinking bar.

@@ -28,11 +28,19 @@ export interface HouseModel {
   generator: boolean;
   /** How grand the home looks, 1 to 4, for the map and the room. */
   tier: 1 | 2 | 3 | 4;
+  /** Rented by the year, not bought: price is a year's rent. */
+  rent?: boolean;
   blurb: string;
 }
 
 /** Bought outright, so the house is yours: no landlord, no rent. */
 export const HOUSES: HouseModel[] = [
+  // To rent: a year's rent up front, Naija style.
+  { id: "selfcon", name: "Self-contain room in a compound", price: 350_000, generator: false, tier: 1, rent: true, blurb: "One room, your own toilet and a kitchen corner. Caution fee paid." },
+  { id: "miniflat", name: "Mini flat (room and parlour)", price: 700_000, generator: false, tier: 1, rent: true, blurb: "A bedroom, a parlour for visitors and your own kitchen." },
+  { id: "twobed", name: "Two-bedroom flat with a generator", price: 1_800_000, generator: true, tier: 2, rent: true, blurb: "Tiled floors and a shared generator for when NEPA takes light." },
+  { id: "terrace", name: "Three-bedroom terrace in a gated estate", price: 5_000_000, generator: true, tier: 3, rent: true, blurb: "Estate gate, security man and a big generator." },
+  // To buy.
   { id: "bungalow", name: "Two-bedroom bungalow in a new layout", price: 12_000_000, generator: false, tier: 1, blurb: "Your own roof, your own gate. The road is not tarred yet." },
   { id: "flat", name: "Three-bedroom flat with a generator", price: 35_000_000, generator: true, tier: 2, blurb: "Tiled floors, a borehole and a generator for when NEPA takes light." },
   { id: "duplex", name: "Four-bedroom duplex in a gated estate", price: 120_000_000, generator: true, tier: 3, blurb: "Estate security, a big generator and a compound for the cars." },
@@ -85,8 +93,10 @@ export const CAR_ACTIONS: Action[] = CARS.map((c) => ({
 }));
 
 export const HOUSE_ACTIONS: Action[] = HOUSES.map((h) => ({
-  id: `house-${h.id}`, label: `Buy a ${h.name.toLowerCase()} (${naira(h.price)})`, dur: 180, cost: h.price, house: h.id,
-  fx: { fun: 30 }, bubble: "Signing papers", done: `The agent handed you the keys. ${h.blurb}`,
+  id: `house-${h.id}`,
+  label: h.rent ? `Rent a ${h.name.toLowerCase()} (${naira(h.price)} a year)` : `Buy a ${h.name.toLowerCase()} (${naira(h.price)})`,
+  dur: h.rent ? 90 : 180, cost: h.price, house: h.id,
+  fx: { fun: h.rent ? 18 : 30 }, bubble: "Signing papers", done: `The agent handed you the keys. ${h.blurb}`,
 }));
 
 export const OUTFIT_ACTIONS: Action[] = OUTFITS.map((o) => ({

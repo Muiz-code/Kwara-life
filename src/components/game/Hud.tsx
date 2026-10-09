@@ -355,7 +355,7 @@ export function Objectives() {
     goals.push({
       title: "Go to work",
       hint: career.where === "anywhere" ? `${career.workLabel}. You can do it from home` : `${career.workLabel}. Not done today`,
-      go: career.where === "anywhere" ? ["home"] : ["work", "secretariat"],
+      go: career.where === "anywhere" ? ["home"] : c.career === "sync" ? ["sync"] : ["work", "secretariat"],
     });
   }
   if (phase === "polls-open" && !voted && c.pvc === "have")

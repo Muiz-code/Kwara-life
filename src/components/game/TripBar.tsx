@@ -14,6 +14,8 @@ const LINES: Record<string, Partial<Record<TripPhase, string>>> = {
   ride: { wait: "Your driver is on the way…", board: "Getting into the car", alight: "Thanking your driver" },
   suv: { wait: "Your driver is bringing the car round…", board: "Getting into your SUV", alight: "Stepping out" },
   horse: { board: "Climbing onto the horse", alight: "Climbing down" },
+  drive: { wait: "Walking to your car…", board: "Starting the engine", alight: "Parking" },
+  hire: { wait: "Your Sync driver is coming round…", board: "Getting into the car", alight: "Thanking your driver" },
 };
 
 export default function TripBar() {

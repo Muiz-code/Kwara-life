@@ -96,7 +96,9 @@ export function blockReason(s: GameState, a: Action, ctx: ActionContext = {}): s
   if (a.id === "tv" && s.citizen && !s.citizen.ownsTv && s.loc === s.homeId) return "You don't have a TV. Buy one at the market or watch at the viewing centre";
   if (a.phone && phoneOf(s.phone, s.citizen?.cls).id === a.phone) return "You already have this phone";
   if (a.car && s.car === a.car) return "You already own this car";
-  if (a.house && s.house === a.house) return "You already own this house";
+  if (a.house && s.house === a.house) return HOUSE[a.house]?.rent ? "You already rent this place" : "You already own this house";
+  if (a.house && HOUSE[a.house]?.rent && s.house && HOUSE[s.house] && !HOUSE[s.house].rent) return "You own a house already. No need to rent";
+  if (a.carHire && s.flags.carHireDay === dayNum(s.t)) return "Your driver is already on standby today";
   if (a.house && s.house && HOUSE[s.house] && HOUSE[a.house] && HOUSE[a.house].tier < HOUSE[s.house].tier) return "Your house is already bigger than this";
   if (a.outfit && s.outfit === a.outfit) return "You are already wearing this";
   if (a.outfit && s.char && Object.hasOwn(OUTFIT, a.outfit) && !outfitFits(OUTFIT[a.outfit], s.char.g)) return OUTFIT[a.outfit].for === "m" ? "That one is cut for men" : "That one is cut for women";
@@ -165,6 +167,7 @@ export function startAction(
 function spendCat(a: Action): TxnCat {
   if (a.groc || a.fx.food) return "food";
   if (a.phone || a.car || a.outfit || a.buy) return "shopping";
+  if (a.carHire) return "transport";
   if (a.house || a.rent || a.furnish || a.sleep) return "home";
   if (a.flyer || a.bribe) return "campaign";
   if (a.fx.fun) return "fun";
@@ -191,6 +194,7 @@ export function finishAction(state: GameState, plan: ActionPlan, rng: Rng, ctx: 
   if (a.once) s.flags[a.once] = s.t;
   if (a.job) s.flags.worked = dayNum(s.t);
   if (a.horse) s.horseDay = dayNum(s.t);
+  if (a.carHire) s.flags.carHireDay = dayNum(s.t);
   if (a.rent) {
     s.homeId = s.loc;
     note(s, "New home", `Welcome to ${(ctx.place ?? PLACE[s.loc]).name}. This is now where you sleep, bath and cook.`);
@@ -260,8 +264,14 @@ export function finishAction(state: GameState, plan: ActionPlan, rng: Rng, ctx: 
       c.underFlyover = false;
       c.wasUnder = true;
     }
-    note(s, "Your own house", `The ${h.name.toLowerCase()} is yours. No landlord, no rent.${h.generator ? " It has a generator, so you have light at home when NEPA takes it." : ""}`);
-    toast = "Keys to your new house!";
+    const light = h.generator ? " It has a generator, so you have light at home when NEPA takes it." : "";
+    if (h.rent) {
+      note(s, "New place", `A year's rent is paid on the ${h.name.toLowerCase()}. Move your things in, it's home now.${light}`);
+      toast = "Keys to your new place!";
+    } else {
+      note(s, "Your own house", `The ${h.name.toLowerCase()} is yours. No landlord, no rent.${light}`);
+      toast = "Keys to your new house!";
+    }
   }
   if (c && a.buy) {
     if (a.buy === "tv") c.ownsTv = true;

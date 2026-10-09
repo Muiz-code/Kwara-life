@@ -5,7 +5,7 @@ import type { ClassId } from "./jobs";
 
 export type CareerId =
   | "student" | "corper" | "worker" | "artisan" | "trader" | "creator" | "developer" | "herbalist"
-  | "politician" | "yahoo" | "launderer" | "executive" | "founder";
+  | "politician" | "yahoo" | "launderer" | "executive" | "founder" | "sync";
 
 export type Education = "none" | "secondary" | "ond" | "degree" | "masters";
 
@@ -101,6 +101,10 @@ export const CAREERS: Record<CareerId, Career> = {
   executive: {
     label: "Executive", titles: ["Oil and gas executive", "Bank MD", "Real estate developer", "Telecom investor", "Manufacturing magnate", "Shipping and logistics owner"],
     pay: "salary", min: 3000000, max: 20000000, shiftMinutes: 300, workLabel: "Board meetings", where: "work", connected: true, minEducation: "degree",
+  },
+  sync: {
+    label: "Sync staff", titles: ["Sync agent", "Sync customer support", "Sync driver", "Sync office cleaner", "Sync security guard", "Sync engineer", "Sync product designer"],
+    pay: "salary", min: 70000, max: 1400000, shiftMinutes: 480, workLabel: "Work at Sync", where: "work",
   },
   founder: {
     label: "Startup founder", titles: ["Fintech founder", "Logistics startup founder", "Agritech founder"],

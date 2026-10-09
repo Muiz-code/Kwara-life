@@ -7,6 +7,8 @@ import { dayNum } from "./time";
 import { book } from "./bank";
 import { inviteToInterview } from "./interview";
 
+import { SYNC_HIRING } from "../data/sync";
+
 export interface Opening {
   id: string;
   career: CareerId;
@@ -57,7 +59,7 @@ export function openings(lgaCode: string, gameDay: number): Opening[] {
   const week = Math.floor((gameDay - 1) / 7);
   const R = seeded(hashStr(`${lgaCode}#${week}`));
   const n = 3 + Math.floor(R() * 3);
-  return Array.from({ length: n }, (_, i) => {
+  const board = Array.from({ length: n }, (_, i) => {
     const h = HIRING[Math.floor(R() * HIRING.length)];
     const career = h.career;
     const t = Math.floor(R() * h.titles.length);
@@ -73,6 +75,20 @@ export function openings(lgaCode: string, gameDay: number): Opening[] {
       ...(rung ? { minConnections: rung.minConnections } : {}),
     };
   });
+  // Sync is always hiring somebody: one or two roles a week, from cleaner to engineer.
+  const sync = 1 + Math.floor(R() * 2);
+  for (let k = 0; k < sync; k++) {
+    const h = SYNC_HIRING[Math.floor(R() * SYNC_HIRING.length)];
+    board.push({
+      id: `${lgaCode}#${week}#${n + k}`,
+      career: "sync",
+      title: h.titles[Math.floor(R() * h.titles.length)],
+      monthly: Math.round((h.pay[0] + Math.pow(R(), 2) * (h.pay[1] - h.pay[0])) / 1000) * 1000,
+      minEducation: h.minEducation,
+      applicants: 40 + Math.floor(R() * 400),
+    });
+  }
+  return board;
 }
 
 export const MAX_PENDING = 3;

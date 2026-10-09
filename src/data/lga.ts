@@ -10,6 +10,7 @@ import { FURNITURE_ACTIONS } from "./furniture";
 import { PHONE_ACTIONS } from "./phones";
 import { AIRPORT_NAMES, airportLga } from "./capitals";
 import { CAR_ACTIONS, HOUSE_ACTIONS, OUTFIT_ACTIONS, SUPERMARKET_ACTIONS } from "./shops";
+import { SYNC_ACTIONS, SYNC_PLACE } from "./sync";
 
 /** Abuja Municipal is home to Aso Rock and the Presidential Villa, on its own big ground out of town. */
 export const isAsoRockTown = (c: Pick<LgaContext, "state" | "lgaName">) => c.state.code === "fct" && c.lgaName === "Abuja Municipal";
@@ -17,7 +18,7 @@ export const isAsoRockTown = (c: Pick<LgaContext, "state" | "lgaName">) => c.sta
 export type LgaPlaceId =
   | "home" | "work" | "inec" | "pu" | "market" | "buka" | "viewing" | "kiosk" | "mosque" | "church" | "park"
   | "hall" | "board" | "landmark" | "shelter" | "hotel" | "club" | "mosque2" | "church2" | "bank" | "raavon" | "terminal" | "station" | "airport"
-  | "supermarket" | "boutique" | "cardealer" | "estateagent";
+  | "supermarket" | "boutique" | "cardealer" | "estateagent" | "sync";
 
 export interface LgaPlace {
   id: LgaPlaceId;
@@ -86,7 +87,8 @@ export function lgaPlaces(c: LgaContext): LgaPlace[] {
       id: "home", name: c.underFlyover ? "Flyover" : "Home", kind: c.underFlyover ? "flyover" : "house", open: [0, 24], gen: c.cls === "rich",
       blurb: `Where you live: ${c.underFlyover ? "under a flyover near the motor park" : c.home}.`,
     },
-    { id: "work", name: work.name, kind: work.kind, open: [7, 20], gen: c.cls !== "poor", blurb: `Where you work as a ${c.job.toLowerCase()}.` },
+    // Sync staff work at the Sync office, so there is no separate workplace.
+    ...(c.career === "sync" ? [] : [{ id: "work" as const, name: work.name, kind: work.kind, open: [7, 20] as [number, number], gen: c.cls !== "poor", blurb: `Where you work as a ${c.job.toLowerCase()}.` }]),
     { id: "inec", name: "VINEC Office", kind: "inec", open: [8, 17], gen: true, blurb: "VINEC LGA office. Register, collect your PVC and ask questions." },
     { id: "pu", name: "Polling Unit", kind: "school", open: [0, 24], gen: false, blurb: "Your polling unit, in a primary school. This is where you vote." },
     { id: "market", name: MARKET_NAME[c.state.zone](shortTown(c.lgaName)), kind: "market", open: [6, 20], gen: false, blurb: "Foodstuff, radios, TVs and everything in between." },
@@ -122,6 +124,7 @@ export function lgaPlaces(c: LgaContext): LgaPlace[] {
     { id: "cardealer", name: "Car Dealer", kind: "workshop", open: [9, 18], gen: true, blurb: "Tokunbo and brand-new cars on the lot. Buy one and drive yourself round town and across states." },
     { id: "estateagent", name: "Estate Agent", kind: "office", open: [9, 17], gen: true, blurb: "Houses for sale, from a bungalow in a new layout to a mansion with a pool. Buy one and it becomes your home." },
     { id: "raavon", name: "Raavon", kind: "techhub", open: [8, 20], gen: true, blurb: "Raavon, the tech unicorn. They recruit, build websites and apps, and back founders with good ideas." },
+    { ...SYNC_PLACE, id: "sync" as const },
   );
   const night = nightSpot(c.state.code, c.lgaName);
   places.push(
@@ -223,7 +226,7 @@ export function lgaActions(c: LgaContext): Record<LgaPlaceId, Action[]> {
   const anywhere = career?.where === "anywhere" ? [work] : [];
   return {
     home: [...homeActions(c.underFlyover), ...anywhere],
-    work: career?.where === "anywhere" ? [] : [work],
+    work: career?.where === "anywhere" || c.career === "sync" ? [] : [work],
     ...CIVIC_ACTIONS,
     market: [
       BRIBE,
@@ -270,6 +273,7 @@ export function lgaActions(c: LgaContext): Record<LgaPlaceId, Action[]> {
     boutique: OUTFIT_ACTIONS,
     cardealer: CAR_ACTIONS,
     estateagent: HOUSE_ACTIONS,
+    sync: [...SYNC_ACTIONS, ...(c.career === "sync" ? [work] : [])],
     shelter: [{ id: "bed", label: "Ask for a bed", dur: 60, fx: {}, shelter: true, bubble: "Waiting", done: "" }],
     club: nightActions(c.state.code, c.cls),
     bank: BANK_ACTIONS,

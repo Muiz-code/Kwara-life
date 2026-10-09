@@ -66,6 +66,8 @@ const TRIP_FEEL: Record<string, { wait: number; board: number; speed: number; mi
   danfo: { wait: 7_000, board: 2_500, speed: 60, min: 7_000, max: 75_000, alight: 1_500 },
   ride: { wait: 6_000, board: 2_000, speed: 95, min: 4_000, max: 45_000, alight: 1_200 },
   suv: { wait: 2_500, board: 2_000, speed: 100, min: 4_000, max: 45_000, alight: 1_200 },
+  drive: { wait: 1_500, board: 2_000, speed: 95, min: 4_000, max: 45_000, alight: 1_200 },
+  hire: { wait: 3_000, board: 2_000, speed: 100, min: 4_000, max: 45_000, alight: 1_200 },
   horse: { wait: 0, board: 2_500, speed: 45, min: 6_000, max: 70_000, alight: 1_500 },
 };
 

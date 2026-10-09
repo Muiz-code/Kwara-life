@@ -39,6 +39,8 @@ export interface Action {
   groc?: number;
   /** Packs this food (its food value) to take home, instead of eating it here. */
   takeaway?: number;
+  /** A car and driver for the rest of the game day (Sync). */
+  carHire?: boolean;
   /** Eats the oldest take-away pack at home. */
   eatTakeaway?: boolean;
   skill?: number;

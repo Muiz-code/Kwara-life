@@ -6,11 +6,12 @@ import { ACTIONS as ILORIN_ACTIONS } from "../data/ilorin/actions";
 import { EAT_TAKEAWAY, takeawayPacks } from "../sim/actions";
 import { ILORIN_LGAS, LGA } from "../data/geography";
 import { FURNITURE_ACTIONS } from "../data/furniture";
+import { SYNC_ACTIONS } from "../data/sync";
 import { PHONE_ACTIONS } from "../data/phones";
 import { CIVIC_ACTIONS, lgaActions, type LgaPlaceId } from "../data/lga";
 import { STATE } from "../data/states";
 import { MODES_BY_CLASS, NAIJA_MODES } from "../data/transport";
-import { ILORIN_TRIPS, currentLga, isAway, type Mode, type PlaceInfo, type TripWorld } from "../sim";
+import { ILORIN_TRIPS, currentLga, dayNum, isAway, type Mode, type PlaceInfo, type TripWorld } from "../sim";
 import type { GameState } from "../sim/state";
 import { ILORIN_MAP_ID, router, type WorldMap } from "../world";
 
@@ -52,7 +53,7 @@ function placeActions(game: GameState, map: WorldMap | null, placeId: string): A
   if (!c || onIlorin(game, map)) {
     const civic = place && place.kind in KIND_TO_CIVIC ? CIVIC_ACTIONS[KIND_TO_CIVIC[place.kind]] : [];
     // Taiwo Oke sells appliances and furniture.
-    const shop = placeId === "taiwo" ? [...FURNITURE_ACTIONS, ...PHONE_ACTIONS] : [];
+    const shop = placeId === "taiwo" ? [...FURNITURE_ACTIONS, ...PHONE_ACTIONS] : placeId === "sync" ? SYNC_ACTIONS : [];
     const own = (ILORIN_ACTIONS[placeId] ?? []).map((a) => (c && a.goal === "fly" ? FLY_TO_LAGOS : TAKEAWAY_PLACES.has(placeId) ? asTakeaway(a) : a));
     return [...own, ...civic, ...shop];
   }
@@ -99,8 +100,14 @@ export function routerFor(map: WorldMap) {
 }
 
 /** How trips work on this map. Ilorin keeps its tuned routes and modes. */
+/** Your Sync car and driver, for the day you hired them. */
+const HIRED: Mode = { label: "Hired car", note: "Your Sync driver for today", minutes: (d) => Math.round(3 + d / 45), fare: () => 0 };
+const hiredToday = (game: GameState) => game.flags.carHireDay === dayNum(game.t);
+
 export function tripWorldFor(game: GameState, map: WorldMap | null): TripWorld {
-  if (!game.citizen || onIlorin(game, map)) return ILORIN_TRIPS;
+  if (!game.citizen || onIlorin(game, map)) {
+    return hiredToday(game) ? { ...ILORIN_TRIPS, modes: { ...ILORIN_TRIPS.modes, hire: HIRED }, modeIds: [...ILORIN_TRIPS.modeIds, "hire"] } : ILORIN_TRIPS;
+  }
   if (!map) return { route: () => ({ ids: [], pts: [], length: 0, highway: false }), modes: {}, modeIds: [], placeName: (id) => id };
   const r = routerFor(map);
   const modes: Record<string, Mode> = Object.fromEntries(Object.entries(NAIJA_MODES).map(([k, m]) => [k, toMode(m)]));
@@ -109,6 +116,10 @@ export function tripWorldFor(game: GameState, map: WorldMap | null): TripWorld {
   if (game.car && !modeIds.includes("suv")) {
     modes.drive = { label: "Your car", note: "in your own car", minutes: NAIJA_MODES.ride.minutes, fare: (d: number) => 200 + Math.round(d / 200) * 50 };
     modeIds.push("drive");
+  }
+  if (hiredToday(game)) {
+    modes.hire = HIRED;
+    modeIds.push("hire");
   }
   return {
     route: (from, to) => r.route(from, to),

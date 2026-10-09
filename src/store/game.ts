@@ -19,7 +19,7 @@ import { throttledStorage } from "./storage";
 import { findActionAt, placeInfo, tripWorldFor } from "./world";
 import { serviceFor, type Service } from "../data/services";
 import { roomFor } from "../data/rooms";
-import { WORK_TASKS, taskAt, taskPay } from "../data/work-tasks";
+import { tasksFor, taskAt, taskPay } from "../data/work-tasks";
 import { naira } from "../sim/state";
 import type { WorldMap } from "../world";
 import type { Look } from "../data/character";
@@ -229,7 +229,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
               // A shift where you handled what came up: a bonus on top of the pay.
               const c = done.citizen;
               const handled = a.tasks?.length ?? 0;
-              if (a.plan.action.shift && handled && c && WORK_TASKS[c.career]) {
+              if (a.plan.action.shift && handled && c && tasksFor(c.career, c.job)) {
                 const bonus = handled * taskPay(c.monthlyPay);
                 book(done, bonus, "Bonus for good work", "salary");
                 done.toasts.push(`Good shift: ${handled} handled. Bonus ${naira(bonus)}`);

@@ -28,7 +28,7 @@ import { StreetLife, vehicleGeometry, type VehicleKind } from "./life";
 import { rng } from "./coords";
 
 /** Which vehicle each way of travelling uses. Walking has none. */
-const RIDE_VEHICLE: Record<string, VehicleKind> = { keke: "keke", okada: "okada", bus: "danfo", danfo: "danfo", ride: "car", suv: "car", horse: "horse" };
+const RIDE_VEHICLE: Record<string, VehicleKind> = { keke: "keke", okada: "okada", bus: "danfo", danfo: "danfo", ride: "car", suv: "car", drive: "car", hire: "car", horse: "horse" };
 import { groundOf, step, type Spot } from "./roam";
 import { cellAt, isLotCode } from "../world/town";
 import { buildScene, type BuiltScene } from "./scene";

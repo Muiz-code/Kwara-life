@@ -9,6 +9,45 @@ export interface WorkTask {
   act: string;
 }
 
+/** Sync roles each have their own work. */
+export const SYNC_TASKS: Record<string, WorkTask[]> = {
+  "Sync agent": [
+    { what: "A couple want to see a two-bedroom flat", act: "Show the flat" },
+    { what: "Landlord on the phone about the rent", act: "Negotiate" },
+    { what: "New listing just came in", act: "Take the photos" },
+  ],
+  "Sync customer support": [
+    { what: "\"My driver never came!\"", act: "Calm them down" },
+    { what: "A refund request", act: "Process it" },
+    { what: "Chat waiting for a reply", act: "Reply" },
+  ],
+  "Sync driver": [
+    { what: "Pick-up request two streets away", act: "Accept the trip" },
+    { what: "Passenger asks for the AC", act: "Turn it on" },
+    { what: "Fuel light is on", act: "Stop for fuel" },
+  ],
+  "Sync office cleaner": [
+    { what: "Someone spilled zobo in the lobby", act: "Mop it" },
+    { what: "Bins are full", act: "Empty them" },
+    { what: "Toilet needs cleaning", act: "Clean it" },
+  ],
+  "Sync security guard": [
+    { what: "A visitor at the gate", act: "Check their ID" },
+    { what: "Car at the barrier", act: "Open up" },
+    { what: "Time for the evening round", act: "Patrol" },
+  ],
+  "Sync engineer": [
+    { what: "The ride app is crashing", act: "Fix it" },
+    { what: "Pull request waiting", act: "Review" },
+    { what: "Payments are slow", act: "Find the bug" },
+  ],
+  "Sync product designer": [
+    { what: "The homes page is confusing", act: "Redesign it" },
+    { what: "User interview starting", act: "Listen" },
+    { what: "New icons needed", act: "Draw them" },
+  ],
+};
+
 export const WORK_TASKS: Partial<Record<CareerId, WorkTask[]>> = {
   student: [
     { what: "The lecturer asks you a question", act: "Answer" },
@@ -68,6 +107,11 @@ export const WORK_TASKS: Partial<Record<CareerId, WorkTask[]>> = {
     { what: "A candidate is here for interview", act: "Interview" },
   ],
 };
+
+/** The tasks for a job: Sync roles by title, everything else by career. */
+export function tasksFor(career: CareerId, title: string): WorkTask[] | undefined {
+  return career === "sync" ? (SYNC_TASKS[title] ?? SYNC_TASKS["Sync agent"]) : WORK_TASKS[career];
+}
 
 /** The first task comes this long into a shift, then one every TASK_EVERY, each open for TASK_WINDOW. */
 export const TASK_FIRST = 3000;

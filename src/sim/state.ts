@@ -71,6 +71,8 @@ export interface Flags {
   smelly?: boolean;
   /** Went too long without fun or company: feeling low until both pick up. */
   low?: boolean;
+  /** Game day a car and driver were hired for (Sync). */
+  carHireDay?: number;
   /** Take-away packs carried home, by food value, oldest first. */
   takeaway?: number[];
 }

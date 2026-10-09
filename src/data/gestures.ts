@@ -136,6 +136,7 @@ const BY_ID: Record<string, Gesture> = {
   pitch: g("talk", "desk"),
   recruit: g("talk", "desk"),
   officer: g("talk", "desk"),
+  carhire: g("talk", "desk"),
   atm: g("stand", "screen"),
   pos: g("type", "counter"),
   hustle: g("talk", "counter"),

@@ -59,6 +59,7 @@ const BLOCK: Record<string, number | "out"> = {
   shao: "out", farm: "out",
   // Civic places: VINEC on Ahmadu Bello Way, the polling unit in the Tanke school, the rest round Post Office.
   inec: 4,
+  sync: 4,
   pu: 11,
   viewing: 2,
   kiosk: 3, board: 3, hall: 3,

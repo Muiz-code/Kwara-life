@@ -7,7 +7,7 @@ export type PlaceKind =
   | "buka" | "mall" | "house" | "market" | "campus" | "poly" | "village"
   | "farmstop" | "kwasu" | "bank" | "techhub" | "club" | "trainstation" | "busterminal"
   // The civic places every LGA has (the same ids and kinds as src/data/lga.ts).
-  | "inec" | "school" | "viewing" | "kiosk" | "townhall" | "board";
+  | "inec" | "school" | "viewing" | "kiosk" | "townhall" | "board" | "tower";
 
 export interface Place {
   id: string;
@@ -76,8 +76,11 @@ PLACES.push(
   { id: "board", name: "Notice Board", area: "Post Office", lat: 8.4874, lng: 4.5638, kind: "board", blurb: "Flyers and announcements. Campaign flyers posted in this LGA show here.", open: [0, 24], gen: false },
 );
 
-/** The civic places above: they were never on the old hand-drawn map, so trip checks against it skip them. */
-export const ILORIN_CIVIC_IDS = new Set(["inec", "pu", "viewing", "kiosk", "hall", "board"]);
+/** Sync's Ilorin office. */
+PLACES.push({ id: "sync", name: "Sync", area: "Ahmadu Bello Way", lat: 8.4843, lng: 4.5762, kind: "tower", blurb: "Sync: homes to rent and buy, rides, car hire with a driver and what's on in town. They are hiring too.", open: [8, 20], gen: true });
+
+/** Places added on the grid only (the civic places and Sync): never on the old hand-drawn map, so trip checks against it skip them. */
+export const ILORIN_CIVIC_IDS = new Set(["inec", "pu", "viewing", "kiosk", "hall", "board", "sync"]);
 
 /** How many places the prototype had: the ones before this are checked against it. */
 export const PROTOTYPE_PLACES = 27;
