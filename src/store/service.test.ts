@@ -39,7 +39,10 @@ describe("service counters", () => {
     expect(store.getState().service!.startedAt + store.getState().service!.waitMs - 1000).toBeCloseTo(FAST_FORWARD_MS, 5);
     store.getState().serviceCalled(5000);
     expect(store.getState().service!.stage).toBe("steps");
-    for (let i = 0; i < 3; i++) store.getState().serviceStep(6000 + i);
+    // Order, receipt, pay, collect.
+    expect(store.getState().service!.service.steps.map((s) => s.do)).toEqual(["tap", "receipt", "pay", "tap"]);
+    expect(store.getState().service!.price).toBe(2200);
+    for (let i = 0; i < 4; i++) store.getState().serviceStep(6000 + i);
     expect(store.getState().service).toBeNull();
     const a = store.getState().activity;
     expect(a?.kind === "action" && a.plan.action.id).toBe("jollof");

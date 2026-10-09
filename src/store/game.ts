@@ -136,6 +136,11 @@ export interface ServiceRun {
   stage: "queue" | "steps";
   step: number;
   stepAt: number;
+  /** For the receipt: what it is, the price you will pay (with any POS charge), the list price and where. */
+  item: string;
+  price: number;
+  listPrice: number;
+  shop: string;
 }
 /** A note is open, or the player hasn't made a character yet. */
 export const isModalOpen = (s: GameStore) => s.game.notes.length > 0 || !s.game.char;
@@ -294,12 +299,14 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             if ("flow" in r) return set({ flow: r.flow });
             if (service) {
               // Take a number and wait inside. The action itself runs once you are through at the counter.
-              const ahead = 3 + Math.floor(Math.random() * 6);
-              const [lo, hi] = service.queue;
+              // At a roadside stall or in the market there is no queue: straight to the steps.
+              const ahead = service.queue ? 3 + Math.floor(Math.random() * 6) : 0;
+              const [lo, hi] = service.queue ?? [0, 0];
               set({
                 service: {
                   actionId, placeId: st.game.loc, service, ahead, ticket: 10 + Math.floor(Math.random() * 80) + ahead,
-                  startedAt: now, waitMs: (lo + Math.random() * (hi - lo)) * 1000, stage: "queue", step: 0, stepAt: now,
+                  startedAt: now, waitMs: (lo + Math.random() * (hi - lo)) * 1000, stage: service.queue ? "queue" : "steps", step: 0, stepAt: now,
+                  item: a.label, price: r.plan.cost, listPrice: a.cost ?? 0, shop: ctx.place?.name ?? PLACE[st.game.loc]?.name ?? "",
                 },
                 game: { ...st.game, inside: true },
               });

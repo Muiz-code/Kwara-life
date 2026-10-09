@@ -1,11 +1,14 @@
 "use client";
 // Waiting your turn at a counter, then the steps there: your ticket and the number being served, then a
-// tracker of steps you tap or hold through (thumbprint on the scanner, pay, collect), then the action runs.
-import { Check, FastForward, Fingerprint, LogOut } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+// tracker of steps you tap or hold through (thumbprint on the scanner, the receipt, paying by transfer, POS or
+// cash, collect), then the action runs. Paying is play only: the money comes off your in-game balance either way.
+import { Banknote, Check, CreditCard, FastForward, Fingerprint, LogOut, Smartphone, type LucideIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { receiptItem } from "@/data/services";
+import { clockNow } from "@/store/clock";
 import { getGameStore, useGame } from "@/store";
 import type { ServiceRun } from "@/store/game";
-import { chime, cx, usePerfNow } from "./ui";
+import { chime, cx, naira, usePerfNow } from "./ui";
 
 /** How long an "auto" step plays before moving on. */
 const AUTO_MS = 2500;
@@ -86,8 +89,7 @@ function Steps({ sv }: { sv: ServiceRun }) {
     <div className="pointer-events-auto mx-auto w-full max-w-md rounded-2xl bg-panel p-3 text-ink shadow-lg">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-bold">
-          {sv.service.prefix}
-          {sv.ticket}, your turn with {sv.service.caller}
+          {sv.service.queue ? `${sv.service.prefix}${sv.ticket}, your turn with ${sv.service.caller}` : `Buying from ${sv.service.caller}`}
         </span>
         <span className="text-xs font-bold text-ink-soft">
           {sv.step + 1} of {sv.service.steps.length}
@@ -116,6 +118,8 @@ function Steps({ sv }: { sv: ServiceRun }) {
         </button>
       )}
       {step.do === "hold" && <HoldButton prompt={step.prompt} />}
+      {step.do === "receipt" && <Receipt sv={sv} prompt={step.prompt} />}
+      {step.do === "pay" && <Pay key={sv.step} total={sv.price} />}
       {step.do === "auto" && (
         <p className="rounded-xl bg-panel-2 px-3 py-2.5 text-center text-sm font-semibold" role="status">
           <span className="inline-block animate-pulse">{step.prompt}</span>
@@ -125,8 +129,8 @@ function Steps({ sv }: { sv: ServiceRun }) {
   );
 }
 
-/** Press and hold until the ring fills: a thumb on the scanner. Let go early and it starts again. */
-function HoldButton({ prompt }: { prompt: string }) {
+/** Press and hold until the bar fills: a thumb on the scanner, a PIN on the POS. Let go early and it starts again. */
+function HoldButton({ prompt, Icon = Fingerprint }: { prompt: string; Icon?: LucideIcon }) {
   const [held, setHeld] = useState(0);
   const timer = useRef<number | null>(null);
   const start = () => {
@@ -163,9 +167,107 @@ function HoldButton({ prompt }: { prompt: string }) {
     >
       <span className="absolute inset-y-0 left-0 bg-[#0E7A4B]" style={{ width: `${held * 100}%` }} aria-hidden />
       <span className="relative flex items-center justify-center gap-2">
-        <Fingerprint aria-hidden className="h-5 w-5" />
+        <Icon aria-hidden className="h-5 w-5" />
         {held > 0 ? "Keep holding…" : prompt}
       </span>
+    </button>
+  );
+}
+
+const next = () => getGameStore().getState().serviceStep(performance.now());
+
+/** The paper receipt: shop, number, date, what you are buying and the total, with the usual small print. */
+function Receipt({ sv, prompt }: { sv: ServiceRun; prompt: string }) {
+  const when = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(
+        clockNow(),
+      ),
+    [],
+  );
+  // Cash scarcity: the POS charge shows as its own line.
+  const charge = Math.max(0, sv.price - sv.listPrice);
+  const line = (l: string, r: string, strong?: boolean) => (
+    <div className={cx("flex justify-between gap-3", strong && "text-sm font-bold")}>
+      <span className="min-w-0">{l}</span>
+      <span className="shrink-0">{r}</span>
+    </div>
+  );
+  return (
+    <>
+      <div className="mb-3 rounded-md bg-[#FFFDF6] px-4 py-3 font-mono text-xs text-[#2B2B2B] shadow-inner" role="group" aria-label="Receipt">
+        <div className="text-center text-sm font-bold uppercase">{sv.shop || "Receipt"}</div>
+        <div className="text-center">Receipt No. {String(sv.ticket * 7919 + (Math.floor(sv.startedAt) % 997)).padStart(6, "0")}</div>
+        <div className="mb-2 text-center">{when}</div>
+        <div className="space-y-1 border-y border-dashed border-[#2B2B2B]/40 py-2">
+          {line(`1 x ${receiptItem(sv.item)}`, naira(sv.price - charge))}
+          {charge > 0 && line("POS charge (no cash)", naira(charge))}
+        </div>
+        <div className="py-2">{line("TOTAL", naira(sv.price), true)}</div>
+        <div className="border-t border-dashed border-[#2B2B2B]/40 pt-2 text-center text-[10px] leading-snug">
+          Goods bought in good condition are not returnable.
+          <br />
+          Thank you for your patronage.
+        </div>
+      </div>
+      <button type="button" onClick={next} className="w-full rounded-xl bg-indigo px-3 py-2.5 font-bold text-[#F7E7C1]">
+        {prompt}
+      </button>
+    </>
+  );
+}
+
+type Method = "transfer" | "pos" | "cash";
+
+/** Pick how to pay, then it plays out: the bank app, the POS keypad or counting notes. */
+function Pay({ total }: { total: number }) {
+  const [method, setMethod] = useState<Method | null>(null);
+  const [sent, setSent] = useState(false);
+  useEffect(() => {
+    if (method !== "transfer") return;
+    const a = setTimeout(() => setSent(true), 1600);
+    const b = setTimeout(next, 2600);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+    };
+  }, [method]);
+  if (!method) {
+    const ways: [Method, string, LucideIcon][] = [
+      ["transfer", "Transfer", Smartphone],
+      ["pos", "POS", CreditCard],
+      ["cash", "Cash", Banknote],
+    ];
+    return (
+      <>
+        <p className="mb-2 text-center text-sm font-semibold">{naira(total)}. How will you pay?</p>
+        <div className="grid grid-cols-3 gap-2">
+          {ways.map(([m, label, Icon]) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMethod(m)}
+              className="flex flex-col items-center gap-1 rounded-xl bg-indigo px-2 py-2.5 text-sm font-bold text-[#F7E7C1]"
+            >
+              <Icon aria-hidden className="h-5 w-5" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </>
+    );
+  }
+  if (method === "transfer")
+    return (
+      <p className={cx("rounded-xl px-3 py-2.5 text-center text-sm font-semibold", sent ? "bg-[#0E7A4B] text-white" : "bg-panel-2")} role="status">
+        {sent ? `Transfer successful. ${naira(total)} sent` : <span className="inline-block animate-pulse">Network is a bit slow… sending {naira(total)}</span>}
+      </p>
+    );
+  if (method === "pos") return <HoldButton prompt={`Hold to enter your PIN for ${naira(total)}`} Icon={CreditCard} />;
+  return (
+    <button type="button" onClick={next} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo px-3 py-2.5 font-bold text-[#F7E7C1]">
+      <Banknote aria-hidden className="h-5 w-5" />
+      Count out {naira(total)} and hand it over
     </button>
   );
 }
