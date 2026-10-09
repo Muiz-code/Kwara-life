@@ -179,3 +179,12 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   Ties sort alphabetically. The ballot itself stays alphabetical with equal boxes.
 - Animation uses the motion library (formerly Framer Motion, imported from motion/react) for the results board
   and for game UI animation. Respect the phone's reduce-motion setting.
+
+### Closing video and admin roles (9 Oct 2026)
+- Two videos at the end of the season: the generic celebration video under the winner announcement, then a
+  closing video before the closing screen (the town at dusk, people heading home, inked thumbs, then "Thank you.
+  Now go and vote for real."). Both are generic, with no party marks and no text in the video; words are overlaid
+  in code.
+- Admin roles: the owner has every power (election date and poll hours before polls open, ads and prices, bans,
+  announcements). Moderators can only review support-card notes, sponsored news and ads, and ban accounts. No
+  role can touch results; everyone can only watch them.
