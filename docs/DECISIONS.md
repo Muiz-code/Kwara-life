@@ -173,3 +173,9 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
     on the board add up and that no earlier minute was rewritten.
 - Honest limit: whoever holds the database owner keys could in theory still go around all of this. The hash chain
   and the published minute files are what make any such change visible.
+
+### Results order and motion (9 Oct 2026)
+- Results are ranked: the leading party sits on top and rows swap places live the moment one overtakes another.
+  Ties sort alphabetically. The ballot itself stays alphabetical with equal boxes.
+- Animation uses the motion library (formerly Framer Motion, imported from motion/react) for the results board
+  and for game UI animation. Respect the phone's reduce-motion setting.
