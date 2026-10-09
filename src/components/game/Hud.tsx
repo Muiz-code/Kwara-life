@@ -24,6 +24,7 @@ import { NEWS } from "@/data/media";
 import { NEEDS, type NeedKey } from "@/data/needs";
 import { DAYS, dayNum, dayOfWeek, fmtTime, mood, worldT } from "@/sim";
 import { CAREERS } from "@/data/careers";
+import { useSoundOn } from "./Vibes";
 import {
   clockJumped,
   debugMode,
@@ -205,6 +206,16 @@ function SignedInAs() {
   );
 }
 
+/** Sound on or off, remembered on this device. */
+function SoundToggle() {
+  const [on, setOn] = useSoundOn();
+  return (
+    <Button tone="ghost" onClick={() => setOn(!on)}>
+      {on ? "Sound: on (tap to mute)" : "Sound: off (tap to turn on)"}
+    </Button>
+  );
+}
+
 function GameMenu({ onClose }: { onClose: () => void }) {
   const paused = useGame((s) => s.paused);
   const [view, setView] = useState<"main" | "help" | "about" | "reset">("main");
@@ -232,6 +243,7 @@ function GameMenu({ onClose }: { onClose: () => void }) {
             >
               {paused ? "Resume" : "Pause the clock"}
             </Button>
+            <SoundToggle />
             <Button tone="ghost" onClick={() => setView("help")}>
               How to play
             </Button>

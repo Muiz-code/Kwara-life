@@ -50,6 +50,7 @@ import { PlacesButton } from "./game/MapControls";
 import TripBar from "./game/TripBar";
 import ServicePanel from "./game/ServicePanel";
 import WorkPanel from "./game/WorkPanel";
+import { Atmosphere, Overheard } from "./game/Vibes";
 import { DISCLAIMER, useNow } from "./game/ui";
 import { PRESIDENTIAL_2027 as CAL, seasonClosed } from "@/data/calendar";
 
@@ -189,6 +190,7 @@ export default function Game() {
           onBillboard={setAdBoard}
         />
       )}
+      <Atmosphere />
       {adBoard && (
         <AdBooking
           mapId={world?.id ?? ILORIN_MAP_ID}
@@ -227,7 +229,8 @@ export default function Game() {
           <Objectives />
         </div>
         {/* While you travel: what is happening, how long is left, and Skip. */}
-        <div className="mt-auto px-3">
+        <div className="mt-auto flex flex-col gap-2 px-3">
+          <Overheard />
           <TripBar />
           <ServicePanel />
           <WorkPanel />
