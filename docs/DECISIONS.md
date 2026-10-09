@@ -194,8 +194,8 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 
 ### The game on the server (Phase E, 9 Oct 2026)
 - Server code runs as Next.js API routes on Vercel (src/app/api, rules in src/server), not Supabase edge
-  functions: the routes use the game's own rules (src/sim) directly and deploy with the app. They are pinned to
-  London (lhr1), next to the Supabase database. CLAUDE.md was updated to match.
+  functions: the routes use the game's own rules (src/sim) directly and deploy with the app. They run in
+  London (lhr1, set in vercel.json), next to the Supabase database. CLAUDE.md was updated to match.
 - E1: citizens are rolled on the server (POST /api/game/citizen), one per account. Saves are uploaded every
   3 minutes when something changed and when the app is hidden or closed, checked by sanitizeGame, and refused if
   they change who the citizen is or are out of date (a version number; the newer save wins). A save made on a

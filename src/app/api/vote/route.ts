@@ -5,8 +5,6 @@ import { vote } from "@/server/game";
 import { bodyOf, forPlayer, json, send } from "@/server/route";
 import { supabaseGameDb } from "@/server/supabase-game";
 
-export const preferredRegion = "lhr1";
-
 export const POST = (req: Request) =>
   forPlayer(req, async (user) => {
     const body = await bodyOf(req, 1024);
