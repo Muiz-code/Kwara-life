@@ -1,21 +1,23 @@
 "use client";
 // The end of the season, after collation: the winner over a celebration, then the closing scene at dusk with the
-// real-world message, then the closing credits (Credits.tsx). Each scene plays its video when one exists (scenes.ts), otherwise an
+// real-world message, then the closing credits (Credits.tsx), then switching off the lights to leave (LightsOut.tsx). Each scene plays its video when one exists (scenes.ts), otherwise an
 // animation drawn here. Party colour and name are overlaid; nothing else about any party appears.
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { PARTIES } from "@/data/parties";
 import { Button, DISCLAIMER } from "../game/ui";
 import { Credits } from "./Credits";
+import { LightsOut } from "./LightsOut";
 import { SCENE_VIDEO } from "./scenes";
 
 export function Finale({ winner, onClose }: { winner: number; onClose: () => void }) {
-  const [stage, setStage] = useState<"winner" | "closing" | "credits">("winner");
+  const [stage, setStage] = useState<"winner" | "closing" | "credits" | "lights">("winner");
   return (
     <AnimatePresence mode="wait">
       {stage === "winner" && <WinnerScene key="winner" winner={winner} onNext={() => setStage("closing")} />}
       {stage === "closing" && <ClosingScene key="closing" onNext={() => setStage("credits")} />}
-      {stage === "credits" && <Credits key="credits" onClose={onClose} />}
+      {stage === "credits" && <Credits key="credits" onClose={() => setStage("lights")} />}
+      {stage === "lights" && <LightsOut key="lights" onLeave={onClose} />}
     </AnimatePresence>
   );
 }

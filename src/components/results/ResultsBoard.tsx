@@ -10,8 +10,10 @@ import { LGA, LGAS } from "@/data/geography";
 import { PARTIES } from "@/data/parties";
 import { STATE, STATES } from "@/data/states";
 import { ZONES, ZONE_CODES, type ZoneCode } from "@/data/zones";
-import { useLiveResults } from "@/net/live-results";
+import { ELECTION_SEED, useLiveResults } from "@/net/live-results";
+import { liveSchedule, liveSnapshot } from "@/sim/live";
 import { emptyTally, leader, type Tally } from "@/sim/results";
+import { Finale } from "../election/Finale";
 import { DISCLAIMER } from "../game/ui";
 import { Feed } from "./Feed";
 import { RankedList } from "./RankedList";
@@ -73,7 +75,10 @@ export function ResultsBoard() {
   const [cycling, setCycling] = useState(false);
   const key = scopeKey(scope);
   const filter = useMemo(() => feedFilter(scope), [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  const { now, phase, snap, lastMinute, timeAt, demo } = useLiveResults(filter, key);
+  const { now, phase, snap, lastMinute, timeAt, demo, jump } = useLiveResults(filter, key);
+  // Demo only: the finale (winner, closing, credits, lights out) can be played straight from the board.
+  const [finale, setFinale] = useState(false);
+  const finalLeader = useMemo(() => (demo ? leader(liveSnapshot(liveSchedule(ELECTION_SEED), 1, 0).nation) : -1), [demo]);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has("cycle")) setCycling(true); // eslint-disable-line react-hooks/set-state-in-effect
@@ -116,6 +121,22 @@ export function ResultsBoard() {
               {phase === "final" && "Polls closed at 4pm. Final result"}
               {demo && <span className="rounded-full bg-[#B5532E] px-[0.6em] text-[0.8em] font-bold text-white">DEMO: a sped-up simulated day</span>}
             </p>
+            {demo && (
+              <p className="mt-[0.4em] flex flex-wrap gap-[0.3em] text-[0.8em]">
+                <DemoButton onClick={() => jump(0)}>8am</DemoButton>
+                <DemoButton onClick={() => jump(0.5)}>12 noon</DemoButton>
+                <DemoButton onClick={() => jump(0.98)}>3:50pm</DemoButton>
+                <DemoButton onClick={() => jump(1)}>Final result</DemoButton>
+                <DemoButton
+                  onClick={() => {
+                    jump(1);
+                    setFinale(true);
+                  }}
+                >
+                  Play the finale
+                </DemoButton>
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-[1.2em]">
             <Stat label="Votes cast" value={snap.votesCast} />
@@ -217,6 +238,8 @@ export function ResultsBoard() {
           </section>
         </div>
 
+        {finale && finalLeader >= 0 && <Finale winner={finalLeader} onClose={() => setFinale(false)} />}
+
         <footer className="mt-[1em] border-t border-white/10 pt-[0.6em] text-center text-[0.8em] text-white/60">
           {DISCLAIMER} Simulated voters vote at random with equal odds for every party. Results are final and cannot be
           changed by anyone.
@@ -262,6 +285,14 @@ function DayBar({ progress, phase }: { progress: number; phase: "before" | "live
         <span>4pm</span>
       </div>
     </div>
+  );
+}
+
+function DemoButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} className="rounded-full bg-white/[0.08] px-[0.7em] py-[0.15em] font-semibold hover:bg-white/[0.18]">
+      {children}
+    </button>
   );
 }
 

@@ -245,3 +245,11 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   The server counts it from their saves, once a day (citizens.plays). Players opt in to being named with "Show my
   name in the closing credits" in the menu (off by default; one reminder in the week before polls). Only the
   citizen's game name and LGA are shown. /season/credits.json answers 404 until polls close, then the top 10.
+
+### Top three cards, lights out, and the demo (9 Oct 2026)
+- The results board and the 4pm collation show the top three parties on cards (1st, 2nd, 3rd, with the gap
+  between them); places 4 to 10 are rows and the rest chips. Parties slide between them as they overtake.
+- The season ends with "Lights out, Naija": after the credits the player switches off the bulb, TV, fan and gen
+  in their parlour, the room goes dark, "Goodnight, Naija. See you at the real polls in 2027", then they leave.
+- Dev builds only: /results?demo has buttons to jump the sped-up day (8am, noon, 3:50pm, final) and to play the
+  whole finale (winner, closing video, credits, lights out). Production builds strip it.
