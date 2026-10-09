@@ -5,6 +5,9 @@ import { useEffect, useState } from "react";
 import Loader from "./game/Loader";
 import Welcome, { hasConsent } from "./Welcome";
 import AuthGate from "./AuthGate";
+import { ResultsBoard } from "./results/ResultsBoard";
+import { seasonState } from "@/data/season";
+import { clockNow, syncClock } from "@/store/clock";
 
 /** The game runs only in the browser: it reads the real clock, local saves and WebGL. */
 const Game = dynamic(() => import("./Game"), {
@@ -15,11 +18,16 @@ const Game = dynamic(() => import("./Game"), {
 export default function ClientGame() {
   // null until the browser has checked for an earlier agreement.
   const [agreed, setAgreed] = useState<boolean | null>(null);
+  // Once polls close the game never loads again: only the results (docs/DECISIONS.md, "After the season
+  // closes"). Decided on the server's clock, so a phone set to an earlier date changes nothing.
+  const [over, setOver] = useState<boolean | null>(null);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reading localStorage once, after mount
     setAgreed(hasConsent());
+    void syncClock().then(() => setOver(seasonState(clockNow()) !== "playing"));
   }, []);
-  if (agreed === null) return <Loader done={false} label="Loading Naija Votes…" />;
+  if (over) return <ResultsBoard />;
+  if (agreed === null || over === null) return <Loader done={false} label="Loading Naija Votes…" />;
   if (!agreed) return <Welcome onAgree={() => setAgreed(true)} />;
   return (
     <AuthGate>

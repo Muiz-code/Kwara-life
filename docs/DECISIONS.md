@@ -253,3 +253,15 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   in their parlour, the room goes dark, "Goodnight, Naija. See you at the real polls in 2027", then they leave.
 - Dev builds only: /results?demo has buttons to jump the sped-up day (8am, noon, 3:50pm, final) and to play the
   whole finale (winner, closing video, credits, lights out). Production builds strip it.
+
+### After the season closes (9 Oct 2026)
+- At 4pm on election day the game closes for good. From then on the app never loads the game: whoever opens it
+  gets the results board (src/components/ClientGame.tsx, decided on the server's clock, src/data/season.ts).
+- When the result goes final, the finale plays by itself: the celebration (winner with their vote count) moves
+  on when its video ends, no button; then the closing scene, credits and lights out. The credits have "View
+  results again", which returns to the board.
+- Results stay up for three days, until Tuesday 17 November 2026, 4pm WAT. After that the board shows only
+  "Naija Votes has ended", the closing message and the disclaimer.
+- On the fifth day, Thursday 19 November 2026, 4pm WAT, every player's data is deleted and nobody can sign in
+  again. This is server work (accounts, saves, citizens, voter rolls, credits opt-ins); the anonymous totals
+  behind the results are not personal data.

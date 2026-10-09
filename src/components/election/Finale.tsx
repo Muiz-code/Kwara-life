@@ -1,22 +1,34 @@
 "use client";
 // The end of the season, after collation: the winner over a celebration, then the closing scene at dusk with the
-// real-world message, then the closing credits (Credits.tsx), then switching off the lights to leave (LightsOut.tsx). Each scene plays its video when one exists (scenes.ts), otherwise an
-// animation drawn here. Party colour and name are overlaid; nothing else about any party appears.
+// real-world message, then the closing credits (Credits.tsx), then switching off the lights to leave
+// (LightsOut.tsx). Each scene plays its video when one exists (scenes.ts), otherwise an animation drawn here.
+// The celebration moves on by itself when its video ends. Party colour and name are overlaid; nothing else about any party appears.
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PARTIES } from "@/data/parties";
 import { Button, DISCLAIMER } from "../game/ui";
 import { Credits } from "./Credits";
 import { LightsOut } from "./LightsOut";
 import { SCENE_VIDEO } from "./scenes";
 
-export function Finale({ winner, votes, onClose }: { winner: number; votes: number; onClose: () => void }) {
+export function Finale({
+  winner,
+  votes,
+  onClose,
+  onViewResults,
+}: {
+  winner: number;
+  votes: number;
+  onClose: () => void;
+  /** Shown in the credits while the results are still up (three days after polls close). */
+  onViewResults?: () => void;
+}) {
   const [stage, setStage] = useState<"winner" | "closing" | "credits" | "lights">("winner");
   return (
     <AnimatePresence mode="wait">
       {stage === "winner" && <WinnerScene key="winner" winner={winner} votes={votes} onNext={() => setStage("closing")} />}
       {stage === "closing" && <ClosingScene key="closing" onNext={() => setStage("credits")} />}
-      {stage === "credits" && <Credits key="credits" onClose={() => setStage("lights")} />}
+      {stage === "credits" && <Credits key="credits" onClose={() => setStage("lights")} onViewResults={onViewResults} />}
       {stage === "lights" && <LightsOut key="lights" onLeave={onClose} />}
     </AnimatePresence>
   );
@@ -30,20 +42,41 @@ function useSceneVideo(src: string | null) {
   return { src: failed ? null : src, onError: () => setFailed(true) };
 }
 
-function SceneVideo({ src, loop, onError }: { src: string; loop?: boolean; onError: () => void }) {
-  return <video className="absolute inset-0 h-full w-full object-cover" src={src} autoPlay muted playsInline loop={loop} onError={onError} aria-hidden />;
+function SceneVideo({ src, loop, onError, onEnded }: { src: string; loop?: boolean; onError: () => void; onEnded?: () => void }) {
+  return (
+    <video className="absolute inset-0 h-full w-full object-cover" src={src} autoPlay muted playsInline loop={loop} onError={onError} onEnded={onEnded} aria-hidden />
+  );
 }
+
+/** Seconds the winner stays up after the celebration video ends (or in all, when there is no video). */
+const AFTER_VIDEO_S = 2.5;
+const NO_VIDEO_S = 9;
 
 function WinnerScene({ winner, votes, onNext }: { winner: number; votes: number; onNext: () => void }) {
   const p = PARTIES[winner];
   const video = useSceneVideo(SCENE_VIDEO.celebration);
+  // Moves on by itself: a moment after the video ends, or after a fixed time when there is no video.
+  // The parent re-renders every second (the live board), so hold the callback in a ref to keep the timer steady.
+  const [ended, setEnded] = useState(false);
+  const next = useRef(onNext);
+  useEffect(() => {
+    next.current = onNext;
+  }, [onNext]);
+  useEffect(() => {
+    if (video.src && !ended) return;
+    const id = setTimeout(() => next.current(), (video.src ? AFTER_VIDEO_S : NO_VIDEO_S) * 1000);
+    return () => clearTimeout(id);
+  }, [video.src, ended]);
   return (
     <motion.div
       {...fade}
-      className={`fixed inset-0 z-50 flex flex-col items-center overflow-hidden p-6 text-center text-white ${video.src ? "justify-end pb-10" : "justify-center"}`}
+      className={`fixed inset-0 z-50 flex flex-col items-center overflow-hidden p-6 text-center text-white ${video.src ? "justify-end pb-16" : "justify-center"}`}
       style={{ background: "#0F1730" }}
     >
-      {video.src && <SceneVideo src={video.src} loop onError={video.onError} />}
+      {video.src && <SceneVideo src={video.src} onError={video.onError} onEnded={() => setEnded(true)} />}
+      <button type="button" onClick={onNext} className="absolute top-4 right-4 z-10 rounded-full bg-black/30 px-3 py-1 text-xs font-bold hover:bg-black/50">
+        Skip
+      </button>
       {/* Over the video the party colour rises from the bottom so the villa stays in view; without one it fills the screen. */}
       <div
         className="absolute inset-0"
@@ -85,11 +118,6 @@ function WinnerScene({ winner, votes, onNext }: { winner: number; votes: number;
         <motion.p className="mt-2 max-w-md text-sm opacity-80" initial={{ opacity: 0 }} animate={{ opacity: 0.8 }} transition={{ delay: 2 }}>
           Most votes in the Naija Votes game election.
         </motion.p>
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.4 }}>
-          <Button tone="keke" className="mt-8" onClick={onNext}>
-            Continue
-          </Button>
-        </motion.div>
       </div>
     </motion.div>
   );

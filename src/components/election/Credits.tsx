@@ -10,7 +10,7 @@ import { Button, DISCLAIMER } from "../game/ui";
 
 const SPEED = 38; // pixels a second
 
-export function Credits({ onClose }: { onClose: () => void }) {
+export function Credits({ onClose, onViewResults }: { onClose: () => void; onViewResults?: () => void }) {
   const credits = useSeasonCredits();
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -125,20 +125,32 @@ export function Credits({ onClose }: { onClose: () => void }) {
           </Block>
 
           <p className="text-sm text-white/60">{DISCLAIMER}</p>
-          <div>
+          <div className="flex flex-wrap justify-center gap-3">
+            {onViewResults && (
+              <button
+                type="button"
+                onClick={onViewResults}
+                className="rounded-full border-2 border-[#F1E8D4]/40 px-5 py-2 font-bold text-[#F1E8D4] hover:border-[#F1E8D4]/80"
+              >
+                View results again
+              </button>
+            )}
             <Button tone="keke" onClick={onClose}>
               Close
             </Button>
           </div>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={onClose}
-        className="absolute top-4 right-4 rounded-full bg-white/10 px-3 py-1 text-xs font-bold hover:bg-white/20"
-      >
-        Skip
-      </button>
+      <div className="absolute top-4 right-4 flex gap-2">
+        {onViewResults && (
+          <button type="button" onClick={onViewResults} className="rounded-full bg-[#F2B705] px-3 py-1 text-xs font-bold text-[#0F1730] hover:brightness-110">
+            View results again
+          </button>
+        )}
+        <button type="button" onClick={onClose} className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold hover:bg-white/20">
+          Skip
+        </button>
+      </div>
     </motion.div>
   );
 }

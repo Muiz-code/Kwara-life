@@ -10,6 +10,8 @@ import { LGA, LGAS } from "@/data/geography";
 import { PARTIES } from "@/data/parties";
 import { STATE, STATES } from "@/data/states";
 import { ZONES, ZONE_CODES, type ZoneCode } from "@/data/zones";
+import { CLOSING_MESSAGE, NEXT_REAL_ELECTION, SIGNED } from "@/data/credits";
+import { seasonState } from "@/data/season";
 import { useLiveResults } from "@/net/live-results";
 import { emptyTally, leader, type Tally } from "@/sim/results";
 import { Finale } from "../election/Finale";
@@ -75,9 +77,20 @@ export function ResultsBoard() {
   const key = scopeKey(scope);
   const filter = useMemo(() => feedFilter(scope), [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const { now, phase, snap, lastMinute, timeAt, demo, jump } = useLiveResults(filter, key);
-  // After polls close the winner shows with their votes; Continue plays the finale (celebration, closing,
-  // credits, lights out) on this screen too.
+  // When the result goes final the finale plays by itself (celebration with the winner and their votes, closing,
+  // credits, lights out); "View results again" in the credits comes back here. Results stay up for three days.
   const [finale, setFinale] = useState(false);
+  const [seenPhase, setSeenPhase] = useState(phase);
+  if (seenPhase !== phase) {
+    setSeenPhase(phase);
+    if (phase === "final") setFinale(true);
+  }
+  const [demoEnded, setDemoEnded] = useState(false);
+  const season = demo ? (demoEnded ? "ended" : phase === "final" ? "results" : "playing") : now === null ? "playing" : seasonState(now);
+  const goto = (p: number) => {
+    setDemoEnded(false);
+    jump(p);
+  };
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has("cycle")) setCycling(true); // eslint-disable-line react-hooks/set-state-in-effect
@@ -102,6 +115,8 @@ export function ResultsBoard() {
   const winner = phase === "final" ? leader(snap.nation) : -1;
   const openState = scope.level === "state" ? scope.state : scope.level === "lga" ? LGA[scope.lga].stateCode : undefined;
 
+  if (season === "ended") return <SeasonEnded demo={demo} onBack={() => setDemoEnded(false)} />;
+
   return (
     <MotionConfig reducedMotion="user">
       <main
@@ -122,18 +137,19 @@ export function ResultsBoard() {
             </p>
             {demo && (
               <p className="mt-[0.4em] flex flex-wrap gap-[0.3em] text-[0.8em]">
-                <DemoButton onClick={() => jump(0)}>8am</DemoButton>
-                <DemoButton onClick={() => jump(0.5)}>12 noon</DemoButton>
-                <DemoButton onClick={() => jump(0.98)}>3:50pm</DemoButton>
-                <DemoButton onClick={() => jump(1)}>Final result</DemoButton>
+                <DemoButton onClick={() => goto(0)}>8am</DemoButton>
+                <DemoButton onClick={() => goto(0.5)}>12 noon</DemoButton>
+                <DemoButton onClick={() => goto(0.98)}>3:50pm</DemoButton>
+                <DemoButton onClick={() => goto(1)}>Final result</DemoButton>
                 <DemoButton
                   onClick={() => {
-                    jump(1);
+                    goto(1);
                     setFinale(true);
                   }}
                 >
                   Play the finale
                 </DemoButton>
+                <DemoButton onClick={() => setDemoEnded(true)}>3 days later</DemoButton>
               </p>
             )}
           </div>
@@ -181,7 +197,7 @@ export function ResultsBoard() {
                 onClick={() => setFinale(true)}
                 className="rounded-full bg-[#F2B705] px-[1em] py-[0.3em] font-bold text-[#0F1730] hover:brightness-110"
               >
-                Continue
+                Watch the celebration again
               </button>
             </motion.div>
           )}
@@ -247,7 +263,14 @@ export function ResultsBoard() {
           </section>
         </div>
 
-        {finale && winner >= 0 && <Finale winner={winner} votes={snap.nation[winner]} onClose={() => setFinale(false)} />}
+        {finale && winner >= 0 && (
+          <Finale
+            winner={winner}
+            votes={snap.nation[winner]}
+            onClose={() => setFinale(false)}
+            onViewResults={season === "results" ? () => setFinale(false) : undefined}
+          />
+        )}
 
         <footer className="mt-[1em] border-t border-white/10 pt-[0.6em] text-center text-[0.8em] text-white/60">
           {DISCLAIMER} Simulated voters vote at random with equal odds for every party. Results are final and cannot be
@@ -294,6 +317,31 @@ function DayBar({ progress, phase }: { progress: number; phase: "before" | "live
         <span>4pm</span>
       </div>
     </div>
+  );
+}
+
+/** Three days after polls close the results come down; only thanks and the closing message remain. */
+function SeasonEnded({ demo, onBack }: { demo: boolean; onBack: () => void }) {
+  return (
+    <main className="flex min-h-dvh flex-col items-center justify-center bg-[#0B1022] px-6 py-12 text-center text-[#F1E8D4]">
+      <h1 className="font-sign text-4xl">Naija Votes has ended</h1>
+      <p className="mt-3 max-w-md text-white/75">
+        The first season is over and the results are no longer up. Thank you to everyone who played. See you at the real polls in{" "}
+        {NEXT_REAL_ELECTION}.
+      </p>
+      <div className="mt-8 max-w-xl space-y-3 rounded-3xl bg-white/5 p-6 text-left">
+        {CLOSING_MESSAGE.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+        <p className="font-sign text-2xl text-[#F2B705]">Signed, {SIGNED}</p>
+      </div>
+      <p className="mt-6 text-sm text-white/60">{DISCLAIMER}</p>
+      {demo && (
+        <button type="button" onClick={onBack} className="mt-6 rounded-full bg-[#B5532E] px-4 py-1 text-sm font-bold text-white">
+          DEMO: back to the results
+        </button>
+      )}
+    </main>
   );
 }
 

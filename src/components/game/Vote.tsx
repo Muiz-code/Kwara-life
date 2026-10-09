@@ -2,6 +2,7 @@
 // The Vote tab, the BVAS and ballot flow, live collation, and the season finale.
 import { Check, Fingerprint } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { PRESIDENTIAL_2027 as CAL, civicPhase, seasonClosed } from "@/data/calendar";
 import { LGA, POLLING_UNITS } from "@/data/geography";
@@ -9,7 +10,9 @@ import { submitVote } from "@/net/sync";
 import { useTurnout } from "@/net/turnout";
 import { PARTY_INDEX, ballot, bvasScan, collate, emptyTally, leader, puSheets, simulateVoters, uploadOrder, type Tally } from "@/sim";
 import { turnoutCurve } from "@/sim/live";
+import { seasonState } from "@/data/season";
 import { useGame } from "@/store";
+import { clockNow } from "@/store/clock";
 import { BallotDrop } from "../election/BallotDrop";
 import { Finale } from "../election/Finale";
 import { RankedList } from "../results/RankedList";
@@ -248,6 +251,7 @@ export function BallotFlow({ onClose }: { onClose: () => void }) {
 
 /** 4pm: the game freezes, the count plays out unit by unit, then the winner and the closing scenes. */
 export function Results({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
   const myBallot = useGame((s) => s.myBallot);
   const game = useGame((s) => s.game);
   const [stage, setStage] = useState<"closed" | "count">("closed");
@@ -278,7 +282,14 @@ export function Results({ onClose }: { onClose: () => void }) {
     for (const code of order.slice(Math.max(0, uploaded - 9), uploaded)) h[code.slice(0, code.indexOf("/"))] = `${uploaded}`;
     return h;
   }, [order, uploaded]);
-  if (uploaded >= order.length) return <Finale winner={leader(snap.nation)} votes={snap.nation[leader(snap.nation)]} onClose={onClose} />;
+  if (uploaded >= order.length) return (
+      <Finale
+        winner={leader(snap.nation)}
+        votes={snap.nation[leader(snap.nation)]}
+        onClose={onClose}
+        onViewResults={seasonState(clockNow()) === "results" ? () => router.push("/results") : undefined}
+      />
+    );
   return (
     <MotionConfig reducedMotion="user">
       <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0F1730] p-4 text-[#F1E8D4] sm:p-6" role="dialog" aria-modal="true" aria-label="Live collation">
