@@ -188,3 +188,14 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - Admin roles: the owner has every power (election date and poll hours before polls open, ads and prices, bans,
   announcements). Moderators can only review support-card notes, sponsored news and ads, and ban accounts. No
   role can touch results; everyone can only watch them.
+
+### The game on the server (Phase E, 9 Oct 2026)
+- Server code runs as Next.js API routes on Vercel (src/app/api, rules in src/server), not Supabase edge
+  functions: the routes use the game's own rules (src/sim) directly and deploy with the app. They are pinned to
+  London (lhr1), next to the Supabase database. CLAUDE.md was updated to match.
+- E1: citizens are rolled on the server (POST /api/game/citizen), one per account. Saves are uploaded every
+  3 minutes when something changed and when the app is hidden or closed, checked by sanitizeGame, and refused if
+  they change who the citizen is or are out of date (a version number; the newer save wins). A save made on a
+  phone before the server existed is taken over once, after the same checks, without any votes.
+- Votes are only ever recorded by the server's voter roll: a save can never add one.
+- Vote counts will live in project 1 for now, as counts per polling unit and party only (no ballots).

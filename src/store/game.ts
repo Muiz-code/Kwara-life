@@ -5,8 +5,8 @@ import type { Character } from "../data/character";
 import { PLACE } from "../data/ilorin/places";
 import {
   advance, checkCritical, clone, finishAction, finishTrip, freshState, log, note, resolveChoice,
-  pvcReminders, sanitizeGame, startAction, startTrip, tripTiming, tripTotalMs, rollCitizen, castVote, postSupportCard, buyPromo, applyForJob,
-  buyVotes as buyVotesSim, type Ballot, type CardInput, type PromoInput, type BribeInput, type Opening, startingMoney, takeJourney, airportTown, currentLga, handoverSeconds, type JourneyMode, type ActionFlow, type ActionPlan, type ChoiceId, type GameState, type Rng, type Trip, type TripTiming,
+  pvcReminders, sanitizeGame, startAction, startTrip, tripTiming, tripTotalMs, castVote, postSupportCard, buyPromo, applyForJob,
+  buyVotes as buyVotesSim, type Ballot, type CardInput, type PromoInput, type BribeInput, type Opening, takeJourney, airportTown, currentLga, handoverSeconds, type JourneyMode, type ActionFlow, type ActionPlan, type ChoiceId, type GameState, type Rng, type Trip, type TripTiming,
 } from "../sim";
 import { clockNow } from "./clock";
 import { HUSTLE } from "../data/hustles";
@@ -29,8 +29,8 @@ import type { WorldMap } from "../world";
 import type { Look } from "../data/character";
 import { PRESIDENTIAL_2027, seasonClosed } from "../data/calendar";
 import { LGA } from "../data/geography";
-import { bankOp, book, freshBank, reconcile, type BankOp } from "../sim/bank";
-import { STATE } from "../data/states";
+import { bankOp, book, reconcile, type BankOp } from "../sim/bank";
+import { startLife } from "../sim/start";
 
 export const SAVE_KEY = "kwara-life-v4";
 /** Game minutes that pass each real second while idle. */
@@ -123,6 +123,8 @@ export interface GameStore {
   promote: (input: PromoInput) => string | null;
   buyVotes: (input: BribeInput) => string | null;
   applyJob: (opening: Pick<Opening, "id">) => string | null;
+  /** Swap in a save from the server (played on another phone, or a citizen the server rolled). False if it won't load. */
+  loadSave: (raw: unknown) => boolean;
   reset: () => void;
 }
 
@@ -517,21 +519,7 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
           createCitizen: (input) => {
             const st = get();
             try {
-              const now = realNow();
-              const citizen = rollCitizen(input, now, rng);
-              const g = clone(st.game);
-              g.citizen = citizen;
-              g.char = { name: citizen.name, ...citizen.look };
-              g.money = 0;
-              g.bank = freshBank();
-              g.visited = [citizen.stateCode];
-              book(g, startingMoney(citizen, rng), "Opening balance", "opening");
-              g.loc = "home";
-              g.homeId = "home";
-              g.at = null;
-              const lga = LGA[citizen.lgaCode];
-              log(g, `${citizen.name} started life in ${lga.name}, ${STATE[lga.stateCode].name}.`);
-              commit(g, { selected: "home", world: null });
+              commit(startLife(st.game, input, realNow(), rng), { selected: "home", world: null });
               return null;
             } catch (e) {
               return (e as Error).message;
@@ -582,6 +570,12 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             return null;
           },
           shiftToast: () => set({ toasts: get().toasts.slice(1), toastSeq: get().toastSeq + 1 }),
+          loadSave: (raw) => {
+            const game = sanitizeGame(raw);
+            if (!game || (game.citizen && !LGA[game.citizen.lgaCode])) return false;
+            set({ game, selected: game.loc, activity: null, service: null, touring: null, flow: null, journey: null, world: null });
+            return true;
+          },
           reset: () => {
             const g = freshState();
             set({ game: g, selected: g.loc, activity: null, service: null, touring: null, toasts: [], paused: false, flow: null, journey: null, myBallot: null, world: null });

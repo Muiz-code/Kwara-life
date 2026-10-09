@@ -8,7 +8,8 @@ import { Fragment, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { CalendarCheck, Eye, EyeOff, KeyRound, Loader2, LogIn, Mail, UserPlus } from "lucide-react";
 import { online, supabase } from "@/net/supabase";
-import { setAccount } from "@/store";
+import { getGameStore, setAccount } from "@/store";
+import { startSync } from "@/net/sync";
 import { UNDER_AGE, dobProblem, dobString, lagosToday } from "@/sim/age";
 import Loader from "./game/Loader";
 
@@ -130,6 +131,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
 function Account({ id, children }: { id: string; children: ReactNode }) {
   setAccount(id);
+  // Keep this account's game in step with the server while it plays.
+  useEffect(() => startSync(getGameStore(), id), [id]);
   return <Fragment key={id}>{children}</Fragment>;
 }
 

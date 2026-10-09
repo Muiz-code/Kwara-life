@@ -15,7 +15,8 @@ campaigns, and votes once on a single shared election day. Free and fair is the 
 - Next.js (App Router) + TypeScript + Tailwind
 - PixiJS + pixi-viewport for the LGA world map (pan, zoom, sprites, camera follow)
 - React for panels (Life, Campaign, Election), Zustand for client state
-- Supabase: 6 zone shards (NC, NE, NW, SE, SS, SW) + 1 national project. Edge functions for all writes.
+- Supabase for data (see docs/DECISIONS.md for the projects). All writes go through Next.js API routes on Vercel
+  (src/app/api, logic in src/server), pinned to London next to the database; they reuse src/sim directly.
 - The season ends on election day: when polls close the game freezes for everyone, results are announced, then a
   closing screen thanks players, urges them to vote in real elections and shows the disclaimer.
 - Static results snapshots, news cache and ads served from a CDN; players never query results directly.
@@ -31,7 +32,7 @@ The Next.js app lives at the repo root (all paths below are relative to it).
   buildings, traffic, interiors; Ilorin is built the same way and keeps its 27 places
 - src/store: Zustand client state; src/net: typed client for edge functions and CDN snapshots
 - src/components: HUD, panels, modals, ballot, results
-- supabase/shard and supabase/national: migrations, edge functions (sign-up, act, vote, promo), collation job
+- supabase/migrations: tables and server-only database functions; src/server: the server rules behind src/app/api
 - scripts/: cutout.py and fetch_assets.py (art), data seeding
 
 ## Non-negotiable rules

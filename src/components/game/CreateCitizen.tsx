@@ -9,6 +9,7 @@ import { LGAS } from "@/data/geography";
 import { CLASS_LABEL } from "@/data/jobs";
 import { STATES } from "@/data/states";
 import { useGame, getGameStore } from "@/store";
+import { createCitizenOnline, syncing } from "@/net/sync";
 import { Button, DISCLAIMER, Modal, cx, naira } from "./ui";
 
 export default function CreateCitizen() {
@@ -20,11 +21,17 @@ export default function CreateCitizen() {
   const lgas = useMemo(() => LGAS.filter((l) => l.stateCode === stateCode), [stateCode]);
   const [lgaCode, setLgaCode] = useState("kwara/ilorin-west");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const attire = useMemo(() => attireFor(stateCode, g), [stateCode, g]);
 
-  const roll = () => {
+  const roll = async () => {
     if (!name.trim()) return setError("Enter your name");
-    setError(getGameStore().getState().createCitizen({ name, look: { g, skin, cloth }, stateCode, lgaCode }));
+    const input = { name, look: { g, skin, cloth }, stateCode, lgaCode };
+    // Signed in: the server rolls the life, so nobody can fake a rich start. Offline builds roll here.
+    if (!syncing()) return setError(getGameStore().getState().createCitizen(input));
+    setBusy(true);
+    setError(await createCitizenOnline(input));
+    setBusy(false);
   };
 
   return (
@@ -80,8 +87,8 @@ export default function CreateCitizen() {
             <Swatches label="Outfit" values={CLOTHS} value={cloth} onChange={setCloth} />
           </div>
           {error && <p className="text-sm font-bold text-danger">{error}</p>}
-          <Button tone="keke" onClick={roll} className="w-full">
-            Roll my life
+          <Button tone="keke" onClick={() => void roll()} disabled={busy} className="w-full">
+            {busy ? "Rolling…" : "Roll my life"}
           </Button>
           <p className="text-xs text-ink-soft">Your class, job, home and money are rolled once and kept for good. {DISCLAIMER}</p>
         </div>
