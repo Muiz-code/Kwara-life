@@ -448,10 +448,12 @@ export function NeedsDock() {
   const g = useGame((s) => s.game.citizen?.look.g ?? "m");
   const smelly = useGame((s) => !!s.game.flags.smelly);
   const low = useGame((s) => !!s.game.flags.low);
+  const atWork = useGame((s) => s.activity?.kind === "action" && !!s.activity.plan.action.shift);
   return (
     <div className="pointer-events-auto relative flex items-center gap-2">
-      {(smelly || low) && (
+      {(smelly || low || atWork) && (
         <div className="absolute -top-6 left-0 flex gap-1">
+          {atWork && <span className="rounded-full bg-[#0E7A4B] px-2 py-0.5 text-[11px] font-bold text-white shadow">At work</span>}
           {smelly && <span className="rounded-full bg-[#6B5B2A] px-2 py-0.5 text-[11px] font-bold text-[#F7E7C1] shadow">Smelling</span>}
           {low && <span className="rounded-full bg-[#4F6AAE] px-2 py-0.5 text-[11px] font-bold text-white shadow">Feeling low</span>}
         </div>

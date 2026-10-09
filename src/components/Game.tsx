@@ -49,6 +49,7 @@ import { IncomingCall, PhonePanel } from "./game/Phone";
 import { PlacesButton } from "./game/MapControls";
 import TripBar from "./game/TripBar";
 import ServicePanel from "./game/ServicePanel";
+import WorkPanel from "./game/WorkPanel";
 import { DISCLAIMER, useNow } from "./game/ui";
 import { PRESIDENTIAL_2027 as CAL, seasonClosed } from "@/data/calendar";
 
@@ -229,6 +230,7 @@ export default function Game() {
         <div className="mt-auto px-3">
           <TripBar />
           <ServicePanel />
+          <WorkPanel />
         </div>
         <div className="flex items-end justify-between gap-2 px-3 pt-3 pb-2 sm:p-3">
           <div className="flex min-w-0 flex-col items-start gap-2">

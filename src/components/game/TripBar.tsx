@@ -19,7 +19,8 @@ const LINES: Record<string, Partial<Record<TripPhase, string>>> = {
 export default function TripBar() {
   const a = useGame((s) => s.activity);
   const now = usePerfNow();
-  if (!a || a.ms < 3000 || !now) return null;
+  // A work shift has its own panel.
+  if (!a || a.ms < 3000 || !now || (a.kind === "action" && a.plan.action.shift)) return null;
   const elapsed = now - a.startedAt;
   const left = Math.max(0, Math.ceil((a.ms - elapsed) / 1000));
   const p = Math.min(1, Math.max(0, elapsed / a.ms));

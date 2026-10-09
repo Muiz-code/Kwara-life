@@ -19,6 +19,8 @@ import { throttledStorage } from "./storage";
 import { findActionAt, placeInfo, tripWorldFor } from "./world";
 import { serviceFor, type Service } from "../data/services";
 import { roomFor } from "../data/rooms";
+import { WORK_TASKS, taskAt, taskPay } from "../data/work-tasks";
+import { naira } from "../sim/state";
 import type { WorldMap } from "../world";
 import type { Look } from "../data/character";
 import { PRESIDENTIAL_2027, seasonClosed } from "../data/calendar";
@@ -32,7 +34,7 @@ export const MINUTES_PER_TICK = 2;
 
 /** Something that takes real time to play out: an action or a trip. */
 export type Activity =
-  | { kind: "action"; plan: ActionPlan; startedAt: number; ms: number; done: number; fast?: boolean }
+  | { kind: "action"; plan: ActionPlan; startedAt: number; ms: number; done: number; fast?: boolean; tasks?: number[] }
   | { kind: "trip"; trip: Trip; startedAt: number; ms: number; done: number; timing: TripTiming; fast?: boolean };
 
 export interface GameStore {
@@ -73,6 +75,8 @@ export interface GameStore {
   /** Sit the booked interview with an answer per question. */
   sitInterview: (answers: number[]) => { hired: boolean; score: number } | string;
   travel: (dest: string, mode: string, now: number) => void;
+  /** At work: you handled task i of the shift in time. */
+  workTask: (i: number, now: number) => void;
   /** Your turn at the counter: from the queue to the steps. */
   serviceCalled: (now: number) => void;
   /** The current step at the counter is done; after the last, the action runs. */
@@ -222,6 +226,14 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             }
             if (a.kind === "action") {
               const done = finishAction(g, a.plan, rng, { now: realNow(), place: placeInfo(st.world, g.loc) });
+              // A shift where you handled what came up: a bonus on top of the pay.
+              const c = done.citizen;
+              const handled = a.tasks?.length ?? 0;
+              if (a.plan.action.shift && handled && c && WORK_TASKS[c.career]) {
+                const bonus = handled * taskPay(c.monthlyPay);
+                book(done, bonus, "Bonus for good work", "salary");
+                done.toasts.push(`Good shift: ${handled} handled. Bonus ${naira(bonus)}`);
+              }
               commit(done, { activity: null, selected: done.loc });
             } else {
               const done = finishTrip(g, a.trip, rng);
@@ -276,6 +288,13 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
             }
             const ms = st.reducedMotion ? 120 : actionAnimMs(r.plan);
             commit(r.state, { activity: { kind: "action", plan: r.plan, startedAt: now, ms, done: 0 } });
+          },
+
+          workTask: (i, now) => {
+            const a = get().activity;
+            if (a?.kind !== "action" || !a.plan.action.shift || a.fast || a.tasks?.includes(i)) return;
+            if (taskAt(now - a.startedAt) !== i) return;
+            set({ activity: { ...a, tasks: [...(a.tasks ?? []), i] } });
           },
 
           serviceCalled: (now) => {
