@@ -61,6 +61,19 @@ export const PVC_NOT_READY_CHANCE = 0.3;
 export const actionMinutes = (s: GameState, a: Action) =>
   a.shift && s.citizen ? (CAREERS[s.citizen.career]?.shiftMinutes ?? PAY[s.citizen.cls].shiftMinutes) : a.dur;
 
+/** Most take-away packs you can carry home at once. */
+export const MAX_TAKEAWAY = 3;
+
+/** The take-away packs at home (a bad save's value counts as none). */
+export const takeawayPacks = (s: GameState): number[] =>
+  Array.isArray(s.flags.takeaway) ? s.flags.takeaway.filter((v) => typeof v === "number" && v > 0).map((v) => Math.min(100, v)) : [];
+
+/** Eat a take-away pack at home: the food it was bought with. */
+export const EAT_TAKEAWAY: Action = {
+  id: "eat-takeaway", label: "Eat your take-away", dur: 20, fx: { fun: 4 }, eatTakeaway: true, bubble: "Eating",
+  done: "You opened the pack at home. Still a bit warm.",
+};
+
 /** Why the action can't be done right now, or null if it can. */
 export function blockReason(s: GameState, a: Action, ctx: ActionContext = {}): string | null {
   const p = ctx.place ?? PLACE[s.loc];
@@ -91,6 +104,8 @@ export function blockReason(s: GameState, a: Action, ctx: ActionContext = {}): s
   if (a.pitch && s.flags.pitched === dayNum(s.t)) return "You pitched today. Work on it and come back tomorrow";
   if (a.goal && s.goals[a.goal]) return "Already done";
   if (a.light && !s.light && !p.gen && !homeGenerator(s)) return "NEPA took light";
+  if (a.takeaway && takeawayPacks(s).length >= MAX_TAKEAWAY) return "Your hands are full. Eat what you have at home first";
+  if (a.eatTakeaway && !takeawayPacks(s).length) return "No take-away food at home";
   if (a.usesFood && s.groceries <= 0) {
     return s.citizen && !PLACE[s.loc] ? "No foodstuff at home. Buy some at the market" : "No foodstuff at home. Buy some at Oja Oba, Oke-Odo or Palms Mall";
   }
@@ -165,6 +180,12 @@ export function finishAction(state: GameState, plan: ActionPlan, rng: Rng, ctx: 
   if (a.tip) book(s, a.tip, `Tip: ${a.label}`, "gift");
   applyFx(s, a.fx);
   if (a.groc) s.groceries += a.groc;
+  if (a.takeaway) s.flags.takeaway = [...takeawayPacks(s), a.takeaway].slice(-MAX_TAKEAWAY);
+  if (a.eatTakeaway) {
+    const [pack, ...rest] = takeawayPacks(s);
+    if (pack) applyFx(s, { food: pack });
+    s.flags.takeaway = rest;
+  }
   if (a.usesFood) s.groceries--;
   if (a.skill) s.skill = Math.round((s.skill + a.skill) * 10) / 10;
   if (a.once) s.flags[a.once] = s.t;

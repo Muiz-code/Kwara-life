@@ -31,7 +31,7 @@ export const MINUTES_PER_TICK = 2;
 /** Something that takes real time to play out: an action or a trip. */
 export type Activity =
   | { kind: "action"; plan: ActionPlan; startedAt: number; ms: number; done: number }
-  | { kind: "trip"; trip: Trip; startedAt: number; ms: number; done: number; timing: TripTiming };
+  | { kind: "trip"; trip: Trip; startedAt: number; ms: number; done: number; timing: TripTiming; fast?: boolean };
 
 export interface GameStore {
   game: GameState;
@@ -68,7 +68,7 @@ export interface GameStore {
   /** Sit the booked interview with an answer per question. */
   sitInterview: (answers: number[]) => { hired: boolean; score: number } | string;
   travel: (dest: string, mode: string, now: number) => void;
-  /** Jump a trip straight to arrival: same fare, same game time, no more watching. */
+  /** Fast-forward a trip: the rest plays out in about two seconds. Same fare, same game time. */
   skipTrip: (now: number) => void;
   /**
    * The player walked to a place on foot (free roam in 3D): the walk's time, tiredness and anything on
@@ -104,6 +104,9 @@ export const isBusy = (s: GameStore) => s.activity !== null;
 export const isModalOpen = (s: GameStore) => s.game.notes.length > 0 || !s.game.char;
 
 /** Real-time length of an action's animation, as in the prototype. */
+/** How long the rest of a fast-forwarded trip takes on screen. */
+export const FAST_FORWARD_MS = 2200;
+
 export const actionAnimMs = (dur: number) => Math.min(1800, 500 + dur * 2.2);
 
 export interface StoreOptions {
@@ -272,9 +275,17 @@ export function createGameStore({ rng = Math.random, storage, realNow = clockNow
 
           skipTrip: (now) => {
             const a = get().activity;
-            if (a?.kind !== "trip") return;
-            set({ activity: { ...a, startedAt: now - a.ms } });
-            get().progress(now);
+            if (a?.kind !== "trip" || a.fast) return;
+            // Stretch time so the rest of the trip plays in FAST_FORWARD_MS: every phase keeps its share,
+            // and you still see the vehicle go the whole way.
+            const p = Math.min(0.999, Math.max(0, (now - a.startedAt) / a.ms));
+            const left = a.ms * (1 - p);
+            if (left <= FAST_FORWARD_MS) return;
+            const ms = FAST_FORWARD_MS / (1 - p);
+            const k = ms / a.ms;
+            const t = a.timing;
+            const timing = { wait: t.wait * k, board: t.board * k, ride: t.ride * k, alight: t.alight * k };
+            set({ activity: { ...a, ms, startedAt: now - p * ms, timing, fast: true } });
           },
 
           arrive: (dest) => {

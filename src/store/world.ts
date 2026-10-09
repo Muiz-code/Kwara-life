@@ -3,6 +3,7 @@
 // LGA places (src/data/lga.ts) with transport by class (src/data/transport.ts).
 import type { Action } from "../data/action";
 import { ACTIONS as ILORIN_ACTIONS } from "../data/ilorin/actions";
+import { EAT_TAKEAWAY, takeawayPacks } from "../sim/actions";
 import { ILORIN_LGAS, LGA } from "../data/geography";
 import { FURNITURE_ACTIONS } from "../data/furniture";
 import { PHONE_ACTIONS } from "../data/phones";
@@ -28,14 +29,31 @@ export function onIlorin(game: GameState, map: WorldMap | null): boolean {
  */
 const FLY_TO_LAGOS: Action = { id: "fly", label: "Fly to Lagos", dur: 0, fx: {}, done: "", journey: { state: "lagos", mode: "flight" } };
 
+/** Item 7 is pick-up only: its meals are packed to eat at home, not eaten at the counter. */
+const TAKEAWAY_PLACES = new Set(["item7"]);
+function asTakeaway(a: Action): Action {
+  if (!a.fx.food) return a;
+  const { food, ...rest } = a.fx;
+  return {
+    ...a, label: `${a.label} (take-away)`, dur: 15, fx: rest, takeaway: food, bubble: "Waiting",
+    done: `${a.done.replace(/\.$/, "")}, packed in a nylon bag. Take it home and eat it while it's hot.`,
+  };
+}
+
 export function actionsAt(game: GameState, map: WorldMap | null, placeId: string): Action[] {
+  const all = placeActions(game, map, placeId);
+  // At home with take-away packs: eat one.
+  return placeId === game.homeId && game.loc === game.homeId && takeawayPacks(game).length ? [...all, EAT_TAKEAWAY] : all;
+}
+
+function placeActions(game: GameState, map: WorldMap | null, placeId: string): Action[] {
   const c = game.citizen;
   const place = map?.places.find((p) => p.id === placeId);
   if (!c || onIlorin(game, map)) {
     const civic = place && place.kind in KIND_TO_CIVIC ? CIVIC_ACTIONS[KIND_TO_CIVIC[place.kind]] : [];
     // Taiwo Oke sells appliances and furniture.
     const shop = placeId === "taiwo" ? [...FURNITURE_ACTIONS, ...PHONE_ACTIONS] : [];
-    const own = (ILORIN_ACTIONS[placeId] ?? []).map((a) => (c && a.goal === "fly" ? FLY_TO_LAGOS : a));
+    const own = (ILORIN_ACTIONS[placeId] ?? []).map((a) => (c && a.goal === "fly" ? FLY_TO_LAGOS : TAKEAWAY_PLACES.has(placeId) ? asTakeaway(a) : a));
     return [...own, ...civic, ...shop];
   }
   const lgaCode = currentLga(game)!;

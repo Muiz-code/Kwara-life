@@ -9,7 +9,7 @@ import type { Kit } from "./kit";
 
 /** How the player uses a thing: lying on it, sitting at it, or working at it, at a place and facing. */
 export interface Use {
-  pose: "lie" | "sit" | "work";
+  pose: "lie" | "sit" | "work" | "talk";
   x: number;
   y: number;
   z: number;
@@ -334,7 +334,7 @@ export function homeRoom(kit: Kit, own: Own): Spot[] {
       kit.cyl(0.13, 0.12, 0.16, 0.15, 0.95, 0.15, "#9AA3AD", 12); // a pot on the boil
     });
     gasBottle(kit, -5.65, 0.35);
-    spots.push({ actions: ["cook"], use: { pose: "work", x: -4.75, y: 0, z: 1.0, turn: -Math.PI / 2 }, label: "Gas cooker", x: -5.6, z: 1.0, w: 0.7, d: 0.7, h: 1.1, stand: [-4.6, 1.1] });
+    spots.push({ actions: ["cook", "eat-takeaway"], use: { pose: "work", x: -4.75, y: 0, z: 1.0, turn: -Math.PI / 2 }, label: "Gas cooker", x: -5.6, z: 1.0, w: 0.7, d: 0.7, h: 1.1, stand: [-4.6, 1.1] });
   } else if (cooker === "top") {
     placed(kit, -5.55, 1.0, Math.PI / 2, () => {
       table(kit, 0.7, 0.5, 0.72, "#9AA3AD", "#5E6B73");
@@ -344,7 +344,7 @@ export function homeRoom(kit: Kit, own: Own): Spot[] {
       kit.cyl(0.12, 0.1, 0.18, -0.15, 0.83, 0, "#9AA3AD", 12);
     });
     gasBottle(kit, -5.65, 0.4, "#2B5C9A");
-    spots.push({ actions: ["cook"], use: { pose: "work", x: -4.75, y: 0, z: 1.0, turn: -Math.PI / 2 }, label: "Table-top gas cooker", x: -5.55, z: 1.0, w: 0.7, d: 0.6, h: 1.0, stand: [-4.6, 1.1] });
+    spots.push({ actions: ["cook", "eat-takeaway"], use: { pose: "work", x: -4.75, y: 0, z: 1.0, turn: -Math.PI / 2 }, label: "Table-top gas cooker", x: -5.55, z: 1.0, w: 0.7, d: 0.6, h: 1.0, stand: [-4.6, 1.1] });
   } else {
     // A kerosene stove: a round blue tank with its wick ring and the pot stand, on a low wooden stool.
     placed(kit, -5.5, 1.0, Math.PI / 2, () => {
@@ -361,7 +361,7 @@ export function homeRoom(kit: Kit, own: Own): Spot[] {
       kit.box(0.04, 0.04, 0.05, 0, 0.38, 0.21, "#C9A227"); // the wick knob
     });
     kit.box(0.2, 0.3, 0.14, -5.75, 0, 0.45, "#E0A526"); // the kerosene jerrycan
-    spots.push({ actions: ["cook"], use: { pose: "work", x: -4.75, y: 0, z: 1.0, turn: -Math.PI / 2 }, label: "Kerosene stove", x: -5.5, z: 1.0, w: 0.6, d: 0.6, h: 1.0, stand: [-4.6, 1.1] });
+    spots.push({ actions: ["cook", "eat-takeaway"], use: { pose: "work", x: -4.75, y: 0, z: 1.0, turn: -Math.PI / 2 }, label: "Kerosene stove", x: -5.5, z: 1.0, w: 0.6, d: 0.6, h: 1.0, stand: [-4.6, 1.1] });
   }
   if (has("fridge")) {
     kit.box(0.7, 1.8, 0.7, -5.55, 0, 4.5, "#E8E8E8");

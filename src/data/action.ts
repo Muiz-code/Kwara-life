@@ -37,6 +37,10 @@ export interface Action {
   usesFood?: boolean;
   /** Adds this many meals of foodstuff. */
   groc?: number;
+  /** Packs this food (its food value) to take home, instead of eating it here. */
+  takeaway?: number;
+  /** Eats the oldest take-away pack at home. */
+  eatTakeaway?: boolean;
   skill?: number;
   minSkill?: number;
   friend?: FriendId;

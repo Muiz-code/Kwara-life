@@ -71,6 +71,8 @@ export interface Flags {
   smelly?: boolean;
   /** Went too long without fun or company: feeling low until both pick up. */
   low?: boolean;
+  /** Take-away packs carried home, by food value, oldest first. */
+  takeaway?: number[];
 }
 
 /** A paid promotion: flyers on notice boards or a sponsored news line. */

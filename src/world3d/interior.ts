@@ -16,18 +16,22 @@ import { FloorPlan, type P } from "./floorplan";
 import { car, figure, tree, type BuildCtx } from "./buildings";
 import { homeLook, homeRoom, type Own, type Spot } from "./home";
 import { homeClass } from "../data/homestyle";
+import { COUNTER_ROLES } from "../data/counters";
 import { Kit } from "./kit";
 import { rng } from "./coords";
 import { listenForTaps } from "./tap";
 
 export type Room =
   | "home" | "church" | "mosque" | "club" | "lounge" | "buka" | "office" | "classroom" | "inec" | "viewing" | "hotel" | "hall" | "shop"
-  | "airport" | "station" | "stadium" | "bank" | "techhub" | "showroom" | "boutique" | "supermarket";
+  | "airport" | "station" | "stadium" | "bank" | "techhub" | "showroom" | "boutique" | "supermarket" | "takeaway" | "cafe";
 
 /** The room for a place, by its kind (and a few places by name). */
 export function roomFor(kind: string, id: string): Room {
   if (id === "home" || kind === "house" || kind === "estate" || kind === "oldtown" || kind === "flyover") return "home";
   if (id === "cardealer") return "showroom";
+  // Item 7 is a pick-up spot: buy, pack it, take it home. Frozencup is a sit-down dessert café.
+  if (id === "item7") return "takeaway";
+  if (id === "froyo") return "cafe";
   if (id === "boutique") return "boutique";
   if (id === "supermarket" || kind === "mall") return "supermarket";
   if (kind === "airport") return "airport";
@@ -48,6 +52,29 @@ export function roomFor(kind: string, id: string): Room {
   if (kind === "office" || kind === "tower" || kind === "hub" || kind === "workshop") return "office";
   return "shop";
 }
+
+/** Where each business's counter is, where you stand at it, and which way you face. */
+const COUNTERS: Partial<Record<Room, { box: { x: number; z: number; w: number; d: number; h: number }; stand: [number, number]; turn: number }>> = {
+  bank: { box: { x: -1.5, z: -4, w: 2.6, d: 0.8, h: 2.6 }, stand: [-1.5, -2.9], turn: Math.PI },
+  inec: { box: { x: -1.2, z: -2.6, w: 1.6, d: 0.8, h: 2.0 }, stand: [-1.6, -1.8], turn: Math.PI },
+  hotel: { box: { x: -1.5, z: -3.6, w: 3.6, d: 0.8, h: 2.0 }, stand: [-1.5, -2.8], turn: Math.PI },
+  shop: { box: { x: 1.5, z: -2.8, w: 3, d: 0.8, h: 2.0 }, stand: [1.5, -2.0], turn: Math.PI },
+  office: { box: { x: 3.6, z: 3.2, w: 2, d: 0.7, h: 2.0 }, stand: [3.6, 2.4], turn: 0 },
+  hall: { box: { x: 0, z: -3.9, w: 5, d: 1.8, h: 2.0 }, stand: [0, -2.6], turn: Math.PI },
+  classroom: { box: { x: 1.6, z: -4, w: 1, d: 0.8, h: 2.0 }, stand: [1.6, -3.0], turn: Math.PI },
+  buka: { box: { x: -1.5, z: -4.2, w: 4, d: 0.8, h: 2.0 }, stand: [-1.5, -2.5], turn: Math.PI },
+  supermarket: { box: { x: -4, z: 4.4, w: 1.4, d: 0.6, h: 2.0 }, stand: [-4, 3.6], turn: 0 },
+  boutique: { box: { x: 3.5, z: -2.5, w: 1.2, d: 0.7, h: 1.8 }, stand: [2.4, -1.2], turn: Math.PI / 2 },
+  showroom: { box: { x: -6, z: 4, w: 2.2, d: 1, h: 2.0 }, stand: [-6, 3.2], turn: 0 },
+  techhub: { box: { x: -2, z: 4.6, w: 2, d: 0.7, h: 2.0 }, stand: [-2, 3.8], turn: 0 },
+  club: { box: { x: -5.2, z: 0.5, w: 0.8, d: 5, h: 1.6 }, stand: [-3.9, 0.6], turn: -Math.PI / 2 },
+  lounge: { box: { x: 4.6, z: 3.8, w: 1.6, d: 0.7, h: 2.0 }, stand: [4.6, 3.0], turn: 0 },
+  viewing: { box: { x: -4.5, z: 3.4, w: 1, d: 0.6, h: 2.0 }, stand: [-4.5, 2.7], turn: 0 },
+  station: { box: { x: -9.7, z: 4.2, w: 0.6, d: 2.4, h: 2.4 }, stand: [-8.3, 4.2], turn: -Math.PI / 2 },
+  airport: { box: { x: -2.7, z: 4.5, w: 3.6, d: 0.9, h: 2.0 }, stand: [-1.4, 3.8], turn: 0 },
+  takeaway: { box: { x: -1.5, z: -2.8, w: 3, d: 0.8, h: 2.0 }, stand: [-1.5, -1.8], turn: Math.PI },
+  cafe: { box: { x: -2, z: -3.4, w: 4, d: 0.8, h: 2.0 }, stand: [-2, -2.5], turn: Math.PI },
+};
 
 /** The floor, for working out where a tap lands. */
 const FLOOR = new Plane(new Vector3(0, 1, 0), 0);
@@ -112,8 +139,9 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
     church: "#F4EFE4", mosque: "#F1EEE6", club: "#16161E", lounge: "#E6D3AE", buka: "#C8B79A", office: "#E8ECEF",
     classroom: "#F0E2C4", inec: "#EEF3EC", viewing: "#D8CDB8", hotel: "#EFE6D2", hall: "#E8DCC4", shop: "#ECE3D0",
     airport: "#E8EEF2", station: "#D8CDB8", stadium: "#C9C3B6", bank: "#F2EEE6", techhub: "#1F2433", showroom: "#F4F1EA", boutique: "#F2D9C8", supermarket: "#F2F2EE",
+    takeaway: "#F4E3C8", cafe: "#F6DCE6",
   }[room];
-  const floorA = { home: homeLook(own).floor[0] as string, church: "#B07A4F", mosque: "#2E7D4F", club: "#0E0E14", lounge: "#A98E6A", buka: "#8F877C", office: "#C9C3B6", classroom: "#9C8F7A", inec: "#C9C3B6", viewing: "#8F877C", hotel: "#B07A4F", hall: "#B9A88C", shop: "#C9C3B6" , airport: "#D8DDE2", station: "#B9B1A4", stadium: "#3F7A33", bank: "#E8E2D6", techhub: "#2B2F3A", showroom: "#E8E8E8", boutique: "#B07A4F", supermarket: "#E2E2DC" }[room];
+  const floorA = { home: homeLook(own).floor[0] as string, church: "#B07A4F", mosque: "#2E7D4F", club: "#0E0E14", lounge: "#A98E6A", buka: "#8F877C", office: "#C9C3B6", classroom: "#9C8F7A", inec: "#C9C3B6", viewing: "#8F877C", hotel: "#B07A4F", hall: "#B9A88C", shop: "#C9C3B6" , airport: "#D8DDE2", station: "#B9B1A4", stadium: "#3F7A33", bank: "#E8E2D6", techhub: "#2B2F3A", showroom: "#E8E8E8", boutique: "#B07A4F", supermarket: "#E2E2DC", takeaway: "#D8CDB8", cafe: "#F4F1EA" }[room];
   const floorB = room === "bank" || room === "airport" ? "#F4F1EA" : room === "home" ? homeLook(own).floor[1] : room === "club" ? "#1C1C28" : room === "mosque" ? "#2A7449" : floorA;
 
   // Floor tiles, the back and left walls full height, the front and right walls cut low.
@@ -194,6 +222,7 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
       kit.box(2.6, 0.08, 0.6, 0, 1.1, -4.1, "#111");
       for (const x of [-2.2, 2.2]) kit.box(0.8, 1.8, 0.7, x, 0, -4.2, "#111");
       kit.box(0.8, 1.1, 5.0, -5.2, 0, 0.5, "#3A2A1E");
+      crowd.push({ x: -6.0, z: 0.5, turn: Math.PI / 2, g: "m", pose: "talk" });
       for (let i = 0; i < 8; i++) kit.cyl(0.05, 0.06, 0.32, -5.4, 1.1, -1.4 + i * 0.5, ["#2E7D4F", "#B5532E", "#F2B705"][i % 3], 6);
       for (let i = 0; i < 4; i++) kit.cyl(0.18, 0.15, 0.7, -4.4, 0, -1.0 + i * 1.1, "#C9A227", 10);
       kit.box(2.6, 0.45, 0.9, 4.6, 0, 3.6, "#8A2BE2");
@@ -248,7 +277,8 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
       for (let i = 0; i < 3; i++) {
         kit.box(2.4, 2.4, 0.4, -W / 2 + 0.3, 0, -1 + i * 2.6, "#E8DCC4", Math.PI / 2);
         kit.box(0.1, 0.8, 1.6, -W / 2 + 0.55, 1.1, -1 + i * 2.6, "#2F3D48");
-        crowd.push({ x: -W / 2 + 1.8, z: -1 + i * 2.6, turn: -Math.PI / 2, g: ["m", "f", "h"][i] as Crowd["g"] });
+        // The last window is kept free for you.
+        if (i < 2) crowd.push({ x: -W / 2 + 1.8, z: -1 + i * 2.6, turn: -Math.PI / 2, g: ["m", "f", "h"][i] as Crowd["g"] });
       }
       kit.box(6, 1.8, 0.2, 3, H - 2.2, -D / 2 + 3.1, "#111418");
       for (let r = 0; r < 3; r++) kit.box(5.4, 0.22, 0.05, 3, H - 1.9 + r * 0.45, -D / 2 + 3.22, "#F2B705");
@@ -336,6 +366,10 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
       kit.box(2.8, 0.75, 1.4, W / 2 - 2.2, 0, -D / 2 + 3, "#2B2F36");
       crowd.push({ x: W / 2 - 2.2, z: -D / 2 + 1.8, turn: 0, g: "m", pose: "talk" }, { x: W / 2 - 2.2, z: -D / 2 + 4.3, turn: Math.PI, g: "f", pose: "talk" });
       for (let i = 0; i < 3; i++) kit.ball(0.55, -W / 2 + 1.5 + i * 1.3, 0.35, D / 2 - 1.5, [brand, "#F2B705", "#2E7D4F"][i], 0.6);
+      // Reception by the door.
+      kit.box(2, 0.95, 0.7, -2, 0, 4.6, "#F4F1EA");
+      kit.box(2.02, 0.12, 0.72, -2, 0.95, 4.6, brand);
+      crowd.push({ x: -2, z: 5.3, turn: Math.PI, g: "f", pose: "talk" });
       lights.push([-3, H - 0.4, 0, "#E9E4FF"], [3, H - 0.4, 0, "#E9E4FF"]);
       break;
     }
@@ -410,6 +444,12 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
       if (room === "lounge") {
         kit.box(1.6, 0.9, 0.7, 4.6, 0, 3.8, "#3A3F45");
         kit.box(1.5, 0.05, 0.6, 4.6, 0.92, 3.8, "#C0392B");
+        crowd.push({ x: 4.6, z: 4.4, turn: Math.PI, g: "m", pose: "talk" });
+      } else {
+        // The operator's table by the door, where you pay to come in.
+        kit.box(1.0, 0.75, 0.6, -4.5, 0, 3.4, "#8C6A4A");
+        kit.box(0.4, 0.15, 0.3, -4.5, 0.75, 3.4, "#2B2F36");
+        crowd.push({ x: -4.5, z: 4.0, turn: Math.PI, g: "m", pose: "talk" });
       }
       lights.push([0, H - 0.3, 1, "#FFE4B0"]);
       break;
@@ -447,6 +487,49 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
       lights.push([0, H - 0.3, 0, "#FFF2D6"]);
       break;
     }
+    case "takeaway": {
+      // A pick-up spot, not a sit-down place: a long counter with hot food warmers under glass, the menu board
+      // up on the wall, staff in caps behind, people waiting with their nylon bags, and a bench to wait on.
+      kit.box(8, 1.0, 0.8, 0, 0, -2.8, "#C0392B");
+      kit.box(8.02, 0.08, 0.82, 0, 1.0, -2.8, "#F4F1EA");
+      for (let i = 0; i < 5; i++) {
+        kit.box(1.3, 0.35, 0.6, -2.8 + i * 1.4, 1.08, -2.8, ["#E67E22", "#F2B705", "#C0392B", "#B5532E", "#3F6B3A"][i]);
+        kit.box(1.32, 0.5, 0.04, -2.8 + i * 1.4, 1.1, -2.48, "#CFE8F2");
+      }
+      // Menu board with its rows of dishes and prices.
+      kit.box(7, 1.6, 0.1, 0, 1.8, -D / 2 + 0.12, "#111418");
+      for (let r = 0; r < 4; r++) for (let k = 0; k < 3; k++) kit.box(1.8, 0.16, 0.04, -2.4 + k * 2.4, 2.0 + r * 0.32, -D / 2 + 0.2, k === 2 ? "#F2B705" : "#F4F1EA");
+      // Take-away packs stacked by the till.
+      for (let i = 0; i < 6; i++) kit.box(0.35, 0.12, 0.35, 3.4, 1.08 + i * 0.13, -2.8, "#F4F1EA");
+      for (const x of [-1.5, 1.2]) crowd.push({ x, z: -3.6, turn: 0, g: x < 0 ? "f" : "m", pose: "talk" });
+      // People waiting for their number, bags in hand, and the bench by the wall.
+      kit.box(0.6, 0.42, 4, W / 2 - 0.6, 0, 1.5, "#8C6A4A");
+      for (let i = 0; i < 4; i++) {
+        const x = -3 + i * 1.6;
+        crowd.push({ x, z: 0.6 + (i % 2) * 0.9, turn: Math.PI, g: ["m", "f", "h", "f"][i] as Crowd["g"] });
+        kit.box(0.3, 0.35, 0.2, x + 0.35, 0.4, 0.6 + (i % 2) * 0.9, "#F4F1EA");
+      }
+      crowd.push({ x: W / 2 - 0.9, z: 0.6, turn: -Math.PI / 2, g: "m", pose: "sit" });
+      lights.push([0, H - 0.3, -1, "#FFFFFF"], [3, H - 0.3, 2, "#FFF2D6"]);
+      break;
+    }
+    case "cafe": {
+      // A small dessert café: a counter with the cold display, little round tables in pairs, soft pink.
+      kit.box(4, 1.0, 0.8, -2, 0, -3.4, "#F4F1EA");
+      kit.box(3.6, 0.5, 0.6, -2, 1.0, -3.4, "#CFE8F2");
+      for (let i = 0; i < 6; i++) kit.ball(0.14, -3.4 + i * 0.55, 1.2, -3.4, ["#E39AB8", "#F2B705", "#F4F1EA", "#E67E22"][i % 4]);
+      crowd.push({ x: -2, z: -4.1, turn: 0, g: "f", pose: "talk" });
+      for (const [x, z] of [[1.5, -1.5], [4, -1.5], [1.5, 1.5], [4, 1.5], [-3, 1.5]]) {
+        kit.cyl(0.55, 0.55, 0.75, x, 0, z, "#F4F1EA", 16);
+        for (const s of [-0.85, 0.85]) kit.box(0.45, 0.45, 0.45, x + s, 0, z, "#E39AB8");
+        if (R() < 0.6) {
+          crowd.push({ x: x - 0.85, z, turn: Math.PI / 2, g: "f", pose: "sit" });
+          crowd.push({ x: x + 0.85, z, turn: -Math.PI / 2, g: "m", pose: "sit" });
+        }
+      }
+      lights.push([0, H - 0.3, 0, "#FFE4F0"]);
+      break;
+    }
     case "office":
     case "hall":
     case "hotel":
@@ -472,6 +555,10 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
           if (R() < 0.7) crowd.push({ x, z: z + 0.6, turn: Math.PI, g: ["m", "f", "h"][(r + k) % 3] as Crowd["g"], pose: "sit" });
         }
         kit.box(1.1, 0.4, 0.35, -3, 2.4, -D / 2 + 0.25, "#E8E8E8");
+        // Reception by the door, with the visitors' book.
+        kit.box(2, 0.9, 0.7, 3.6, 0, 3.2, "#6B4A2E");
+        kit.box(0.5, 0.05, 0.35, 3.3, 0.9, 3.1, "#F4F1EA");
+        crowd.push({ x: 3.6, z: 3.9, turn: Math.PI, g: "f", pose: "talk" });
       } else {
         for (let i = 0; i < 4; i++) {
           kit.box(0.5, 2.2, 3.2, -5.4, 0, -3 + i * 0.1 + 0, "#8C6A4A");
@@ -483,6 +570,9 @@ export function furnish(kit: Kit, room: Room, own: Own): { crowd: Crowd[]; light
       lights.push([0, H - 0.3, 0, "#FFF2D6"]);
     }
   }
+  // The counter: tap the person behind it for everything the place offers, or to talk.
+  const c = COUNTERS[room];
+  if (c) spots.push({ actions: ["*"], use: { pose: "talk", x: c.stand[0], y: 0, z: c.stand[1], turn: c.turn }, label: COUNTER_ROLES[room]?.label ?? "Counter", ...c.box, stand: c.stand });
   // A plant in the corner by the door, for life.
   if (!["club", "mosque", "home", "stadium", "airport", "techhub"].includes(room)) tree({ ...ctx }, "palm", -5.2, 4.2, 0.35);
   void figure;
@@ -797,7 +887,7 @@ export class Interior3D {
     const running = st.activity?.kind === "action" ? st.activity.plan.action.id : null;
     if (running && running !== this.acting && !this.using) {
       this.acting = running;
-      const spot = this.spots.find((s) => s.actions.includes(running));
+      const spot = this.spots.find((s) => s.actions.includes(running)) ?? this.spots.find((s) => s.actions.includes("*"));
       if (spot) {
         this.me.path = this.plan.path(this.me, { x: spot.stand[0], z: spot.stand[1] });
         this.me.then = { spot, action: running, already: true };

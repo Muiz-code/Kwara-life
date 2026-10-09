@@ -8,7 +8,8 @@ import { Paintbrush, X } from "lucide-react";
 import { ACCENTS, FLOORS, SOFAS, WALLS, defaultStyle, homeClass, type HomeStyle } from "@/data/homestyle";
 import { getGameStore, useGame } from "@/store";
 import { actionsAt, placeInfo } from "@/store/world";
-import type { Interior3D } from "@/world3d/interior";
+import { roomFor, type Interior3D } from "@/world3d/interior";
+import { COUNTER_ROLES } from "@/data/counters";
 import type { Spot } from "@/world3d/home";
 import Loader from "./game/Loader";
 import { naira, useNow } from "./game/ui";
@@ -20,6 +21,14 @@ export default function InteriorView({ placeId, kind, name }: { placeId: string;
   const [menu, setMenu] = useState<{ spot: Spot; x: number; y: number } | null>(null);
   const now = useNow(5000);
   const [styling, setStyling] = useState(false);
+  /** What the person behind the counter just said. */
+  const [said, setSaid] = useState<{ who: string; line: string } | null>(null);
+  const role = COUNTER_ROLES[roomFor(kind, placeId)];
+  useEffect(() => {
+    if (!said) return;
+    const id = setTimeout(() => setSaid(null), 5000);
+    return () => clearTimeout(id);
+  }, [said]);
   // Restyling the home, moving house or rising or falling a class rebuilds the room.
   const styleKey = useGame((s) => (placeId === "home" ? `${s.game.citizen?.cls}|${s.game.house}|${s.game.homeStyle ? Object.values(s.game.homeStyle).join("|") : ""}` : ""));
 
@@ -42,7 +51,9 @@ export default function InteriorView({ placeId, kind, name }: { placeId: string;
   }, [placeId, kind, styleKey]);
 
   const st = getGameStore().getState();
-  const choices = menu ? actionsAt(st.game, st.world, placeId).filter((a) => menu.spot.actions.includes(a.id)) : [];
+  // The counter ("*") offers everything the place does; anything else, only what it is for.
+  const choices = menu ? actionsAt(st.game, st.world, placeId).filter((a) => menu.spot.actions.includes("*") || menu.spot.actions.includes(a.id)) : [];
+  const atCounter = !!menu?.spot.actions.includes("*");
   const info = placeInfo(st.world, placeId) ?? { name, open: [0, 24] as [number, number], gen: false };
 
   return (
@@ -80,12 +91,36 @@ export default function InteriorView({ placeId, kind, name }: { placeId: string;
               </button>
             );
           })}
-          {!choices.length && <p className="px-2 py-2 text-sm text-[#5E6582]">Nothing to do with this here.</p>}
+          {atCounter && role && (
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full rounded-xl px-2 py-2 text-left hover:bg-panel-2"
+              onClick={() => {
+                setSaid({ who: role.who, line: role.lines[Math.floor(Math.random() * role.lines.length)] });
+                setMenu(null);
+              }}
+            >
+              <span className="block font-bold">Talk to {role.who}</span>
+              <span className="text-xs text-[#5E6582]">Free</span>
+            </button>
+          )}
+          {!choices.length && !atCounter && <p className="px-2 py-2 text-sm text-[#5E6582]">Nothing to do with this here.</p>}
+        </div>
+      )}
+      {said && (
+        <div className="pointer-events-none absolute inset-x-0 top-24 z-10 mx-auto w-fit max-w-[88%] rounded-2xl bg-panel px-4 py-3 text-ink shadow-2xl" role="status">
+          <div className="text-xs font-bold uppercase tracking-wide text-[#5E6582]">{said.who.replace(/^the /, "")}</div>
+          <p className="text-sm font-semibold">&ldquo;{said.line}&rdquo;</p>
         </div>
       )}
       {ready && !menu && (
         <p className="pointer-events-none absolute inset-x-0 bottom-28 mx-auto w-fit max-w-[90%] rounded-full bg-indigo/85 px-4 py-1.5 text-center text-xs font-semibold text-[#F7E7C1]">
-          {placeId === "home" ? "Tap the floor to walk. Tap your bed, stove, shower, TV or radio to use them." : "Tap the floor to walk around."}
+          {placeId === "home"
+            ? "Tap the floor to walk. Tap your bed, stove, shower, TV or radio to use them."
+            : role
+              ? `Tap ${role.who} to see what you can do here.`
+              : "Tap the floor to walk around."}
         </p>
       )}
       {placeId === "home" && ready && (

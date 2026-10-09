@@ -52,11 +52,12 @@ export default function TripBar() {
       </div>
       <button
         type="button"
+        disabled={a.fast}
         onClick={() => getGameStore().getState().skipTrip(performance.now())}
-        className="flex shrink-0 items-center gap-1 rounded-xl bg-keke px-3 py-1.5 text-sm font-bold text-[#2A2000] hover:brightness-105"
+        className="flex shrink-0 items-center gap-1 rounded-xl bg-keke px-3 py-1.5 text-sm font-bold text-[#2A2000] hover:brightness-105 disabled:opacity-70"
       >
-        <FastForward aria-hidden className="h-4 w-4" strokeWidth={2.5} />
-        Skip
+        <FastForward aria-hidden className={a.fast ? "h-4 w-4 animate-pulse" : "h-4 w-4"} strokeWidth={2.5} />
+        {a.fast ? "Fast" : "Skip"}
       </button>
     </div>
   );
