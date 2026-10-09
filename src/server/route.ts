@@ -2,6 +2,7 @@
 // turning a Reply into a response that is never cached.
 import { supabaseAdmin } from "@/net/supabase-admin";
 import type { Reply } from "./game";
+import { gameClosed } from "./season";
 
 export const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 export const send = (r: Reply) => json(r.body, r.status);
@@ -28,6 +29,9 @@ export async function bodyOf(req: Request, max = 400 * 1024): Promise<unknown> {
 /** Runs a route's work for a signed-in player, with the same answers for the usual failures. */
 export async function forPlayer(req: Request, work: (user: string) => Promise<Response>): Promise<Response> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return json({ error: "The game server is not set up here" }, 503);
+  // From polls close the game never runs again, whatever an old open tab sends.
+  const over = gameClosed(Date.now());
+  if (over) return send(over);
   const user = await userOf(req);
   if (!user) return json({ error: "Sign in again" }, 401);
   try {

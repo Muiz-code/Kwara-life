@@ -5,6 +5,7 @@
 // which usernames or emails have accounts.
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/net/supabase-admin";
+import { SEASON_OVER, signInClosed } from "@/server/season";
 
 const WINDOW_MINUTES = 15;
 /** Per account (an email or username), and per network. Mobile networks in Nigeria share addresses widely. */
@@ -21,6 +22,8 @@ export async function POST(req: Request) {
   const password = typeof body?.password === "string" ? body.password : "";
   if (!login || !password || login.length > 254 || password.length > 72) return json({ error: "Enter your email or username and your password" }, 400);
 
+  // The season is over and every player's data is gone: nobody signs in again.
+  if (signInClosed(Date.now())) return json({ error: SEASON_OVER }, 410);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) return json({ error: "Sign-in is not set up on this server" }, 503);

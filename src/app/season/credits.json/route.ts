@@ -4,13 +4,14 @@
 import { connection } from "next/server";
 import { supabaseAdmin } from "@/net/supabase-admin";
 import { seasonCredits } from "@/server/game";
+import { resultsClosed } from "@/server/season";
 import { supabaseGameDb } from "@/server/supabase-game";
 
 export async function GET() {
   // Answered per request (the database, the clock), never prerendered at build time.
   await connection();
   const none = (status: number) => Response.json({ error: "Not yet" }, { status, headers: { "Cache-Control": "no-store" } });
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return none(404);
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || resultsClosed(Date.now())) return none(404);
   try {
     const credits = await seasonCredits(supabaseGameDb(supabaseAdmin()), Date.now());
     if (!credits) return none(404);

@@ -110,11 +110,13 @@ function patch(store: GameStoreApi, server: unknown) {
 
 let dirty = false;
 let pushing = false;
+/** The server said the season is over: stop uploading and checking in. */
+let stopped = false;
 
 /** Upload the game if it changed, or just check in. keepalive: the page is closing, so the request must outlive it. */
 async function push(keepalive = false) {
   const c = current;
-  if (!c || pushing || blocked) return;
+  if (!c || pushing || blocked || stopped) return;
   const version = savedVersion(c.user);
   if (!dirty || !version || !c.store.getState().game.citizen) {
     // Nothing new to save: still check in, so this device keeps the account while it plays.
@@ -133,6 +135,8 @@ async function push(keepalive = false) {
   }
   // Played on another phone since: theirs is the life that counts now.
   else if (r.status === 409) take(c.store, c.user, r.body);
+  // The season is over: nothing more to save, ever.
+  else if (r.status === 410) stopped = true;
   // No connection or the server is busy: try again on the next round.
   else if (r.status !== 423) dirty = true;
 }
