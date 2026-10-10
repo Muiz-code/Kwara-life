@@ -5,7 +5,7 @@
 import { Maximize, Repeat } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
-import { PRESIDENTIAL_2027 as CAL } from "@/data/calendar";
+import { PRESIDENTIAL_2027 as CAL, electionDayLabel, pollHoursLabel } from "@/data/calendar";
 import { LGA, LGAS } from "@/data/geography";
 import { PARTIES } from "@/data/parties";
 import { STATE, STATES } from "@/data/states";
@@ -153,7 +153,7 @@ export function ResultsBoard() {
             </h1>
             <p className="mt-[0.3em] flex items-center gap-[0.5em] text-[0.9em] text-white/70">
               <PhaseDot phase={phase} />
-              {phase === "before" && "Polls open 8am WAT, Saturday 14 November"}
+              {phase === "before" && `Polls open ${pollHoursLabel().split(" to ")[0]} WAT, ${electionDayLabel().replace(/ d{4}$/, "")}`}
               {phase === "live" && now !== null && `Polls open. Live at ${watTime(now)} WAT`}
               {phase === "final" && "Polls closed at 4pm. Final result"}
               {demo && <span className="rounded-full bg-[#B5532E] px-[0.6em] text-[0.8em] font-bold text-white">DEMO: a sped-up simulated day</span>}

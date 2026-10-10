@@ -46,6 +46,7 @@ import PlaceSheet, { JourneyOverlay, JourneyPicker } from "./game/PlaceSheet";
 import { BribeModal, CampaignPanel, PromoModal } from "./game/Campaign";
 import { BallotFlow, Results, VotePanel } from "./game/Vote";
 import { VotedCelebration } from "./election/BallotDrop";
+import { PauseOverlay } from "./game/PauseOverlay";
 import { InviteCard, PeopleChip, PeopleSheet, TogetherLink } from "./game/People";
 import { IncomingCall, PhonePanel } from "./game/Phone";
 import { PlacesButton } from "./game/MapControls";
@@ -361,6 +362,7 @@ export default function Game() {
         />
       )}
       <VotedCelebration />
+      <PauseOverlay />
       {citizen && !over && <TogetherLink panelOpen={people} />}
       {people && <PeopleSheet onClose={() => setPeople(false)} />}
       {citizen && revealed && !over && <InviteCard />}

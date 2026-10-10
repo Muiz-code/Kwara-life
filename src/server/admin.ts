@@ -3,7 +3,9 @@
 // moderators see the dashboard and moderate (reports, support-card notes, sponsored news, bans). Nobody can touch
 // votes or results: nothing here writes to voter_rolls or vote_tallies. Every action is written to admin_log.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { PRESIDENTIAL_2027, moveElection, setCalendar, type CalendarOverrides } from "@/data/calendar";
 import { cleanNote } from "@/sim/campaign";
+import { settingsChanged } from "./settings";
 
 export type Role = "owner" | "moderator";
 
@@ -19,6 +21,13 @@ export const CAN: Record<string, Role[]> = {
   announce: ["owner"],
   unannounce: ["owner"],
   log: ["owner"],
+  settings: ["owner"],
+  pause: ["owner"],
+  unpause: ["owner"],
+  calendar: ["owner"],
+  team: ["owner"],
+  "add-moderator": ["owner"],
+  "remove-moderator": ["owner"],
 };
 
 export const allowed = (role: Role, action: string) => !!CAN[action]?.includes(role);
@@ -167,4 +176,66 @@ export async function adminLog(db: SupabaseClient) {
   if (error) throw error;
   const names = await namesOf(db, (data ?? []).map((r) => r.admin_id as string).filter(Boolean));
   return (data ?? []).map((r) => ({ ...r, admin: names[r.admin_id as string] ?? "Owner" }));
+}
+
+// ---- Phase 2: the pause, the election dates and the team (owner only) ----
+
+/** The settings as the panel shows them: the pause and the election dates now in force. */
+export async function gameSettings(db: SupabaseClient) {
+  const { data, error } = await db.from("game_settings").select("paused, pause_message, calendar, updated_at").eq("id", 1).maybeSingle();
+  if (error) throw error;
+  setCalendar((data?.calendar as CalendarOverrides) ?? {});
+  return { paused: !!data?.paused, pauseMessage: (data?.pause_message as string) ?? "", calendar: PRESIDENTIAL_2027, updatedAt: data?.updated_at ?? null };
+}
+
+export async function pause(db: SupabaseClient, admin: string, b: Body, on: boolean): Promise<Out> {
+  const msg = on && typeof b.message === "string" ? b.message.replace(/\s+/g, " ").trim().slice(0, 120) : "";
+  if (msg && !cleanNote(msg)) return bad("That message can't be posted. No links or bad words");
+  const { error } = await db.from("game_settings").update({ paused: on, pause_message: msg, updated_at: new Date().toISOString(), updated_by: admin }).eq("id", 1);
+  if (error) return bad("Try again", 503);
+  settingsChanged();
+  await log(db, admin, on ? "pause" : "unpause", msg);
+  return ok();
+}
+
+/** Move election day (postponement). The rules are moveElection's: only before polls open, at least a day ahead. */
+export async function moveCalendar(db: SupabaseClient, admin: string, b: Body, now: number): Promise<Out> {
+  await gameSettings(db);
+  if (typeof b.pollsOpen !== "string" || typeof b.pollsClose !== "string") return bad("Pick a date and poll hours");
+  const r = moveElection(PRESIDENTIAL_2027, b.pollsOpen, b.pollsClose, now);
+  if ("error" in r) return bad(r.error);
+  const before = { pollsOpen: PRESIDENTIAL_2027.pollsOpen, pollsClose: PRESIDENTIAL_2027.pollsClose };
+  const { error } = await db.from("game_settings").update({ calendar: r.calendar, updated_at: new Date().toISOString(), updated_by: admin }).eq("id", 1);
+  if (error) return bad("Try again", 503);
+  setCalendar(r.calendar);
+  settingsChanged();
+  await log(db, admin, "move-election", `${r.calendar.pollsOpen}`, { before, after: r.calendar });
+  return ok({ calendar: PRESIDENTIAL_2027 });
+}
+
+export async function team(db: SupabaseClient) {
+  const { data, error } = await db.rpc("admin_team");
+  if (error) throw error;
+  return data;
+}
+
+export async function addModerator(db: SupabaseClient, admin: string, b: Body): Promise<Out> {
+  const email = typeof b.email === "string" ? b.email.trim() : "";
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return bad("Type their email address");
+  const { data: id } = await db.rpc("admin_find_user", { p_email: email });
+  if (!id) return bad("No account with that email. They need to sign up to the game first");
+  if (await roleOf(db, id as string)) return bad("They are already on the team");
+  const { error } = await db.from("admins").insert({ user_id: id, role: "moderator" });
+  if (error) return bad("Try again", 503);
+  await log(db, admin, "add-moderator", email);
+  return ok();
+}
+
+export async function removeModerator(db: SupabaseClient, admin: string, b: Body): Promise<Out> {
+  if (!isUuid(b.user)) return bad("Pick someone");
+  if ((await roleOf(db, b.user)) !== "moderator") return bad("Only moderators can be removed here");
+  const { error } = await db.from("admins").delete().eq("user_id", b.user);
+  if (error) return bad("Try again", 503);
+  await log(db, admin, "remove-moderator", b.user);
+  return ok();
 }

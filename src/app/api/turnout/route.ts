@@ -5,8 +5,10 @@ import { supabaseAdmin } from "@/net/supabase-admin";
 import { turnout } from "@/server/game";
 import { resultsClosed } from "@/server/season";
 import { supabaseGameDb } from "@/server/supabase-game";
+import { settings } from "@/server/settings";
 
 export async function GET() {
+  await settings();
   // Answered per request (the database, the clock), never prerendered at build time.
   await connection();
   const over = resultsClosed(Date.now());

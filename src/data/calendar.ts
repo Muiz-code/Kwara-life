@@ -66,3 +66,60 @@ export const campaigningAllowed = (c: ElectionCalendar, now: number) => now < bl
 
 /** After polls close the season is over: the game freezes for every player and only results are shown. */
 export const seasonClosed = (c: ElectionCalendar, now: number) => now >= ms(c.pollsClose);
+
+// ---- Moving the election (postponement), from the admin panel ----
+
+/** The dates the server may override; everything else in the calendar is fixed. */
+export const MOVABLE = ["registrationClose", "pvcAnnouncement", "pvcCollectionClose", "pollsOpen", "pollsClose"] as const;
+export type CalendarOverrides = Partial<Pick<ElectionCalendar, (typeof MOVABLE)[number]>>;
+
+/** Apply the server's dates to the shared calendar in place, so every module that reads it sees them. */
+export function setCalendar(o: CalendarOverrides | null | undefined, c: ElectionCalendar = PRESIDENTIAL_2027) {
+  if (!o) return;
+  for (const k of MOVABLE) if (typeof o[k] === "string" && !Number.isNaN(Date.parse(o[k]!))) c[k] = o[k]!;
+}
+
+/** "Saturday 14 November 2026", in WAT. */
+export function electionDayLabel(c: ElectionCalendar = PRESIDENTIAL_2027, short = false): string {
+  const d = new Date(Date.parse(c.pollsOpen) + 3_600_000);
+  const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getUTCDay()];
+  const month = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getUTCMonth()];
+  return short ? `${day.slice(0, 3)} ${d.getUTCDate()} ${month.slice(0, 3)}` : `${day} ${d.getUTCDate()} ${month} ${d.getUTCFullYear()}`;
+}
+
+/** "8am to 4pm", in WAT. */
+export function pollHoursLabel(c: ElectionCalendar = PRESIDENTIAL_2027): string {
+  const h = (iso: string) => {
+    const d = new Date(Date.parse(iso) + 3_600_000);
+    const hr = d.getUTCHours();
+    const m = d.getUTCMinutes();
+    return `${hr % 12 === 0 ? 12 : hr % 12}${m ? ":" + String(m).padStart(2, "0") : ""}${hr < 12 ? "am" : "pm"}`;
+  };
+  return `${h(c.pollsOpen)} to ${h(c.pollsClose)}`;
+}
+
+/**
+ * Move election day to new poll times. Only before polls open, and the new opening must be at least a day away
+ * (players need the campaign blackout). PVC collection closes 10 minutes before polls; registration and PVC
+ * collection move by the same amount, unless they have already passed.
+ */
+export function moveElection(c: ElectionCalendar, pollsOpen: string, pollsClose: string, now: number): { calendar: CalendarOverrides } | { error: string } {
+  const open = Date.parse(pollsOpen);
+  const close = Date.parse(pollsClose);
+  if (Number.isNaN(open) || Number.isNaN(close)) return { error: "Pick a date and poll hours" };
+  if (now >= ms(c.pollsOpen)) return { error: "Polls have opened. The election date is locked" };
+  if (open < now + BLACKOUT_MS) return { error: "The new polls must open at least a day from now" };
+  if (close <= open) return { error: "Polls must close after they open" };
+  if (close - open > 14 * 3_600_000) return { error: "Polls can be open for 14 hours at most" };
+  const shift = open - ms(c.pollsOpen);
+  const moved = (iso: string) => (ms(iso) > now ? new Date(ms(iso) + shift).toISOString() : iso);
+  return {
+    calendar: {
+      registrationClose: moved(c.registrationClose),
+      pvcAnnouncement: moved(c.pvcAnnouncement),
+      pvcCollectionClose: new Date(open - 10 * 60_000).toISOString(),
+      pollsOpen: new Date(open).toISOString(),
+      pollsClose: new Date(close).toISOString(),
+    },
+  };
+}

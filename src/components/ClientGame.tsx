@@ -8,6 +8,7 @@ import AuthGate from "./AuthGate";
 import { ResultsBoard } from "./results/ResultsBoard";
 import { seasonState } from "@/data/season";
 import { clockNow, syncClock } from "@/store/clock";
+import { loadGameSettings } from "@/net/settings";
 
 /** The game runs only in the browser: it reads the real clock, local saves and WebGL. */
 const Game = dynamic(() => import("./Game"), {
@@ -24,7 +25,8 @@ export default function ClientGame() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reading localStorage once, after mount
     setAgreed(hasConsent());
-    void syncClock().then(() => setOver(seasonState(clockNow()) !== "playing"));
+    // The server's clock and the owner's settings (a postponed election moves the dates) before deciding.
+    void Promise.all([syncClock(), loadGameSettings()]).then(() => setOver(seasonState(clockNow()) !== "playing"));
   }, []);
   if (over) return <ResultsBoard />;
   if (agreed === null || over === null) return <Loader done={false} label="Loading Naija Votes…" />;

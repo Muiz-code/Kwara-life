@@ -4,6 +4,7 @@
 // It scrolls by itself; touching it hands control back to the player.
 import { motion } from "motion/react";
 import { useEffect, useRef, type ReactNode } from "react";
+import { electionDayLabel } from "@/data/calendar";
 import { BUILDERS, CLOSING_MESSAGE, NEXT_REAL_ELECTION, PARTNERS, SIGNED, TERM_YEARS } from "@/data/credits";
 import { useSeasonCredits } from "@/net/credits";
 import { Button, DISCLAIMER } from "../game/ui";
@@ -52,7 +53,7 @@ export function Credits({ onClose, onViewResults }: { onClose: () => void; onVie
       <div ref={box} className="h-full overflow-y-auto px-6 text-center">
         <div className="mx-auto flex max-w-xl flex-col gap-14 pt-[60vh] pb-16">
           <Block title="Naija Votes">
-            <p className="text-white/70">The first season. Election day, Saturday 14 November 2026.</p>
+            <p className="text-white/70">The first season. Election day, {electionDayLabel()}.</p>
           </Block>
 
           <Block title="Built by">

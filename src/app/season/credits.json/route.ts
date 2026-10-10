@@ -6,8 +6,10 @@ import { supabaseAdmin } from "@/net/supabase-admin";
 import { seasonCredits } from "@/server/game";
 import { resultsClosed } from "@/server/season";
 import { supabaseGameDb } from "@/server/supabase-game";
+import { settings } from "@/server/settings";
 
 export async function GET() {
+  await settings();
   // Answered per request (the database, the clock), never prerendered at build time.
   await connection();
   const none = (status: number) => Response.json({ error: "Not yet" }, { status, headers: { "Cache-Control": "no-store" } });

@@ -5,8 +5,10 @@ import { LGA } from "@/data/geography";
 import { supabaseAdmin } from "@/net/supabase-admin";
 import { watDate } from "@/sim/civic";
 import { gameClosed } from "@/server/season";
+import { settings } from "@/server/settings";
 
 export async function GET(req: Request) {
+  await settings();
   await connection();
   const now = Date.now();
   const over = gameClosed(now);

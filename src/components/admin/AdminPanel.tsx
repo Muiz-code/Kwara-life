@@ -2,15 +2,17 @@
 // The admin panel (docs/DECISIONS.md, "Admin panel"): the live dashboard, reports, players' notes, sponsored news,
 // the announcement and the log. It signs in with the game's own account; the server decides who is an admin.
 // Results are watch-only: the panel links to the public board and has no way to change a vote.
+import { BarChart3, Bell, CalendarClock, Flag, LayoutDashboard, Megaphone, MessageSquareText, ScrollText, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { electionDayLabel, pollHoursLabel } from "@/data/calendar";
 import { STATE } from "@/data/states";
 import { ZONES, type ZoneCode } from "@/data/zones";
 import { supabase } from "@/net/supabase";
 import { Button, cx } from "../game/ui";
 
 type Role = "owner" | "moderator";
-type Tab = "dashboard" | "reports" | "notes" | "sponsored" | "announce" | "log";
+type Tab = "dashboard" | "reports" | "notes" | "sponsored" | "announce" | "election" | "team" | "log";
 
 async function token(): Promise<string | null> {
   return (await supabase()?.auth.getSession())?.data.session?.access_token ?? null;
@@ -70,44 +72,68 @@ export function AdminPanel() {
     );
   if (role === "none") return <Shell>Not found.</Shell>;
 
-  const tabs: [Tab, string, boolean][] = [
-    ["dashboard", "Dashboard", true],
-    ["reports", "Reports", true],
-    ["notes", "Player notes", true],
-    ["sponsored", "Sponsored news", true],
-    ["announce", "Announcement", role === "owner"],
-    ["log", "Log", role === "owner"],
+  const tabs: [Tab, string, LucideIcon, boolean][] = [
+    ["dashboard", "Dashboard", LayoutDashboard, true],
+    ["reports", "Reports", Flag, true],
+    ["notes", "Player notes", MessageSquareText, true],
+    ["sponsored", "Sponsored news", Megaphone, true],
+    ["announce", "Announcement", Bell, role === "owner"],
+    ["election", "Election", CalendarClock, role === "owner"],
+    ["team", "Team", Users, role === "owner"],
+    ["log", "Log", ScrollText, role === "owner"],
   ];
+  const item = "flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-bold whitespace-nowrap";
   return (
-    <main className="min-h-dvh bg-page p-4 text-ink sm:p-6">
-      <div className="mx-auto max-w-5xl">
-        <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h1 className="font-sign text-3xl">Naija Votes admin</h1>
-          <span className="rounded-full bg-indigo px-3 py-1 text-sm font-bold text-[#F7E7C1] capitalize">{role}</span>
-        </header>
-        <nav className="mb-4 flex flex-wrap gap-1.5">
+    <div className="flex min-h-dvh flex-col bg-page text-ink md:flex-row">
+      {/* The sidebar: down the left on a computer, a scrolling bar along the top on a phone. */}
+      <aside className="sticky top-0 z-10 flex shrink-0 flex-col gap-1 bg-[#141B33] p-2 text-[#F7E7C1] md:h-dvh md:w-60 md:p-4">
+        <div className="mb-1 hidden md:block">
+          <div className="font-sign text-2xl leading-none">Naija Votes</div>
+          <div className="mt-1 flex items-center gap-2 text-xs opacity-80">
+            Admin <span className="rounded-full bg-[#F2B705] px-2 py-0.5 font-bold text-[#141B33] capitalize">{role}</span>
+          </div>
+        </div>
+        <nav className="flex gap-1 overflow-x-auto md:mt-3 md:flex-col md:overflow-visible" aria-label="Admin sections">
           {tabs
-            .filter(([, , show]) => show)
-            .map(([id, label]) => (
-              <button key={id} type="button" onClick={() => setTab(id)} className={cx("rounded-full px-3.5 py-1.5 text-sm font-bold", tab === id ? "bg-indigo text-[#F7E7C1]" : "bg-panel hover:bg-panel-2")}>
+            .filter(([, , , show]) => show)
+            .map(([id, label, Icon]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                aria-current={tab === id ? "page" : undefined}
+                className={cx(item, tab === id ? "bg-[#F2B705] text-[#141B33]" : "hover:bg-white/10")}
+              >
+                <Icon aria-hidden className="h-4 w-4" />
                 {label}
               </button>
             ))}
-          <a href="/results" target="_blank" rel="noopener" className="rounded-full bg-panel px-3.5 py-1.5 text-sm font-bold hover:bg-panel-2">
+          <a href="/results" target="_blank" rel="noopener" className={cx(item, "hover:bg-white/10 md:mt-3")}>
+            <BarChart3 aria-hidden className="h-4 w-4" />
             Live results ↗
           </a>
         </nav>
-        {tab === "dashboard" && <Dashboard />}
-        {tab === "reports" && <Reports />}
-        {tab === "notes" && <Notes />}
-        {tab === "sponsored" && <Sponsored />}
-        {tab === "announce" && <Announce />}
-        {tab === "log" && <Log />}
-        <p className="mt-8 text-xs text-ink-soft">
-          Results are watch-only for every role. Nothing in this panel can change a vote. Every action here is logged.
+        <p className="mt-auto hidden text-[11px] leading-snug opacity-60 md:block">
+          Results are watch-only for every role. Nothing here can change a vote. Every action is logged.
         </p>
-      </div>
-    </main>
+      </aside>
+      <main className="min-w-0 flex-1 p-4 sm:p-6">
+        <div className="mx-auto max-w-5xl">
+          <h1 className="mb-4 font-sign text-3xl">{tabs.find(([id]) => id === tab)?.[1]}</h1>
+          {tab === "dashboard" && <Dashboard />}
+          {tab === "reports" && <Reports />}
+          {tab === "notes" && <Notes />}
+          {tab === "sponsored" && <Sponsored />}
+          {tab === "announce" && <Announce />}
+          {tab === "election" && <Election />}
+          {tab === "team" && <Team />}
+          {tab === "log" && <Log />}
+          <p className="mt-8 text-xs text-ink-soft md:hidden">
+            Results are watch-only for every role. Nothing here can change a vote. Every action is logged.
+          </p>
+        </div>
+      </main>
+    </div>
   );
 }
 
@@ -215,7 +241,7 @@ function Dashboard() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-ink-soft">No votes yet. Polls open 8am on Saturday 14 November.</p>
+          <p className="text-sm text-ink-soft">No votes yet. Polls open {pollHoursLabel().split(" to ")[0]} on {electionDayLabel().replace(/ d{4}$/, "")}.</p>
         )}
       </section>
       <p className="text-xs text-ink-soft">Refreshes every 30 seconds.</p>
@@ -439,5 +465,187 @@ function Log() {
         ))}
       </tbody>
     </table>
+  );
+}
+
+interface SettingsView {
+  paused: boolean;
+  pauseMessage: string;
+  calendar: { registrationClose: string; pvcAnnouncement: string; pvcCollectionClose: string; pollsOpen: string; pollsClose: string };
+  updatedAt: string | null;
+}
+
+/** "2026-11-14" and "08:00" in WAT, for the date and time inputs. */
+const watParts = (iso: string) => {
+  const d = new Date(Date.parse(iso) + 3_600_000).toISOString();
+  return { date: d.slice(0, 10), time: d.slice(11, 16) };
+};
+
+function Election() {
+  const { data, error, reload } = useAdmin<SettingsView>("settings");
+  const [date, setDate] = useState("");
+  const [open, setOpen] = useState("08:00");
+  const [close, setClose] = useState("16:00");
+  const [pauseMsg, setPauseMsg] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [seen, setSeen] = useState<string | null>(null);
+  // Fill the form from the dates in force, once they arrive (and again after a change).
+  if (data && seen !== data.calendar.pollsOpen + data.calendar.pollsClose) {
+    setSeen(data.calendar.pollsOpen + data.calendar.pollsClose);
+    setDate(watParts(data.calendar.pollsOpen).date);
+    setOpen(watParts(data.calendar.pollsOpen).time);
+    setClose(watParts(data.calendar.pollsClose).time);
+  }
+  if (!data) return <p>{error ?? "Loading…"}</p>;
+  const c = data.calendar;
+  const at = (iso: string) => new Date(iso).toLocaleString("en-NG", { timeZone: "Africa/Lagos", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  const move = async () => {
+    const pollsOpen = `${date}T${open}:00+01:00`;
+    const pollsClose = `${date}T${close}:00+01:00`;
+    const label = new Date(pollsOpen).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "full", timeStyle: "short" });
+    if (!window.confirm(`Move election day to ${label}? Every player's calendar follows within a minute.`)) return;
+    setBusy(true);
+    const r = await call("calendar", { pollsOpen, pollsClose });
+    setBusy(false);
+    setMsg(r.error ?? "Moved. Players see the new dates within a minute.");
+    if (!r.error) void reload();
+  };
+  const togglePause = async () => {
+    if (!data.paused && !window.confirm("Pause the game for every player? Nobody can do anything until you resume.")) return;
+    setBusy(true);
+    const r = await call(data.paused ? "unpause" : "pause", { message: pauseMsg });
+    setBusy(false);
+    setMsg(r.error ?? (data.paused ? "Resumed. Players can play again within a minute." : "Paused. Players see the pause screen within a minute."));
+    if (!r.error) void reload();
+  };
+  return (
+    <div className="flex max-w-2xl flex-col gap-4">
+      <section className="rounded-2xl bg-panel p-4">
+        <h2 className="mb-2 font-bold">Dates in force</h2>
+        <dl className="grid grid-cols-[11rem_1fr] gap-y-1 text-sm">
+          <dt className="text-ink-soft">Registration closes</dt>
+          <dd>{at(c.registrationClose)}</dd>
+          <dt className="text-ink-soft">PVC collection</dt>
+          <dd>
+            {at(c.pvcAnnouncement)} to {at(c.pvcCollectionClose)}
+          </dd>
+          <dt className="text-ink-soft">Polls</dt>
+          <dd className="font-bold">
+            {at(c.pollsOpen)} to {at(c.pollsClose)}
+          </dd>
+        </dl>
+      </section>
+      <section className="rounded-2xl bg-panel p-4">
+        <h2 className="mb-1 font-bold">Move election day</h2>
+        <p className="mb-3 text-sm text-ink-soft">
+          Only before polls open, and at least a day ahead. PVC collection closes 10 minutes before polls; registration and PVC collection move
+          by the same amount unless they have passed. Words written into some screens (the welcome card, the share picture) keep the old date
+          until they are updated.
+        </p>
+        <div className="flex flex-wrap items-end gap-3 text-sm">
+          <label className="flex flex-col gap-1">
+            Date
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-lg border border-line bg-panel-2 px-2 py-1.5" />
+          </label>
+          <label className="flex flex-col gap-1">
+            Polls open
+            <input type="time" value={open} onChange={(e) => setOpen(e.target.value)} className="rounded-lg border border-line bg-panel-2 px-2 py-1.5" />
+          </label>
+          <label className="flex flex-col gap-1">
+            Polls close
+            <input type="time" value={close} onChange={(e) => setClose(e.target.value)} className="rounded-lg border border-line bg-panel-2 px-2 py-1.5" />
+          </label>
+          <Button disabled={busy || !date} onClick={() => void move()}>
+            Move election
+          </Button>
+        </div>
+      </section>
+      <section className={cx("rounded-2xl p-4", data.paused ? "bg-danger/15" : "bg-panel")}>
+        <h2 className="mb-1 font-bold">Emergency pause {data.paused && <span className="text-danger">· ON</span>}</h2>
+        <p className="mb-3 text-sm text-ink-soft">
+          Freezes the whole game for every player, for an outage or abuse. Players see a pause screen; nothing they do is lost. It never opens or
+          closes polls and never touches a vote.
+        </p>
+        {!data.paused && (
+          <input
+            value={pauseMsg}
+            maxLength={120}
+            onChange={(e) => setPauseMsg(e.target.value)}
+            placeholder="Optional message, e.g. We are fixing a problem. Back in 30 minutes."
+            className="mb-3 w-full rounded-xl border border-line bg-panel-2 px-3 py-2"
+          />
+        )}
+        {data.paused && data.pauseMessage && <p className="mb-3 text-sm italic">&ldquo;{data.pauseMessage}&rdquo;</p>}
+        <Button className={cx(!data.paused && "!bg-danger !text-white")} disabled={busy} onClick={() => void togglePause()}>
+          {data.paused ? "Resume the game" : "Pause the game"}
+        </Button>
+      </section>
+      {msg && <p className="text-sm font-semibold">{msg}</p>}
+    </div>
+  );
+}
+
+interface Member {
+  user_id: string;
+  role: Role;
+  added_at: string;
+  email: string;
+  name: string | null;
+}
+
+function Team() {
+  const { data, error, reload } = useAdmin<Member[]>("team");
+  const [email, setEmail] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  if (!data) return <p>{error ?? "Loading…"}</p>;
+  const add = async () => {
+    const r = await call("add-moderator", { email });
+    setMsg(r.error ?? `${email} is now a moderator. They open /admin after signing in.`);
+    if (!r.error) {
+      setEmail("");
+      void reload();
+    }
+  };
+  const remove = async (m: Member) => {
+    if (!window.confirm(`Remove ${m.email} from the team?`)) return;
+    const r = await call("remove-moderator", { user: m.user_id });
+    setMsg(r.error ?? "Removed.");
+    if (!r.error) void reload();
+  };
+  return (
+    <div className="flex max-w-2xl flex-col gap-4">
+      <ul className="flex flex-col gap-2">
+        {data.map((m) => (
+          <li key={m.user_id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-panel p-3 text-sm">
+            <div>
+              <b>{m.email}</b>
+              {m.name && <span className="text-ink-soft"> · in game: {m.name}</span>}
+              <div className="text-xs text-ink-soft capitalize">
+                {m.role} · since {when(m.added_at)}
+              </div>
+            </div>
+            {m.role === "moderator" && (
+              <Button tone="ghost" className="!px-3 !py-1 text-xs" onClick={() => void remove(m)}>
+                Remove
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <section className="rounded-2xl bg-panel p-4">
+        <h2 className="mb-1 font-bold">Add a moderator</h2>
+        <p className="mb-3 text-sm text-ink-soft">
+          They need a game account first. Moderators see the dashboard, reports, notes and sponsored news, and can hide and ban.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="their@email.com" className="min-w-0 flex-1 rounded-xl border border-line bg-panel-2 px-3 py-2" />
+          <Button disabled={!email.includes("@")} onClick={() => void add()}>
+            Add
+          </Button>
+        </div>
+      </section>
+      {msg && <p className="text-sm font-semibold">{msg}</p>}
+    </div>
   );
 }

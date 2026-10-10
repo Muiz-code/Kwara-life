@@ -41,6 +41,10 @@ export const GET = async (req: Request, { params }: Ctx) => {
         return json(await A.promos(db));
       case "log":
         return json(await A.adminLog(db));
+      case "settings":
+        return json(await A.gameSettings(db));
+      case "team":
+        return json(await A.team(db));
       default:
         return notFound();
     }
@@ -63,6 +67,16 @@ export const POST = async (req: Request, { params }: Ctx) => {
         return send(await A.announce(db, admin, body));
       case "unannounce":
         return send(await A.unannounce(db, admin));
+      case "pause":
+        return send(await A.pause(db, admin, body, true));
+      case "unpause":
+        return send(await A.pause(db, admin, body, false));
+      case "calendar":
+        return send(await A.moveCalendar(db, admin, body, Date.now()));
+      case "add-moderator":
+        return send(await A.addModerator(db, admin, body));
+      case "remove-moderator":
+        return send(await A.removeModerator(db, admin, body));
       default:
         return notFound();
     }

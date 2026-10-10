@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PRESIDENTIAL_2027 as CAL } from "@/data/calendar";
 import { liveSchedule, liveSnapshot, type LiveSnapshot } from "@/sim/live";
 import { DEBUG_ALLOWED, clockNow, syncClock } from "@/store/clock";
+import { loadGameSettings } from "./settings";
 
 export const ELECTION_SEED = 20261114;
 
@@ -28,11 +29,12 @@ export interface LiveResults {
   jump: (progress: number) => void;
 }
 
-const OPEN = Date.parse(CAL.pollsOpen);
-const CLOSE = Date.parse(CAL.pollsClose);
+// Read the dates each time: a postponement changes them after this module has loaded.
+const OPEN = () => Date.parse(CAL.pollsOpen);
+const CLOSE = () => Date.parse(CAL.pollsClose);
 /** One minute as a share of the polling day. */
-const MINUTE = 60_000 / (CLOSE - OPEN);
-const timeAt = (p: number) => OPEN + p * (CLOSE - OPEN);
+const minute = () => 60_000 / (CLOSE() - OPEN());
+const timeAt = (p: number) => OPEN() + p * (CLOSE() - OPEN());
 
 export function useLiveResults(feedFilter?: (puCode: string) => boolean, filterKey = "all"): LiveResults {
   const [tick, setTick] = useState<{ now: number; progress: number; demo: boolean } | null>(null);
@@ -48,10 +50,10 @@ export function useLiveResults(feedFilter?: (puCode: string) => boolean, filterK
         return { now: timeAt(progress), progress, demo };
       }
       const now = clockNow();
-      return { now, progress: (now - OPEN) / (CLOSE - OPEN), demo };
+      return { now, progress: (now - OPEN()) / (CLOSE() - OPEN()), demo };
     };
     reader.current = demo ? read : null;
-    if (!demo) void syncClock().then(() => setTick(read()));
+    if (!demo) void Promise.all([syncClock(), loadGameSettings()]).then(() => setTick(read()));
     const first = requestAnimationFrame(() => setTick(read()));
     const id = setInterval(() => setTick(read()), 1000);
     return () => {
@@ -70,7 +72,7 @@ export function useLiveResults(feedFilter?: (puCode: string) => boolean, filterK
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const snap = useMemo(() => liveSnapshot(sched, progress, 8, feedFilter), [sched, progress, filterKey]);
   const lastMinute = useMemo(
-    () => (progress > 0 && progress < 1 ? snap.votesCast - liveSnapshot(sched, progress - MINUTE, 0).votesCast : 0),
+    () => (progress > 0 && progress < 1 ? snap.votesCast - liveSnapshot(sched, progress - minute(), 0).votesCast : 0),
     [sched, progress, snap.votesCast],
   );
   const phase: BoardPhase = progress < 0 ? "before" : progress >= 1 ? "final" : "live";

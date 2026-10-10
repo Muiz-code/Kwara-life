@@ -6,6 +6,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/net/supabase-admin";
 import { SEASON_OVER, signInClosed } from "@/server/season";
+import { settings } from "@/server/settings";
 
 const WINDOW_MINUTES = 15;
 /** Per account (an email or username), and per network. Mobile networks in Nigeria share addresses widely. */
@@ -17,6 +18,7 @@ const FAILED = "Wrong email, username or password";
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
 export async function POST(req: Request) {
+  await settings();
   const body = (await req.json().catch(() => null)) as { login?: unknown; password?: unknown } | null;
   const login = typeof body?.login === "string" ? body.login.trim().toLowerCase() : "";
   const password = typeof body?.password === "string" ? body.password : "";

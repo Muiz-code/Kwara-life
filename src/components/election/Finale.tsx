@@ -5,6 +5,7 @@
 // The celebration moves on by itself when its video ends. Party colour and name are overlaid; nothing else about any party appears.
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { electionDayLabel, pollHoursLabel } from "@/data/calendar";
 import { PARTIES } from "@/data/parties";
 import { Button, DISCLAIMER } from "../game/ui";
 import { Credits } from "./Credits";
@@ -37,7 +38,7 @@ export function Finale({
       {stage !== "lights" && (
         <div className="pointer-events-none fixed top-4 left-4 z-[60] flex items-center gap-2 rounded-full bg-black/45 px-3 py-1 text-xs font-bold tracking-wide text-white uppercase backdrop-blur-sm">
           <span className="h-2 w-2 rounded-full bg-[#7FD3A8]" aria-hidden />
-          Voting closed · 4pm, Sat 14 Nov
+          Voting closed · {pollHoursLabel().split(" to ")[1]}, {electionDayLabel(undefined, true)}
         </div>
       )}
     </div>

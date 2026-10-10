@@ -329,3 +329,19 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - After a minute of real play (past the terms and signed in), a banner offers to install: one tap on Chrome and
   Android, a three-step Share guide on iPhone, "open in your browser" inside WhatsApp or Instagram. "Not now" hides
   it for three days; it never shows once installed. The menu's "Install the app" opens the same guide any time.
+
+### Admin panel, phase 2 (10 Oct 2026)
+- The panel has a sidebar (a scrolling bar along the top on phones) with Dashboard, Reports, Player notes,
+  Sponsored news, and for the owner Announcement, Election, Team and Log.
+- Election (owner): the dates in force, and moving election day (postponement): only before polls open, the new
+  opening at least a day away, polls open at most 14 hours; PVC collection closes 10 minutes before polls, and
+  registration and PVC collection move by the same amount unless they have passed (src/data/calendar.ts
+  moveElection). The dates live in public.game_settings; the server reads them every 30 seconds and every
+  player's game loads them before it starts (/api/game-settings), so the game's own rules follow at once.
+  Words written into some screens (the welcome card, create-citizen, the HUD, the share picture) still say
+  14 November and need editing by hand after a move.
+- Emergency pause (owner): freezes the game for every player, with an optional message. The server refuses every
+  game action while it is on, and players see a pause screen until it is lifted. It never opens or closes polls
+  and never touches a vote.
+- Team (owner): add a moderator by the email of their game account, or remove one. Owners can't be removed here.
+- Not built: ads approval and prices (they wait for ads paid for on the server).
