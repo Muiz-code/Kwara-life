@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Figtree, Lilita_One } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import Pwa from "@/components/pwa/Pwa";
 import "./globals.css";
 import { SHARE_DESCRIPTION, SITE_DESCRIPTION, SITE_NAME, SITE_URL, TAGLINE } from "./site";
 
@@ -53,6 +54,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         {/* Page views for the Vercel dashboard. No cookies, nothing personal; served from this site, so the CSP holds. */}
         <Analytics />
+        {/* The game as an app: offline-ready code and art, and the invitation to install it. */}
+        <Pwa />
       </body>
     </html>
   );

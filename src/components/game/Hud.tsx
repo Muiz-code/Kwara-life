@@ -37,6 +37,7 @@ import { nextStep } from "@/sim/explore";
 import { STATES } from "@/data/states";
 import { online, supabase } from "@/net/supabase";
 import { signOutHere } from "@/net/sync";
+import { installed, openInstallHelp } from "../pwa/install";
 import { Button, DISCLAIMER, Glass, Modal, cx, naira, useNow } from "./ui";
 
 const NEED_ICON: Record<NeedKey, LucideIcon> = {
@@ -273,6 +274,17 @@ function GameMenu({ onClose }: { onClose: () => void }) {
             <Button tone="ghost" onClick={() => setView("help")}>
               How to play
             </Button>
+            {!installed() && (
+              <Button
+                tone="ghost"
+                onClick={() => {
+                  onClose();
+                  openInstallHelp();
+                }}
+              >
+                Install the app
+              </Button>
+            )}
             <Button tone="ghost" onClick={() => setView("about")}>
               About and disclaimer
             </Button>

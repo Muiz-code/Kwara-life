@@ -321,3 +321,11 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
 - Nothing in the panel can change votes or results; it only links to the public board.
 - Phase 2, not built: emergency pause, election date and poll hours from a server setting, ads approval and
   prices, adding moderators from the panel.
+
+### The game as an app (PWA, 10 Oct 2026)
+- Naija Votes installs to the home screen as an app (full screen, its own icon) and still works as a website in
+  any browser. public/sw.js keeps the game's code, 3D models and art on the phone after the first visit (faster on
+  mobile data, opens without a signal); it never keeps /api, /admin, /season, /results, videos or Supabase.
+- After a minute of real play (past the terms and signed in), a banner offers to install: one tap on Chrome and
+  Android, a three-step Share guide on iPhone, "open in your browser" inside WhatsApp or Instagram. "Not now" hides
+  it for three days; it never shows once installed. The menu's "Install the app" opens the same guide any time.
