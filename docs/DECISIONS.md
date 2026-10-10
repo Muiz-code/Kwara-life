@@ -289,6 +289,9 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   at 4pm WAT only counts what would go (season_purge_log); a kill switch (season_control.enabled = false) stops both
   if the election moves. Sign-up and sign-in are refused from the same moment.
 - Supabase backups may still hold data for up to their retention period (about a week on Pro) after the clean-up.
+- The clean-up follows a postponement (10 Oct 2026): it runs five days after polls close, using a date moved in the
+  admin panel if there is one (public.season_delete_at()). An hourly check replaces the two fixed timers: a
+  rehearsal once in the day before, then the clean-up once due. Sign-up closes on the same date.
 
 ### Campaigning on the server (Phase E3, 9 Oct 2026)
 - Support cards, flyers and sponsored news, and votes bought are checked by the server when a save uploads

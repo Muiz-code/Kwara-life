@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { PRESIDENTIAL_2027 as CAL } from "../data/calendar";
-import { dataDeletedAt, resultsUntil } from "../data/season";
+import { DELETE_AFTER_DAYS, dataDeletedAt, resultsUntil } from "../data/season";
 import { gameClosed, resultsClosed, signInClosed } from "./season";
 
 const close = Date.parse(CAL.pollsClose);
@@ -31,5 +31,11 @@ describe("the season's end on the server", () => {
     expect(new Date(dataDeletedAt()).toISOString()).toBe("2026-11-19T15:00:00.000Z");
     expect(sql).toContain("'0 15 18 11 *'");
     expect(sql).toContain("'0 15 19 11 *'");
+  });
+
+  it("moves the clean-up with a postponement, the same number of days after polls close", () => {
+    const sql = readFileSync(new URL("../../supabase/migrations/20261010140000_season_purge_follows_calendar.sql", import.meta.url), "utf8");
+    expect(sql).toContain(`+ interval '${DELETE_AFTER_DAYS} days'`);
+    expect(sql).toContain("'0 * * * *'");
   });
 });
