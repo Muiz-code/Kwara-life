@@ -1,5 +1,6 @@
 "use client";
 // Overlays on the map: top bar, news ticker, objectives, needs dock, bottom tabs, toasts and notes.
+import { useAnnouncement } from "@/net/announcement";
 import {
   ChevronDown,
   ChevronRight,
@@ -350,13 +351,15 @@ function GameMenu({ onClose }: { onClose: () => void }) {
 /** Scrolling headlines: the game's local news, then civic news. */
 export function NewsTicker({ sponsored }: { sponsored?: string }) {
   const local = useGame((s) => s.game.localNews);
+  const announcement = useAnnouncement();
   const items = useMemo(
     () => [
+      ...(announcement ? [`Naija Votes: ${announcement}`] : []),
       ...(sponsored ? [`Sponsored: ${sponsored}`] : []),
       ...local.slice(0, 6),
       ...NEWS,
     ],
-    [local, sponsored],
+    [local, sponsored, announcement],
   );
   return (
     <div className="pointer-events-auto overflow-hidden rounded-full bg-indigo/90 text-[#F7E7C1] shadow">

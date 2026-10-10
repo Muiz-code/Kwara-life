@@ -306,3 +306,18 @@ Below that it shows the combined total (real, simulated and vote-buying effects)
   $2,900 a month for Supabase at a million players), and without it one person could run many voters.
 - Emails go through Resend from no-reply@naija-vote.raavon.com (100 an hour). Move to Amazon SES before a
   big launch; start AWS's sending approval a week ahead.
+
+### Admin panel, phase 1 (10 Oct 2026)
+- /admin, signed in with the game's own account. Admins are listed in public.admins (owner or moderator); the
+  owner (the account with the owner's email) is seeded by the migration. Everyone else gets "not found" from
+  /api/admin, so the panel doesn't admit it exists. Every admin action is written to admin_log.
+- Dashboard (both roles, refreshes every 30s): accounts, sign-ups today, citizens, playing now, PVCs, voted (a
+  count only), citizens by zone and state, votes by hour, reports, cards and promos today.
+- Moderation (both roles): the playing-together reports, players' support-card notes and sponsored news with
+  Hide (hidden items drop out of the public feed), and Ban (the account can't sign in again; a vote already cast
+  still counts; admins can't be banned).
+- Announcements (owner): one line of up to 80 characters at the front of every player's news ticker, through the
+  same filter as players' notes, for a set time or until removed. The log is owner only.
+- Nothing in the panel can change votes or results; it only links to the public board.
+- Phase 2, not built: emergency pause, election date and poll hours from a server setting, ads approval and
+  prices, adding moderators from the panel.
